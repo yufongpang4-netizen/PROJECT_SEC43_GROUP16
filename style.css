@@ -1,0 +1,235 @@
+/* Custom Color Variables */
+:root {
+    --prussian-blue: #0B132B;
+    --space-indigo: #1C2541;
+    --dusk-blue: #3A506B;
+    --tropical-teal: #5BC0BE;
+    --aquamarine: #6FFFF9;
+}
+
+/* Global Styles */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, var(--prussian-blue) 0%, var(--space-indigo) 50%, var(--dusk-blue) 100%);
+    min-height: 100vh;
+}
+
+/* Card Styles */
+.card-hover {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card-hover:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+/* Status Badges */
+.status-pending {
+    background-color: #ed8936;
+    color: white;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.status-approved {
+    background-color: #48bb78;
+    color: white;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.status-rejected {
+    background-color: #e53e3e;
+    color: white;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.status-paid {
+    background-color: var(--tropical-teal);
+    color: var(--prussian-blue);
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.status-cancelled {
+    background-color: #a0aec0;
+    color: white;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+/* Sidebar Styles */
+.sidebar {
+    background: linear-gradient(180deg, var(--prussian-blue) 0%, var(--space-indigo) 100%);
+    min-height: 100vh;
+    color: white;
+}
+
+.sidebar .nav-link {
+    color: rgba(255,255,255,0.8);
+    padding: 12px 20px;
+    margin: 5px 0;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+.sidebar .nav-link:hover {
+    background: var(--tropical-teal);
+    color: var(--prussian-blue);
+    transform: translateX(5px);
+}
+
+.sidebar .nav-link.active {
+    background: var(--tropical-teal);
+    color: var(--prussian-blue);
+}
+
+.sidebar .nav-link i {
+    margin-right: 10px;
+    width: 20px;
+}
+
+/* Dashboard Stats Cards */
+.stat-card {
+    background: white;
+    border-radius: 15px;
+    padding: 25px;
+    transition: all 0.3s ease;
+    border: none;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+.stat-card .stat-icon {
+    font-size: 40px;
+    color: var(--tropical-teal);
+    margin-bottom: 15px;
+}
+
+.stat-card .stat-number {
+    font-size: 32px;
+    font-weight: bold;
+    color: var(--prussian-blue);
+}
+
+.stat-card .stat-label {
+    color: var(--dusk-blue);
+    font-size: 14px;
+    margin-top: 10px;
+}
+
+/* Table Styles */
+.table-custom {
+    background: white;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.table-custom thead {
+    background: linear-gradient(135deg, var(--prussian-blue), var(--space-indigo));
+    color: white;
+}
+
+.table-custom th {
+    padding: 15px;
+    font-weight: 600;
+}
+
+.table-custom td {
+    padding: 15px;
+    vertical-align: middle;
+}
+
+/* Form Styles */
+.form-control, .form-select {
+    border-radius: 10px;
+    border: 2px solid #e2e8f0;
+    padding: 12px;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--tropical-teal);
+    box-shadow: 0 0 0 0.2rem rgba(91, 192, 190, 0.25);
+}
+
+/* Button Styles */
+.btn-teal {
+    background: var(--tropical-teal);
+    color: var(--prussian-blue);
+    border: none;
+    border-radius: 10px;
+    padding: 10px 25px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.btn-teal:hover {
+    background: var(--aquamarine);
+    transform: translateY(-2px);
+    color: var(--prussian-blue);
+}
+
+.btn-dusk {
+    background: var(--dusk-blue);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 25px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.btn-dusk:hover {
+    background: var(--space-indigo);
+    transform: translateY(-2px);
+}
+
+/* Filter Bar */
+.filter-bar {
+    background: white;
+    padding: 20px;
+    border-radius: 15px;
+    margin-bottom: 25px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+/* Alert Styles */
+.alert-custom {
+    border-radius: 10px;
+    border-left: 4px solid var(--tropical-teal);
+}
+
+/* Animation */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-out;
+}
+
