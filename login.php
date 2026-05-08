@@ -102,9 +102,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         
                         <div class="text-center">
                             <p class="mb-2" style="color: #3A506B;">Don't have an account?</p>
-                            <a href="register.php" class="btn btn-outline w-100" style="border-color: #3A506B; color: #3A506B; border-radius: 10px;">
-                                <i class="fas fa-user-plus me-2"></i>Register as Staff
-                            </a>
+                            <a href="register.php?role=staff" class="btn btn-outline w-100 mb-2" style="border-color: #3A506B; color: #3A506B; border-radius: 10px;">
+    <i class="fas fa-user-plus me-2"></i>Register as Staff
+</a>
+
+<a href="register.php?role=finance" class="btn btn-outline w-100 mb-2" style="border-color: #3A506B; color: #3A506B; border-radius: 10px;">
+    <i class="fas fa-user-tie me-2"></i>Register as Finance
+</a>
+
+<a href="register.php?role=admin" class="btn btn-outline w-100" style="border-color: #3A506B; color: #3A506B; border-radius: 10px;">
+    <i class="fas fa-user-shield me-2"></i>Register as Admin
+</a>
+
                         </div>
                         
                         <div class="mt-4 p-3 rounded" style="background: #f8f9fa;">
