@@ -32,11 +32,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['email'] = $user['email'];
 
                 if ($user['role'] === 'staff') {
-                    header("Location: staff/dashboard.php");
+                    header("Location: staff/dashboard_Staff.php");
                 } elseif ($user['role'] === 'finance') {
-                    header("Location: finance/dashboard.php");
+                    header("Location: finance/dashboard_Finance.php");
                 } elseif ($user['role'] === 'admin') {
-                    header("Location: admin/dashboard.php");
+                    header("Location: admin/dashboard_Admin.php");
                 } else {
                     header("Location: index.php");
                 }
