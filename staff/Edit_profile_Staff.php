@@ -1,14 +1,51 @@
 <?php
 session_start();
+require_once "../db.php";
+
 if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'staff') {
     header("Location: ../login.php");
     exit();
 }
 
+$user_id = $_SESSION['user_id'];
 $success = '';
+$error = '';
+
 if($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $success = "Profile updated successfully!";
+    $email = trim($_POST['email']);
+    $phone = trim($_POST['phone']);
+    $department = $_POST['department'];
+    $password = $_POST['password'];
+
+    if (!empty($password)) {
+        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+        $stmt = $conn->prepare("UPDATE users SET email=?, phone=?, department=?, password=? WHERE id=?");
+        $stmt->bind_param("ssssi", $email, $phone, $department, $hashed_password, $user_id);
+    } else {
+        $stmt = $conn->prepare("UPDATE users SET email=?, phone=?, department=? WHERE id=?");
+        $stmt->bind_param("sssi", $email, $phone, $department, $user_id);
+    }
+
+    if($stmt->execute()) {
+        $success = "Profile updated successfully!";
+        $_SESSION['email'] = $email; 
+    } else {
+        $error = "Failed to update profile: " . $conn->error;
+    }
+    $stmt->close();
 }
+
+$stmt = $conn->prepare("SELECT staff_id, name, email, phone, department, created_at FROM users WHERE id=?");
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$user_data = $result->fetch_assoc();
+$stmt->close();
+
+$current_phone = $user_data['phone'] ?? '';
+$current_dept = $user_data['department'] ?? '';
+$staff_id = $user_data['staff_id'];
+$join_year = date('Y', strtotime($user_data['created_at'])); 
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -23,7 +60,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 <body>
     <div class="container-fluid p-0">
         <div class="row g-0">
-            <!-- Sidebar -->
             <div class="col-md-3 col-lg-2 sidebar p-3">
                 <div class="text-center mb-4">
                     <i class="fas fa-receipt fs-1" style="color: #5BC0BE;"></i>
@@ -41,7 +77,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <a class="nav-link" href="Claim_History_Staff.php">
                         <i class="fas fa-history"></i> Claim History
                     </a>
-                    <a class="nav-link" href="Edit_profile_Staff.php">
+                    <a class="nav-link active" href="Edit_profile_Staff.php">
                         <i class="fas fa-user-edit"></i> Edit Profile
                     </a>
                     <hr style="border-color: rgba(255,255,255,0.2);">
@@ -51,7 +87,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                 </nav>
             </div>
             
-            <!-- Main Content -->
             <div class="col-md-9 col-lg-10 p-4">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h2 style="color: white;">
@@ -66,6 +101,13 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                 <?php endif; ?>
+
+                <?php if($error): ?>
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i><?php echo $error; ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                <?php endif; ?>
                 
                 <div class="row">
                     <div class="col-md-8">
@@ -76,7 +118,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                                         <label class="form-label fw-bold" style="color: #0B132B;">
                                             <i class="fas fa-user me-1" style="color: #5BC0BE;"></i>Full Name
                                         </label>
-                                        <input type="text" class="form-control" value="<?php echo $_SESSION['user_name']; ?>" disabled>
+                                        <input type="text" class="form-control" value="<?php echo htmlspecialchars($user_data['name']); ?>" disabled>
                                         <small class="text-muted">Name cannot be changed. Contact admin for changes.</small>
                                     </div>
                                     
@@ -84,14 +126,14 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                                         <label class="form-label fw-bold" style="color: #0B132B;">
                                             <i class="fas fa-envelope me-1" style="color: #5BC0BE;"></i>Email Address
                                         </label>
-                                        <input type="email" name="email" class="form-control" value="<?php echo $_SESSION['email']; ?>">
+                                        <input type="email" name="email" class="form-control" value="<?php echo htmlspecialchars($user_data['email']); ?>" required>
                                     </div>
                                     
                                     <div class="mb-3">
                                         <label class="form-label fw-bold" style="color: #0B132B;">
                                             <i class="fas fa-phone me-1" style="color: #5BC0BE;"></i>Phone Number
                                         </label>
-                                        <input type="tel" name="phone" class="form-control" value="+60123456789">
+                                        <input type="tel" name="phone" class="form-control" value="<?php echo htmlspecialchars($current_phone); ?>" required>
                                     </div>
                                     
                                     <div class="mb-3">
@@ -99,11 +141,11 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                                             <i class="fas fa-building me-1" style="color: #5BC0BE;"></i>Department
                                         </label>
                                         <select name="department" class="form-select">
-                                            <option>Information Technology</option>
-                                            <option>Human Resources</option>
-                                            <option>Finance</option>
-                                            <option>Marketing</option>
-                                            <option>Operations</option>
+                                            <option value="Information Technology" <?php echo ($current_dept == 'Information Technology' || $current_dept == 'IT') ? 'selected' : ''; ?>>Information Technology</option>
+                                            <option value="Human Resources" <?php echo ($current_dept == 'Human Resources' || $current_dept == 'HR') ? 'selected' : ''; ?>>Human Resources</option>
+                                            <option value="Finance" <?php echo ($current_dept == 'Finance') ? 'selected' : ''; ?>>Finance</option>
+                                            <option value="Marketing" <?php echo ($current_dept == 'Marketing') ? 'selected' : ''; ?>>Marketing</option>
+                                            <option value="Operations" <?php echo ($current_dept == 'Operations') ? 'selected' : ''; ?>>Operations</option>
                                         </select>
                                     </div>
                                     
@@ -128,12 +170,12 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                         <div class="card border-0 shadow-lg">
                             <div class="card-body text-center p-4">
                                 <i class="fas fa-user-circle" style="font-size: 80px; color: #5BC0BE;"></i>
-                                <h5 class="mt-3" style="color: #0B132B;"><?php echo $_SESSION['user_name']; ?></h5>
+                                <h5 class="mt-3" style="color: #0B132B;"><?php echo htmlspecialchars($user_data['name']); ?></h5>
                                 <p class="text-muted">Staff Member</p>
                                 <hr>
                                 <div class="text-start">
-                                    <small><i class="fas fa-id-card me-1" style="color: #5BC0BE;"></i> Staff ID: STF001</small><br>
-                                    <small><i class="fas fa-calendar me-1" style="color: #5BC0BE;"></i> Member since: 2024</small>
+                                    <small><i class="fas fa-id-card me-1" style="color: #5BC0BE;"></i> Staff ID: <?php echo htmlspecialchars($staff_id); ?></small><br>
+                                    <small><i class="fas fa-calendar me-1" style="color: #5BC0BE;"></i> Member since: <?php echo $join_year; ?></small>
                                 </div>
                             </div>
                         </div>

@@ -1,16 +1,26 @@
 <?php
 session_start();
+require_once "../db.php";
+
 if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'staff') {
     header("Location: ../login.php");
     exit();
 }
 
-$mock_claims = [
-    ['id' => 1, 'type' => 'Travel', 'amount' => 150.00, 'date' => '2026-04-15', 'status' => 'Pending', 'description' => 'Taxi to client meeting'],
-    ['id' => 2, 'type' => 'Meal', 'amount' => 45.50, 'date' => '2026-04-10', 'status' => 'Approved', 'description' => 'Lunch with team'],
-    ['id' => 3, 'type' => 'Office Supplies', 'amount' => 89.99, 'date' => '2026-04-05', 'status' => 'Paid', 'description' => 'Printer ink'],
-    ['id' => 4, 'type' => 'Training', 'amount' => 500.00, 'date' => '2026-03-20', 'status' => 'Rejected', 'description' => 'Online course'],
-];
+$user_id = $_SESSION['user_id'];
+$real_claims = [];
+
+$stmt = $conn->prepare("SELECT id, claim_type, amount, expense_date, status, description FROM claims WHERE user_id = ? ORDER BY submitted_at DESC");
+if ($stmt) {
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    while($row = $result->fetch_assoc()) {
+        $real_claims[] = $row;
+    }
+    $stmt->close();
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -25,7 +35,6 @@ $mock_claims = [
 <body>
     <div class="container-fluid p-0">
         <div class="row g-0">
-            <!-- Sidebar -->
             <div class="col-md-3 col-lg-2 sidebar p-3">
                 <div class="text-center mb-4">
                     <i class="fas fa-receipt fs-1" style="color: #5BC0BE;"></i>
@@ -40,7 +49,7 @@ $mock_claims = [
                     <a class="nav-link" href="New_Claim_Staff.php">
                         <i class="fas fa-plus-circle"></i> New Claim
                     </a>
-                    <a class="nav-link" href="Claim_History_Staff.php">
+                    <a class="nav-link active" href="Claim_History_Staff.php">
                         <i class="fas fa-history"></i> Claim History
                     </a>
                     <a class="nav-link" href="Edit_profile_Staff.php">
@@ -53,7 +62,6 @@ $mock_claims = [
                 </nav>
             </div>
             
-            <!-- Main Content -->
             <div class="col-md-9 col-lg-10 p-4">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h2 style="color: white;">
@@ -76,33 +84,44 @@ $mock_claims = [
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php foreach($mock_claims as $claim): ?>
-                                    <tr>
-                                        <td><?php echo $claim['date']; ?></td>
-                                        <td><?php echo $claim['type']; ?></td>
-                                        <td class="fw-bold"><?php echo number_format($claim['amount'], 2); ?></td>
-                                        <td>
-                                            <span class="status-<?php echo strtolower($claim['status']); ?>">
-                                                <i class="fas <?php 
-                                                    echo $claim['status'] == 'Pending' ? 'fa-clock' : 
-                                                          ($claim['status'] == 'Approved' ? 'fa-check' : 
-                                                          ($claim['status'] == 'Paid' ? 'fa-dollar-sign' : 'fa-times')); 
-                                                ?> me-1"></i>
-                                                <?php echo $claim['status']; ?>
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <button class="btn btn-sm" style="background: #5BC0BE; color: #0B132B;" onclick="alert('Claim #<?php echo $claim['id']; ?> Details')">
-                                                <i class="fas fa-eye"></i> View
-                                            </button>
-                                            <?php if($claim['status'] == 'Pending'): ?>
-                                                <button class="btn btn-sm btn-danger" onclick="if(confirm('Cancel this claim?')) alert('Claim cancelled')">
-                                                    <i class="fas fa-times"></i> Cancel
+                                    <?php if(empty($real_claims)): ?>
+                                        <tr>
+                                            <td colspan="5" class="text-center py-4 text-muted">
+                                                <i class="fas fa-folder-open fs-1 mb-3 d-block"></i>
+                                                No claims found. Ready to submit your first claim?
+                                            </td>
+                                        </tr>
+                                    <?php else: ?>
+                                        <?php foreach($real_claims as $claim): ?>
+                                        <tr>
+                                            <td><?php echo htmlspecialchars($claim['expense_date']); ?></td>
+                                            <td><?php echo htmlspecialchars($claim['claim_type']); ?></td>
+                                            <td class="fw-bold"><?php echo number_format($claim['amount'], 2); ?></td>
+                                            <td>
+                                                <span class="status-<?php echo strtolower($claim['status']); ?>">
+                                                    <i class="fas <?php 
+                                                        echo $claim['status'] == 'Pending' ? 'fa-clock' : 
+                                                            ($claim['status'] == 'Approved' ? 'fa-check' : 
+                                                            ($claim['status'] == 'Paid' ? 'fa-dollar-sign' : 
+                                                            ($claim['status'] == 'Draft' ? 'fa-save' : 'fa-times'))); 
+                                                    ?> me-1"></i>
+                                                    <?php echo htmlspecialchars($claim['status']); ?>
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-sm" style="background: #5BC0BE; color: #0B132B;" onclick="alert('Description: <?php echo htmlspecialchars(addslashes($claim['description'])); ?>')">
+                                                    <i class="fas fa-eye"></i> View
                                                 </button>
-                                            <?php endif; ?>
-                                        </td>
-                                    </tr>
-                                    <?php endforeach; ?>
+                                                
+                                                <?php if($claim['status'] == 'Pending' || $claim['status'] == 'Draft'): ?>
+                                                    <button class="btn btn-sm btn-danger" onclick="if(confirm('Cancel this claim?')) alert('In future updates, this will delete the claim from database!')">
+                                                        <i class="fas fa-times"></i> Cancel
+                                                    </button>
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
                                 </tbody>
                             </table>
                         </div>

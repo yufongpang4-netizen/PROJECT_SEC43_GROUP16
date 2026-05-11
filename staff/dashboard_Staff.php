@@ -3,7 +3,7 @@ session_start();
 require_once "../db.php";
 
 if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'staff') {
-    header("Location:login.php");
+    header("Location: ../login.php");
     exit();
 }
 
@@ -14,10 +14,6 @@ $pendingClaims = 0;
 $approvedClaims = 0;
 $totalAmount = 0.00;
 
-/*
-    This part reads claim statistics from the MySQL claims table.
-    If the claims table is not created yet, create it using the SQL below.
-*/
 
 $stmt = $conn->prepare("
     SELECT 
@@ -60,7 +56,6 @@ if ($stmt) {
     <div class="container-fluid p-0">
         <div class="row g-0">
 
-            <!-- Sidebar -->
             <div class="col-md-3 col-lg-2 sidebar p-3">
                 <div class="text-center mb-4">
                     <i class="fas fa-receipt fs-1" style="color: #5BC0BE;"></i>
@@ -71,7 +66,7 @@ if ($stmt) {
                 <hr style="border-color: rgba(255,255,255,0.2);">
 
                 <nav class="nav flex-column">
-                    <a class="nav-link" href="dashboard_Staff.php">
+                    <a class="nav-link active" href="dashboard_Staff.php">
                         <i class="fas fa-tachometer-alt"></i> Dashboard
                     </a>
                     <a class="nav-link" href="New_Claim_Staff.php">
@@ -90,7 +85,6 @@ if ($stmt) {
                 </nav>
             </div>
 
-            <!-- Main Content -->
             <div class="col-md-9 col-lg-10 p-4">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h2 style="color: white;">
@@ -104,7 +98,6 @@ if ($stmt) {
                     </div>
                 </div>
 
-                <!-- Stats Cards -->
                 <div class="row g-4 mb-4">
                     <div class="col-md-3">
                         <div class="stat-card text-center">
@@ -147,7 +140,6 @@ if ($stmt) {
                     </div>
                 </div>
 
-                <!-- Quick Actions -->
                 <div class="row">
                     <div class="col-md-6">
                         <div class="card border-0 shadow-lg fade-in">
@@ -158,12 +150,12 @@ if ($stmt) {
                                 </h5>
 
                                 <hr>
-
-                                <a href="new_claim.php" class="btn w-100 mb-2" style="background: #5BC0BE; color: #0B132B; border-radius: 10px;">
+                                
+                                <a href="New_Claim_Staff.php" class="btn w-100 mb-2" style="background: #5BC0BE; color: #0B132B; border-radius: 10px;">
                                     <i class="fas fa-plus-circle me-2"></i>Submit New Claim
                                 </a>
 
-                                <a href="claim_history.php" class="btn w-100" style="background: #3A506B; color: white; border-radius: 10px;">
+                                <a href="Claim_History_Staff.php" class="btn w-100" style="background: #3A506B; color: white; border-radius: 10px;">
                                     <i class="fas fa-history me-2"></i>View Claim History
                                 </a>
                             </div>

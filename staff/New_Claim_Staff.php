@@ -70,7 +70,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 <body>
     <div class="container-fluid p-0">
         <div class="row g-0">
-            <!-- Sidebar -->
             <div class="col-md-3 col-lg-2 sidebar p-3">
                 <div class="text-center mb-4">
                     <i class="fas fa-receipt fs-1" style="color: #5BC0BE;"></i>
@@ -82,7 +81,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <a class="nav-link" href="dashboard_Staff.php">
                         <i class="fas fa-tachometer-alt"></i> Dashboard
                     </a>
-                    <a class="nav-link" href="New_Claim_Staff.php">
+                    <a class="nav-link active" href="New_Claim_Staff.php">
                         <i class="fas fa-plus-circle"></i> New Claim
                     </a>
                     <a class="nav-link" href="Claim_History_Staff.php">
@@ -98,7 +97,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                 </nav>
             </div>
             
-            <!-- Main Content -->
             <div class="col-md-9 col-lg-10 p-4">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h2 style="color: white;">
@@ -110,7 +108,14 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <?php if($success): ?>
                     <div class="alert alert-success alert-dismissible fade show" role="alert">
                         <i class="fas fa-check-circle me-2"></i><?php echo $success; ?>
-                        <a href="claim_history.php" class="alert-link">View your claims</a>
+                        <a href="Claim_History_Staff.php" class="alert-link">View your claims</a>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                <?php endif; ?>
+
+                <?php if($error): ?>
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i><?php echo $error; ?>
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                 <?php endif; ?>
@@ -125,13 +130,13 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     </label>
                                     <select name="claim_type" class="form-select" required>
                                         <option value="">Select claim type</option>
-                                        <option>Travel</option>
-                                        <option>Meal</option>
-                                        <option>Accommodation</option>
-                                        <option>Transportation</option>
-                                        <option>Office Supplies</option>
-                                        <option>Training</option>
-                                        <option>Medical</option>
+                                        <option value="Travel">Travel</option>
+                                        <option value="Meal">Meal</option>
+                                        <option value="Accommodation">Accommodation</option>
+                                        <option value="Transportation">Transportation</option>
+                                        <option value="Office Supplies">Office Supplies</option>
+                                        <option value="Training">Training</option>
+                                        <option value="Medical">Medical</option>
                                     </select>
                                 </div>
                                 
@@ -184,4 +189,3 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
-
