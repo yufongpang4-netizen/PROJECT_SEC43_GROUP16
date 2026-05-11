@@ -10,6 +10,13 @@ if (isset($_SESSION['user_id'])) {
 $success = '';
 $error = '';
 
+// 获取当前想注册的角色 (从 URL 参数中抓取，默认是 staff)
+$requested_role = isset($_GET['role']) ? $_GET['role'] : 'staff';
+// 安全限制：确保角色只能是这三种之一，防止别人恶意篡改 URL
+if(!in_array($requested_role, ['staff', 'finance', 'admin'])) {
+    $requested_role = 'staff';
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name']);
     $staff_id = trim($_POST['staff_id']);
@@ -17,6 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $department = trim($_POST['department']);
     $password = $_POST['password'];
     $phone = trim($_POST['phone']);
+    $role = $_POST['role']; // 从隐藏表单获取角色
 
     if (empty($name) || empty($staff_id) || empty($email) || empty($password)) {
         $error = "Please fill in all required fields.";
@@ -32,7 +40,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = "Email or Staff ID already exists.";
         } else {
             $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-            $role = "staff";
 
             $stmt = $conn->prepare("
                 INSERT INTO users 
@@ -77,15 +84,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="card border-0 shadow-lg fade-in" style="border-radius: 20px;">
                     <div class="card-body p-5">
                         <div class="text-center mb-4">
-                            <i class="fas fa-user-plus" style="font-size: 50px; color: #5BC0BE;"></i>
-                            <h2 class="mt-3" style="color: #0B132B;">Staff Registration</h2>
+                            <i class="fas <?php echo $requested_role == 'admin' ? 'fa-user-shield' : ($requested_role == 'finance' ? 'fa-user-tie' : 'fa-user-plus'); ?>" style="font-size: 50px; color: #5BC0BE;"></i>
+                            <h2 class="mt-3" style="color: #0B132B;"><?php echo ucfirst($requested_role); ?> Registration</h2>
                             <p style="color: #3A506B;">Create your account</p>
                         </div>
                         
                         <?php if($success): ?>
                             <div class="alert alert-success">
                                 <i class="fas fa-check-circle me-2"></i><?php echo $success; ?>
-                                <a href="login.php">Login here</a>
+                                <a href="login.php" class="fw-bold text-decoration-none">Login here</a>
                             </div>
                         <?php endif; ?>
                         
@@ -96,6 +103,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <?php endif; ?>
                         
                         <form method="POST">
+                            <input type="hidden" name="role" value="<?php echo htmlspecialchars($requested_role); ?>">
+                            
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">
@@ -147,14 +156,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </div>
                             
                             <button type="submit" class="btn w-100 mt-2" style="background: #5BC0BE; color: #0B132B; padding: 12px; border-radius: 10px; font-weight: bold;">
-                                <i class="fas fa-user-plus me-2"></i>Register
+                                <i class="fas fa-check-circle me-2"></i>Complete Registration
                             </button>
                         </form>
                         
                         <hr class="my-4">
                         
                         <div class="text-center">
-                            <p class="mb-0">Already have an account? <a href="login.php" style="color: #5BC0BE;">Login here</a></p>
+                            <p class="mb-0">Already have an account? <a href="login.php" style="color: #5BC0BE; font-weight: bold;">Login here</a></p>
                         </div>
                     </div>
                 </div>
