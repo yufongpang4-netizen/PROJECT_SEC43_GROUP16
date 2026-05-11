@@ -1,5 +1,7 @@
 <?php
 session_start();
+require_once "../db.php";
+
 if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'staff') {
     header("Location: ../login.php");
     exit();
@@ -9,13 +11,50 @@ $success = '';
 $error = '';
 
 if($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $user_id = $_SESSION['user_id'];
     $claim_type = $_POST['claim_type'];
     $amount = $_POST['amount'];
     $date = $_POST['date'];
     $description = $_POST['description'];
     $action = $_POST['action'];
     
-    $success = $action == 'submit' ? "Claim submitted successfully!" : "Draft saved!";
+    $status = ($action == 'submit') ? 'Pending' : 'Draft';
+    
+    $receipt_filename = null;
+    if(isset($_FILES['receipt']) && $_FILES['receipt']['error'] == 0) {
+        $allowed_types = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+        $file_type = $_FILES['receipt']['type'];
+        
+        if(in_array($file_type, $allowed_types)) {
+            $upload_dir = '../uploads/receipts/';
+            if (!file_exists($upload_dir)) {
+                mkdir($upload_dir, 0777, true);
+            }
+            
+            $file_extension = pathinfo($_FILES["receipt"]["name"], PATHINFO_EXTENSION);
+            $receipt_filename = "receipt_" . time() . "_" . $user_id . "." . $file_extension;
+            $target_file = $upload_dir . $receipt_filename;
+            
+            if(!move_uploaded_file($_FILES["receipt"]["tmp_name"], $target_file)) {
+                $error = "Failed to save the uploaded receipt.";
+            }
+        } else {
+            $error = "Invalid file format. Only PDF, JPG, and PNG are allowed.";
+        }
+    }
+
+    if(empty($error)) {
+        $stmt = $conn->prepare("INSERT INTO claims (user_id, claim_type, amount, expense_date, description, receipt, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        
+        $stmt->bind_param("isdssss", $user_id, $claim_type, $amount, $date, $description, $receipt_filename, $status);
+        
+        if($stmt->execute()) {
+            $success = $action == 'submit' ? "Claim submitted successfully!" : "Draft saved successfully!";
+        } else {
+            $error = "Database error: " . $conn->error;
+        }
+        $stmt->close();
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -40,20 +79,20 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                 </div>
                 <hr style="border-color: rgba(255,255,255,0.2);">
                 <nav class="nav flex-column">
-                    <a class="nav-link" href="dashboard.php">
+                    <a class="nav-link" href="dashboard_Staff.php">
                         <i class="fas fa-tachometer-alt"></i> Dashboard
                     </a>
-                    <a class="nav-link active" href="new_claim.php">
+                    <a class="nav-link" href="New_Claim_Staff.php">
                         <i class="fas fa-plus-circle"></i> New Claim
                     </a>
-                    <a class="nav-link" href="claim_history.php">
+                    <a class="nav-link" href="Claim_History_Staff.php">
                         <i class="fas fa-history"></i> Claim History
                     </a>
-                    <a class="nav-link" href="edit_profile.php">
+                    <a class="nav-link" href="Edit_profile_Staff.php">
                         <i class="fas fa-user-edit"></i> Edit Profile
                     </a>
                     <hr style="border-color: rgba(255,255,255,0.2);">
-                    <a class="nav-link" href="logout.php">
+                    <a class="nav-link" href="../logout.php">
                         <i class="fas fa-sign-out-alt"></i> Logout
                     </a>
                 </nav>

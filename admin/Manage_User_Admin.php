@@ -41,17 +41,17 @@ $users = [
                 </div>
                 <hr style="border-color: rgba(255,255,255,0.2);">
                 <nav class="nav flex-column">
-                    <a class="nav-link" href="dashboard.php">
+                    <a class="nav-link" href="dashboard_Admin.php">
                         <i class="fas fa-tachometer-alt"></i> Dashboard
                     </a>
-                    <a class="nav-link active" href="manage_users.php">
+                    <a class="nav-link" href="Manage_User_Admin.php">
                         <i class="fas fa-users"></i> Manage Accounts
                     </a>
-                    <a class="nav-link" href="generate_report.php">
+                    <a class="nav-link" href="Generate_Report_Admin.php">
                         <i class="fas fa-chart-bar"></i> Generate Report
                     </a>
                     <hr style="border-color: rgba(255,255,255,0.2);">
-                    <a class="nav-link" href="logout.php">
+                    <a class="nav-link" href="../logout.php">
                         <i class="fas fa-sign-out-alt"></i> Logout
                     </a>
                 </nav>

@@ -28,17 +28,17 @@ if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'finance') {
                 </div>
                 <hr style="border-color: rgba(255,255,255,0.2);">
                 <nav class="nav flex-column">
-                    <a class="nav-link active" href="dashboard.php">
+                    <a class="nav-link" href="dashboard_Finance.php">
                         <i class="fas fa-tachometer-alt"></i> Dashboard
                     </a>
-                    <a class="nav-link" href="all_claims.php">
+                    <a class="nav-link" href="All_Claim_Finance.php">
                         <i class="fas fa-file-invoice"></i> All Claims
                     </a>
-                    <a class="nav-link" href="export_report.php">
+                    <a class="nav-link" href="Export_Report_Finance.php">
                         <i class="fas fa-download"></i> Export Report
                     </a>
                     <hr style="border-color: rgba(255,255,255,0.2);">
-                    <a class="nav-link" href="logout.php">
+                    <a class="nav-link" href="../logout.php">
                         <i class="fas fa-sign-out-alt"></i> Logout
                     </a>
                 </nav>

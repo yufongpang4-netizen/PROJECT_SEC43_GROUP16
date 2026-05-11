@@ -34,20 +34,20 @@ $mock_claims = [
                 </div>
                 <hr style="border-color: rgba(255,255,255,0.2);">
                 <nav class="nav flex-column">
-                    <a class="nav-link" href="dashboard.php">
+                    <a class="nav-link" href="dashboard_Staff.php">
                         <i class="fas fa-tachometer-alt"></i> Dashboard
                     </a>
-                    <a class="nav-link" href="new_claim.php">
+                    <a class="nav-link" href="New_Claim_Staff.php">
                         <i class="fas fa-plus-circle"></i> New Claim
                     </a>
-                    <a class="nav-link active" href="claim_history.php">
+                    <a class="nav-link" href="Claim_History_Staff.php">
                         <i class="fas fa-history"></i> Claim History
                     </a>
-                    <a class="nav-link" href="edit_profile.php">
+                    <a class="nav-link" href="Edit_profile_Staff.php">
                         <i class="fas fa-user-edit"></i> Edit Profile
                     </a>
                     <hr style="border-color: rgba(255,255,255,0.2);">
-                    <a class="nav-link" href="logout.php">
+                    <a class="nav-link" href="../logout.php">
                         <i class="fas fa-sign-out-alt"></i> Logout
                     </a>
                 </nav>
