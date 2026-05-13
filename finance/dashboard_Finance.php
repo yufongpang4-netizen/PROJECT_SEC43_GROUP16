@@ -5,6 +5,29 @@ if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'finance') {
     header("Location: ../login.php");
     exit();
 }
+ 
+require_once '../db.php';
+ 
+// Get stats from real database
+$total     = $conn->query("SELECT COUNT(*) as c FROM claims")->fetch_assoc()['c'];
+$pending   = $conn->query("SELECT COUNT(*) as c FROM claims WHERE status='pending'")->fetch_assoc()['c'];
+$approved  = $conn->query("SELECT COUNT(*) as c FROM claims WHERE status='approved'")->fetch_assoc()['c'];
+$paid      = $conn->query("SELECT COUNT(*) as c FROM claims WHERE status='paid'")->fetch_assoc()['c'];
+$rejected  = $conn->query("SELECT COUNT(*) as c FROM claims WHERE status='rejected'")->fetch_assoc()['c'];
+$completed = $paid + $rejected;
+ 
+// Recent 5 claims
+$recent_result = $conn->query("
+    SELECT c.id, u.name, c.amount, c.status, c.claim_type, c.submitted_at
+    FROM claims c
+    JOIN users u ON c.user_id = u.id
+    ORDER BY c.submitted_at DESC
+    LIMIT 5
+");
+$recent_claims = $recent_result->fetch_all(MYSQLI_ASSOC);
+ 
+// Total amount pending payment (approved but not paid)
+$pending_amount = $conn->query("SELECT SUM(amount) as total FROM claims WHERE status='approved'")->fetch_assoc()['total'] ?? 0;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -28,7 +51,7 @@ if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'finance') {
                 </div>
                 <hr style="border-color: rgba(255,255,255,0.2);">
                 <nav class="nav flex-column">
-                    <a class="nav-link" href="dashboard_Finance.php">
+                    <a class="nav-link active" href="dashboard_Finance.php">
                         <i class="fas fa-tachometer-alt"></i> Dashboard
                     </a>
                     <a class="nav-link" href="All_Claim_Finance.php">
@@ -43,7 +66,7 @@ if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'finance') {
                     </a>
                 </nav>
             </div>
-            
+ 
             <!-- Main Content -->
             <div class="col-md-9 col-lg-10 p-4">
                 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -52,50 +75,52 @@ if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'finance') {
                         Finance Dashboard
                     </h2>
                     <div class="text-white">
-                        <i class="fas fa-user-circle me-1"></i> <?php echo $_SESSION['user_name']; ?>
+                        <i class="fas fa-user-circle me-1"></i> <?php echo htmlspecialchars($_SESSION['user_name']); ?>
                     </div>
                 </div>
-                
+ 
                 <!-- Stats Cards -->
                 <div class="row g-4 mb-4">
                     <div class="col-md-3">
                         <div class="stat-card text-center">
-                            <div class="stat-icon">
-                                <i class="fas fa-file-invoice"></i>
-                            </div>
-                            <div class="stat-number">124</div>
+                            <div class="stat-icon"><i class="fas fa-file-invoice"></i></div>
+                            <div class="stat-number"><?php echo $total; ?></div>
                             <div class="stat-label">Total Claims</div>
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="stat-card text-center">
-                            <div class="stat-icon">
-                                <i class="fas fa-clock"></i>
-                            </div>
-                            <div class="stat-number">18</div>
+                            <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                            <div class="stat-number"><?php echo $pending; ?></div>
                             <div class="stat-label">Pending Approval</div>
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="stat-card text-center">
-                            <div class="stat-icon">
-                                <i class="fas fa-hourglass-half"></i>
-                            </div>
-                            <div class="stat-number">7</div>
+                            <div class="stat-icon"><i class="fas fa-hourglass-half"></i></div>
+                            <div class="stat-number"><?php echo $approved; ?></div>
                             <div class="stat-label">Pending Payment</div>
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="stat-card text-center">
-                            <div class="stat-icon">
-                                <i class="fas fa-check-circle"></i>
-                            </div>
-                            <div class="stat-number">99</div>
+                            <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+                            <div class="stat-number"><?php echo $completed; ?></div>
                             <div class="stat-label">Completed</div>
                         </div>
                     </div>
                 </div>
-                
+ 
+                <!-- Pending Payment Amount Banner -->
+                <?php if($approved > 0): ?>
+                <div class="alert mb-4" style="background: rgba(91,192,190,0.15); border: 1px solid #5BC0BE; color: white;">
+                    <i class="fas fa-exclamation-circle me-2" style="color:#5BC0BE;"></i>
+                    <strong><?php echo $approved; ?> claim(s)</strong> approved and awaiting payment —
+                    Total: <strong>RM <?php echo number_format($pending_amount, 2); ?></strong>
+                    <a href="All_Claim_Finance.php?status=approved" class="btn btn-sm ms-3" style="background:#5BC0BE; color:#0B132B;">Process Now</a>
+                </div>
+                <?php endif; ?>
+ 
                 <!-- Quick Actions & Recent Claims -->
                 <div class="row">
                     <div class="col-md-5">
@@ -106,19 +131,49 @@ if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'finance') {
                                     Quick Actions
                                 </h5>
                                 <hr>
-                                <a href="all_claims.php?status=Pending" class="btn w-100 mb-2" style="background: #5BC0BE; color: #0B132B; border-radius: 10px;">
+                                <a href="All_Claim_Finance.php?status=pending" class="btn w-100 mb-2" style="background: #5BC0BE; color: #0B132B; border-radius: 10px;">
                                     <i class="fas fa-clock me-2"></i>Review Pending Claims
+                                    <?php if($pending > 0): ?>
+                                        <span class="badge bg-danger ms-1"><?php echo $pending; ?></span>
+                                    <?php endif; ?>
                                 </a>
-                                <a href="all_claims.php" class="btn w-100 mb-2" style="background: #3A506B; color: white; border-radius: 10px;">
+                                <a href="All_Claim_Finance.php" class="btn w-100 mb-2" style="background: #3A506B; color: white; border-radius: 10px;">
                                     <i class="fas fa-list me-2"></i>View All Claims
                                 </a>
-                                <a href="export_report.php" class="btn w-100" style="background: #1C2541; color: white; border-radius: 10px;">
+                                <a href="Export_Report_Finance.php" class="btn w-100" style="background: #1C2541; color: white; border-radius: 10px;">
                                     <i class="fas fa-download me-2"></i>Export Monthly Report
                                 </a>
                             </div>
                         </div>
+ 
+                        <!-- Status Summary -->
+                        <div class="card border-0 shadow-lg fade-in mt-4">
+                            <div class="card-body p-4">
+                                <h5 style="color: #0B132B;">
+                                    <i class="fas fa-chart-pie me-2" style="color: #5BC0BE;"></i>
+                                    Claims Summary
+                                </h5>
+                                <hr>
+                                <div class="d-flex justify-content-between py-1 border-bottom">
+                                    <span><span class="status-pending">Pending</span></span>
+                                    <strong><?php echo $pending; ?></strong>
+                                </div>
+                                <div class="d-flex justify-content-between py-1 border-bottom">
+                                    <span><span class="status-approved">Approved</span></span>
+                                    <strong><?php echo $approved; ?></strong>
+                                </div>
+                                <div class="d-flex justify-content-between py-1 border-bottom">
+                                    <span><span class="status-paid">Paid</span></span>
+                                    <strong><?php echo $paid; ?></strong>
+                                </div>
+                                <div class="d-flex justify-content-between py-1">
+                                    <span><span class="status-rejected">Rejected</span></span>
+                                    <strong><?php echo $rejected; ?></strong>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    
+ 
                     <div class="col-md-7">
                         <div class="card border-0 shadow-lg fade-in">
                             <div class="card-body p-4">
@@ -132,27 +187,34 @@ if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'finance') {
                                         <thead>
                                             <tr>
                                                 <th>Staff</th>
+                                                <th>Type</th>
                                                 <th>Amount</th>
                                                 <th>Status</th>
                                                 <th></th>
                                             </tr>
                                         </thead>
                                         <tbody>
+                                            <?php if(empty($recent_claims)): ?>
+                                            <tr><td colspan="5" class="text-center text-muted">No claims found.</td></tr>
+                                            <?php else: ?>
+                                            <?php foreach($recent_claims as $rc): ?>
                                             <tr>
-                                                <td>John Staff</td>
-                                                <td>RM 150.00</td>
-                                                <td><span class="status-pending">Pending</span></td>
-                                                <td><a href="claim_details.php?id=1" class="btn btn-sm" style="background:#5BC0BE; color:#0B132B;">Review</a></td>
+                                                <td><?php echo htmlspecialchars($rc['name']); ?></td>
+                                                <td><?php echo htmlspecialchars($rc['claim_type']); ?></td>
+                                                <td>RM <?php echo number_format($rc['amount'], 2); ?></td>
+                                                <td><span class="status-<?php echo strtolower($rc['status']); ?>"><?php echo ucfirst($rc['status']); ?></span></td>
+                                                <td>
+                                                    <a href="Claim_details_Finance.php?id=<?php echo $rc['id']; ?>" class="btn btn-sm" style="background:#5BC0BE; color:#0B132B;">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                </td>
                                             </tr>
-                                            <tr>
-                                                <td>Sarah Smith</td>
-                                                <td>RM 45.50</td>
-                                                <td><span class="status-pending">Pending</span></td>
-                                                <td><a href="claim_details.php?id=2" class="btn btn-sm" style="background:#5BC0BE; color:#0B132B;">Review</a></td>
-                                            </tr>
+                                            <?php endforeach; ?>
+                                            <?php endif; ?>
                                         </tbody>
                                     </table>
                                 </div>
+                                <a href="All_Claim_Finance.php" class="btn btn-sm w-100 mt-2" style="background:#3A506B; color:white;">View All Claims</a>
                             </div>
                         </div>
                     </div>
