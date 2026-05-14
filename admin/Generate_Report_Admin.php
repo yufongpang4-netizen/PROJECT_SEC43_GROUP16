@@ -7,8 +7,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
  
 require_once '../db.php';
  
-// Real schema: id, name, staff_id, email, password, department, phone, role, created_at
-// This report is a USER ACCOUNT report (no claims table assumed)
+// Real schema: id, name, staff_id, email, password, department, phone, role, status, created_at
+// This report is a USER ACCOUNT report
  
 $filter_role = $_GET['filter_role']   ?? '';
 $filter_dept = $_GET['department']    ?? '';
@@ -17,7 +17,6 @@ $date_to     = $_GET['date_to']       ?? '';
 $generated   = false;
 $users       = [];
  
-
 if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     $q = buildQuery($filter_role, $filter_dept, $date_from, $date_to);
     $res = runQuery($conn, $q['sql'], $q['types'], $q['params']);
@@ -25,7 +24,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     header('Content-Type: text/csv');
     header('Content-Disposition: attachment; filename="UTMSpace_Users_' . date('Ymd') . '.csv"');
     $out = fopen('php://output', 'w');
-    fputcsv($out, ['ID', 'Staff ID', 'Name', 'Email', 'Phone', 'Role', 'Department', 'Registered']);
+    fputcsv($out, ['ID', 'Staff ID', 'Name', 'Email', 'Phone', 'Role', 'Department', 'Status', 'Registered']);
     while ($row = $res->fetch_assoc()) {
         fputcsv($out, [
             $row['id'],
@@ -33,8 +32,9 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
             $row['name'],
             $row['email'],
             $row['phone'] ?? '',
-            $row['role'],
+            ucfirst($row['role']),
             $row['department'] ?? '',
+            $row['status'] ?? 'Active',
             date('d M Y', strtotime($row['created_at'])),
         ]);
     }
@@ -104,7 +104,6 @@ while ($d = $depts_res->fetch_assoc()) $departments[] = $d['department'];
 <div class="container-fluid p-0">
     <div class="row g-0">
  
-        <!-- Sidebar -->
         <div class="col-md-3 col-lg-2 sidebar p-3">
             <div class="text-center mb-4">
                 <i class="fas fa-user-shield fs-1" style="color:#5BC0BE;"></i>
@@ -121,7 +120,6 @@ while ($d = $depts_res->fetch_assoc()) $departments[] = $d['department'];
             </nav>
         </div>
  
-        <!-- Main Content -->
         <div class="col-md-9 col-lg-10 p-4">
  
             <div class="d-flex justify-content-between align-items-center mb-4">
@@ -131,7 +129,6 @@ while ($d = $depts_res->fetch_assoc()) $departments[] = $d['department'];
                 </h2>
             </div>
  
-            <!-- Filter Form -->
             <div class="card border-0 shadow-lg mb-4">
                 <div class="card-body p-4">
                     <h5 style="color:#0B132B;">
@@ -186,7 +183,6 @@ while ($d = $depts_res->fetch_assoc()) $departments[] = $d['department'];
                 </div>
             </div>
  
-            <!-- Report Results -->
             <?php if ($generated): ?>
             <div class="card border-0 shadow-lg fade-in">
                 <div class="card-body p-4">
@@ -224,7 +220,6 @@ while ($d = $depts_res->fetch_assoc()) $departments[] = $d['department'];
                     </div>
                     <?php else: ?>
  
-                    <!-- Role summary badges -->
                     <?php
                     $role_counts = array_count_values(array_column($users, 'role'));
                     $badge_map   = ['staff' => '#3A506B', 'finance' => '#5BC0BE', 'admin' => '#0B132B'];
@@ -248,7 +243,7 @@ while ($d = $depts_res->fetch_assoc()) $departments[] = $d['department'];
                                     <th>Phone</th>
                                     <th>Role</th>
                                     <th>Department</th>
-                                    <th>Registered</th>
+                                    <th>Status</th> <th>Registered</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -267,13 +262,18 @@ while ($d = $depts_res->fetch_assoc()) $departments[] = $d['department'];
                                         </span>
                                     </td>
                                     <td><?php echo htmlspecialchars($u['department'] ?? '—'); ?></td>
+                                    <td>
+                                        <span class="badge bg-<?php echo ($u['status'] ?? 'Active') == 'Active' ? 'success' : 'danger'; ?>">
+                                            <?php echo $u['status'] ?? 'Active'; ?>
+                                        </span>
+                                    </td>
                                     <td><?php echo date('d M Y', strtotime($u['created_at'])); ?></td>
                                 </tr>
                                 <?php endforeach; ?>
                             </tbody>
                             <tfoot>
                                 <tr style="background:#f0f9f9;">
-                                    <td colspan="7" class="fw-bold text-end">Total Users:</td>
+                                    <td colspan="8" class="fw-bold text-end">Total Users:</td>
                                     <td class="fw-bold" style="color:#5BC0BE;"><?php echo count($users); ?></td>
                                 </tr>
                             </tfoot>
@@ -298,4 +298,3 @@ while ($d = $depts_res->fetch_assoc()) $departments[] = $d['department'];
 </style>
 </body>
 </html>
-<?php $conn->close(); ?>

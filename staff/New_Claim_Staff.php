@@ -12,21 +12,19 @@ $error   = '';
  
 if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $user_id     = $_SESSION['user_id'];
-    $claim_title = trim($_POST['claim_title']);
     $claim_type  = $_POST['claim_type'];
     $amount      = $_POST['amount'];
-    $claim_date  = $_POST['date'];
+    $expense_date = $_POST['date'];
     $description = trim($_POST['description']);
     $action      = $_POST['action'];
  
     // Validate required fields
-    if(empty($claim_title) || empty($claim_type) || empty($amount) || empty($claim_date) || empty($description)) {
+    if(empty($claim_type) || empty($amount) || empty($expense_date) || empty($description)) {
         $error = "Please fill in all required fields.";
     } elseif(!is_numeric($amount) || $amount <= 0) {
         $error = "Please enter a valid amount.";
     } else {
-        $status = ($action == 'submit') ? 'pending' : 'pending'; // only pending/paid/approved/rejected in enum; no draft
-        // Note: DB enum is pending|approved|rejected|paid — save submitted as 'pending'
+        $status = 'Pending';
  
         // Handle receipt upload
         $receipt_filename = null;
@@ -53,26 +51,22 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
  
         if(empty($error)) {
-            // DB columns: claim_title, claim_type, amount, claim_date, description, receipt_file, status
             $stmt = $conn->prepare("
-                INSERT INTO claims (user_id, claim_title, claim_type, amount, claim_date, description, receipt_file, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO claims (user_id, claim_type, amount, expense_date, description, receipt, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             ");
-            $stmt->bind_param("issdssss",
+            $stmt->bind_param("isdssss",
                 $user_id,
-                $claim_title,
                 $claim_type,
                 $amount,
-                $claim_date,
+                $expense_date,
                 $description,
                 $receipt_filename,
                 $status
             );
  
             if($stmt->execute()) {
-                $success = ($action == 'submit')
-                    ? "Claim submitted successfully! Finance will review your claim."
-                    : "Claim submitted successfully!";
+                $success = "Claim submitted successfully! Finance will review your claim.";
             } else {
                 $error = "Database error: " . $conn->error;
             }
@@ -94,7 +88,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 <body>
     <div class="container-fluid p-0">
         <div class="row g-0">
-            <!-- Sidebar -->
             <div class="col-md-3 col-lg-2 sidebar p-3">
                 <div class="text-center mb-4">
                     <i class="fas fa-receipt fs-1" style="color: #5BC0BE;"></i>
@@ -122,7 +115,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                 </nav>
             </div>
  
-            <!-- Main Content -->
             <div class="col-md-9 col-lg-10 p-4">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h2 style="color: white;">
@@ -151,17 +143,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                         <form method="POST" enctype="multipart/form-data" id="claimForm">
                             <div class="row">
  
-                                <!-- Claim Title -->
-                                <div class="col-12 mb-3">
-                                    <label class="form-label fw-bold" style="color: #0B132B;">
-                                        <i class="fas fa-heading me-1" style="color: #5BC0BE;"></i>Claim Title *
-                                    </label>
-                                    <input type="text" name="claim_title" class="form-control" required
-                                        placeholder="e.g. Taxi to KLCC client meeting"
-                                        value="<?php echo htmlspecialchars($_POST['claim_title'] ?? ''); ?>">
-                                </div>
- 
-                                <!-- Claim Type -->
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold" style="color: #0B132B;">
                                         <i class="fas fa-tag me-1" style="color: #5BC0BE;"></i>Claim Type *
@@ -178,7 +159,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     </select>
                                 </div>
  
-                                <!-- Amount -->
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold" style="color: #0B132B;">
                                         <i class="fas fa-dollar-sign me-1" style="color: #5BC0BE;"></i>Amount (RM) *
@@ -191,7 +171,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     </div>
                                 </div>
  
-                                <!-- Expense Date -->
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold" style="color: #0B132B;">
                                         <i class="fas fa-calendar me-1" style="color: #5BC0BE;"></i>Expense Date *
@@ -201,7 +180,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                                         value="<?php echo htmlspecialchars($_POST['date'] ?? ''); ?>">
                                 </div>
  
-                                <!-- Receipt Upload -->
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold" style="color: #0B132B;">
                                         <i class="fas fa-paperclip me-1" style="color: #5BC0BE;"></i>Attach Receipt
@@ -214,7 +192,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     </div>
                                 </div>
  
-                                <!-- Description -->
                                 <div class="col-12 mb-3">
                                     <label class="form-label fw-bold" style="color: #0B132B;">
                                         <i class="fas fa-align-left me-1" style="color: #5BC0BE;"></i>Description *

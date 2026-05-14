@@ -1,4 +1,3 @@
-
 <?php
 session_start();
 if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'finance') {
@@ -10,10 +9,10 @@ require_once '../db.php';
  
 // Get stats from real database
 $total     = $conn->query("SELECT COUNT(*) as c FROM claims")->fetch_assoc()['c'];
-$pending   = $conn->query("SELECT COUNT(*) as c FROM claims WHERE status='pending'")->fetch_assoc()['c'];
-$approved  = $conn->query("SELECT COUNT(*) as c FROM claims WHERE status='approved'")->fetch_assoc()['c'];
-$paid      = $conn->query("SELECT COUNT(*) as c FROM claims WHERE status='paid'")->fetch_assoc()['c'];
-$rejected  = $conn->query("SELECT COUNT(*) as c FROM claims WHERE status='rejected'")->fetch_assoc()['c'];
+$pending   = $conn->query("SELECT COUNT(*) as c FROM claims WHERE status='Pending'")->fetch_assoc()['c'];
+$approved  = $conn->query("SELECT COUNT(*) as c FROM claims WHERE status='Approved'")->fetch_assoc()['c'];
+$paid      = $conn->query("SELECT COUNT(*) as c FROM claims WHERE status='Paid'")->fetch_assoc()['c'];
+$rejected  = $conn->query("SELECT COUNT(*) as c FROM claims WHERE status='Rejected'")->fetch_assoc()['c'];
 $completed = $paid + $rejected;
  
 // Recent 5 claims
@@ -27,7 +26,7 @@ $recent_result = $conn->query("
 $recent_claims = $recent_result->fetch_all(MYSQLI_ASSOC);
  
 // Total amount pending payment (approved but not paid)
-$pending_amount = $conn->query("SELECT SUM(amount) as total FROM claims WHERE status='approved'")->fetch_assoc()['total'] ?? 0;
+$pending_amount = $conn->query("SELECT SUM(amount) as total FROM claims WHERE status='Approved'")->fetch_assoc()['total'] ?? 0;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -42,7 +41,6 @@ $pending_amount = $conn->query("SELECT SUM(amount) as total FROM claims WHERE st
 <body>
     <div class="container-fluid p-0">
         <div class="row g-0">
-            <!-- Sidebar -->
             <div class="col-md-3 col-lg-2 sidebar p-3">
                 <div class="text-center mb-4">
                     <i class="fas fa-chart-line fs-1" style="color: #5BC0BE;"></i>
@@ -67,7 +65,6 @@ $pending_amount = $conn->query("SELECT SUM(amount) as total FROM claims WHERE st
                 </nav>
             </div>
  
-            <!-- Main Content -->
             <div class="col-md-9 col-lg-10 p-4">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h2 style="color: white;">
@@ -79,7 +76,6 @@ $pending_amount = $conn->query("SELECT SUM(amount) as total FROM claims WHERE st
                     </div>
                 </div>
  
-                <!-- Stats Cards -->
                 <div class="row g-4 mb-4">
                     <div class="col-md-3">
                         <div class="stat-card text-center">
@@ -111,17 +107,15 @@ $pending_amount = $conn->query("SELECT SUM(amount) as total FROM claims WHERE st
                     </div>
                 </div>
  
-                <!-- Pending Payment Amount Banner -->
                 <?php if($approved > 0): ?>
                 <div class="alert mb-4" style="background: rgba(91,192,190,0.15); border: 1px solid #5BC0BE; color: white;">
                     <i class="fas fa-exclamation-circle me-2" style="color:#5BC0BE;"></i>
                     <strong><?php echo $approved; ?> claim(s)</strong> approved and awaiting payment —
                     Total: <strong>RM <?php echo number_format($pending_amount, 2); ?></strong>
-                    <a href="All_Claim_Finance.php?status=approved" class="btn btn-sm ms-3" style="background:#5BC0BE; color:#0B132B;">Process Now</a>
+                    <a href="All_Claim_Finance.php?status=Approved" class="btn btn-sm ms-3" style="background:#5BC0BE; color:#0B132B;">Process Now</a>
                 </div>
                 <?php endif; ?>
  
-                <!-- Quick Actions & Recent Claims -->
                 <div class="row">
                     <div class="col-md-5">
                         <div class="card border-0 shadow-lg fade-in">
@@ -131,7 +125,7 @@ $pending_amount = $conn->query("SELECT SUM(amount) as total FROM claims WHERE st
                                     Quick Actions
                                 </h5>
                                 <hr>
-                                <a href="All_Claim_Finance.php?status=pending" class="btn w-100 mb-2" style="background: #5BC0BE; color: #0B132B; border-radius: 10px;">
+                                <a href="All_Claim_Finance.php?status=Pending" class="btn w-100 mb-2" style="background: #5BC0BE; color: #0B132B; border-radius: 10px;">
                                     <i class="fas fa-clock me-2"></i>Review Pending Claims
                                     <?php if($pending > 0): ?>
                                         <span class="badge bg-danger ms-1"><?php echo $pending; ?></span>
@@ -146,7 +140,6 @@ $pending_amount = $conn->query("SELECT SUM(amount) as total FROM claims WHERE st
                             </div>
                         </div>
  
-                        <!-- Status Summary -->
                         <div class="card border-0 shadow-lg fade-in mt-4">
                             <div class="card-body p-4">
                                 <h5 style="color: #0B132B;">

@@ -21,7 +21,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $remark = trim($_POST['comments'] ?? '');
  
     if(isset($_POST['approve'])) {
-        $stmt = $conn->prepare("UPDATE claims SET status='approved', finance_remark=?, updated_at=NOW() WHERE id=?");
+        $stmt = $conn->prepare("UPDATE claims SET status='Approved', finance_comment=? WHERE id=?");
         $stmt->bind_param('si', $remark, $claim_id);
         $stmt->execute();
         $success = "Claim has been <strong>APPROVED</strong> successfully!";
@@ -30,21 +30,20 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         if(empty($remark)) {
             $error = "Please provide a reason for rejection.";
         } else {
-            $stmt = $conn->prepare("UPDATE claims SET status='rejected', finance_remark=?, updated_at=NOW() WHERE id=?");
+            $stmt = $conn->prepare("UPDATE claims SET status='Rejected', finance_comment=? WHERE id=?");
             $stmt->bind_param('si', $remark, $claim_id);
             $stmt->execute();
             $success = "Claim has been <strong>REJECTED</strong>.";
         }
  
     } elseif(isset($_POST['mark_paid'])) {
-        $stmt = $conn->prepare("UPDATE claims SET status='paid', updated_at=NOW() WHERE id=?");
+        $stmt = $conn->prepare("UPDATE claims SET status='Paid' WHERE id=?");
         $stmt->bind_param('i', $claim_id);
         $stmt->execute();
         $success = "Claim has been marked as <strong>PAID</strong>!";
     }
 }
  
-// Fetch claim with user info
 $stmt = $conn->prepare("
     SELECT c.*, u.name AS staff, u.staff_id, u.email AS staff_email, u.department
     FROM claims c
@@ -75,7 +74,6 @@ $status = strtolower($claim['status']);
 <body>
     <div class="container-fluid p-0">
         <div class="row g-0">
-            <!-- Sidebar -->
             <div class="col-md-3 col-lg-2 sidebar p-3">
                 <div class="text-center mb-4">
                     <i class="fas fa-chart-line fs-1" style="color: #5BC0BE;"></i>
@@ -87,7 +85,7 @@ $status = strtolower($claim['status']);
                     <a class="nav-link" href="dashboard_Finance.php">
                         <i class="fas fa-tachometer-alt"></i> Dashboard
                     </a>
-                    <a class="nav-link" href="All_Claim_Finance.php">
+                    <a class="nav-link active" href="All_Claim_Finance.php">
                         <i class="fas fa-file-invoice"></i> All Claims
                     </a>
                     <a class="nav-link" href="Export_Report_Finance.php">
@@ -100,7 +98,6 @@ $status = strtolower($claim['status']);
                 </nav>
             </div>
  
-            <!-- Main Content -->
             <div class="col-md-9 col-lg-10 p-4">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h2 style="color: white;">
@@ -124,7 +121,6 @@ $status = strtolower($claim['status']);
                 <?php endif; ?>
  
                 <div class="row">
-                    <!-- Claim Info -->
                     <div class="col-md-7">
                         <div class="card border-0 shadow-lg fade-in">
                             <div class="card-body p-4">
@@ -159,10 +155,6 @@ $status = strtolower($claim['status']);
                                         <p><?php echo htmlspecialchars($claim['department']); ?></p>
                                     </div>
                                     <div class="col-md-6 mb-3">
-                                        <label class="text-muted small">Claim Title</label>
-                                        <p><?php echo htmlspecialchars($claim['claim_title']); ?></p>
-                                    </div>
-                                    <div class="col-md-6 mb-3">
                                         <label class="text-muted small">Claim Type</label>
                                         <p><?php echo htmlspecialchars($claim['claim_type']); ?></p>
                                     </div>
@@ -172,26 +164,23 @@ $status = strtolower($claim['status']);
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <label class="text-muted small">Expense Date</label>
-                                        <p><?php echo $claim['claim_date'] ? date('d M Y', strtotime($claim['claim_date'])) : '-'; ?></p>
-                                    </div>
-                                    <div class="col-12 mb-3">
-                                        <label class="text-muted small">Description</label>
-                                        <p><?php echo nl2br(htmlspecialchars($claim['description'] ?? '-')); ?></p>
+                                        <p><?php echo $claim['expense_date'] ? date('d M Y', strtotime($claim['expense_date'])) : '-'; ?></p>
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <label class="text-muted small">Submitted On</label>
                                         <p><?php echo date('d M Y, h:i A', strtotime($claim['submitted_at'])); ?></p>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label class="text-muted small">Last Updated</label>
-                                        <p><?php echo date('d M Y, h:i A', strtotime($claim['updated_at'])); ?></p>
+                                    <div class="col-12 mb-3">
+                                        <label class="text-muted small">Description</label>
+                                        <p><?php echo nl2br(htmlspecialchars($claim['description'] ?? '-')); ?></p>
                                     </div>
-                                    <?php if(!empty($claim['finance_remark'])): ?>
+                                    
+                                    <?php if(!empty($claim['finance_comment'])): ?>
                                     <div class="col-12">
                                         <label class="text-muted small">Finance Remark</label>
                                         <div class="alert alert-info mb-0">
                                             <i class="fas fa-comment me-2"></i>
-                                            <?php echo nl2br(htmlspecialchars($claim['finance_remark'])); ?>
+                                            <?php echo nl2br(htmlspecialchars($claim['finance_comment'])); ?>
                                         </div>
                                     </div>
                                     <?php endif; ?>
@@ -201,17 +190,16 @@ $status = strtolower($claim['status']);
                     </div>
  
                     <div class="col-md-5">
-                        <!-- Receipt Section -->
                         <div class="card border-0 shadow-lg mb-4">
                             <div class="card-body text-center p-4">
                                 <i class="fas fa-paperclip" style="font-size: 40px; color: #5BC0BE;"></i>
                                 <h5 class="mt-3">Attached Receipt</h5>
-                                <?php if(!empty($claim['receipt_file'])): ?>
-                                    <p class="text-muted small"><?php echo htmlspecialchars($claim['receipt_file']); ?></p>
+                                <?php if(!empty($claim['receipt'])): ?>
+                                    <p class="text-muted small"><?php echo htmlspecialchars($claim['receipt']); ?></p>
                                     <div class="d-grid gap-2">
                                         <?php
-                                        $receipt_path = '../uploads/' . $claim['receipt_file'];
-                                        $ext = strtolower(pathinfo($claim['receipt_file'], PATHINFO_EXTENSION));
+                                        $receipt_path = '../uploads/receipts/' . $claim['receipt'];
+                                        $ext = strtolower(pathinfo($claim['receipt'], PATHINFO_EXTENSION));
                                         ?>
                                         <?php if(in_array($ext, ['jpg','jpeg','png','gif'])): ?>
                                             <img src="<?php echo $receipt_path; ?>" class="img-fluid rounded mb-2" alt="Receipt" style="max-height:200px; object-fit:contain;">
@@ -229,7 +217,6 @@ $status = strtolower($claim['status']);
                             </div>
                         </div>
  
-                        <!-- Finance Actions -->
                         <div class="card border-0 shadow-lg">
                             <div class="card-body p-4">
                                 <h5 style="color: #0B132B;">

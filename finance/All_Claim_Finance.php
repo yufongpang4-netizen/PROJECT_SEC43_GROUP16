@@ -7,15 +7,14 @@ if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'finance') {
  
 require_once '../db.php';
  
-$status_filter = $_GET['status'] ?? 'all';
+$status_filter = $_GET['status'] ?? 'All';
 $search        = $_GET['search'] ?? '';
  
-// Build query dynamically
 $where_parts = [];
 $params      = [];
 $types       = '';
  
-if($status_filter !== 'all') {
+if($status_filter !== 'All') {
     $where_parts[] = "c.status = ?";
     $params[]      = $status_filter;
     $types        .= 's';
@@ -31,7 +30,7 @@ if(!empty($search)) {
 $where_sql = $where_parts ? "WHERE " . implode(" AND ", $where_parts) : "";
  
 $sql = "
-    SELECT c.id, u.name AS staff, u.staff_id, u.department, c.claim_type, c.amount, c.claim_date, c.status, c.submitted_at
+    SELECT c.id, u.name AS staff, u.staff_id, u.department, c.claim_type, c.amount, c.expense_date, c.status, c.submitted_at
     FROM claims c
     JOIN users u ON c.user_id = u.id
     $where_sql
@@ -51,7 +50,7 @@ $count_result = $conn->query("SELECT status, COUNT(*) as c FROM claims GROUP BY 
 while($row = $count_result->fetch_assoc()) {
     $counts[$row['status']] = $row['c'];
 }
-$counts['all'] = array_sum($counts);
+$counts['All'] = array_sum($counts);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -66,7 +65,6 @@ $counts['all'] = array_sum($counts);
 <body>
     <div class="container-fluid p-0">
         <div class="row g-0">
-            <!-- Sidebar -->
             <div class="col-md-3 col-lg-2 sidebar p-3">
                 <div class="text-center mb-4">
                     <i class="fas fa-chart-line fs-1" style="color: #5BC0BE;"></i>
@@ -91,7 +89,6 @@ $counts['all'] = array_sum($counts);
                 </nav>
             </div>
  
-            <!-- Main Content -->
             <div class="col-md-9 col-lg-10 p-4">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h2 style="color: white;">
@@ -101,7 +98,6 @@ $counts['all'] = array_sum($counts);
                     <span class="text-white opacity-75"><?php echo count($claims); ?> record(s) found</span>
                 </div>
  
-                <!-- Filter Bar -->
                 <div class="filter-bar mb-4">
                     <form method="GET" action="All_Claim_Finance.php">
                         <div class="row align-items-end g-3">
@@ -110,11 +106,11 @@ $counts['all'] = array_sum($counts);
                                     <i class="fas fa-filter me-1" style="color: #5BC0BE;"></i>Filter by Status
                                 </label>
                                 <select name="status" class="form-select" onchange="this.form.submit()">
-                                    <option value="all"     <?php echo $status_filter == 'all'      ? 'selected' : ''; ?>>All Claims (<?php echo $counts['all'] ?? 0; ?>)</option>
-                                    <option value="pending" <?php echo $status_filter == 'pending'  ? 'selected' : ''; ?>>Pending (<?php echo $counts['pending'] ?? 0; ?>)</option>
-                                    <option value="approved"<?php echo $status_filter == 'approved' ? 'selected' : ''; ?>>Approved (<?php echo $counts['approved'] ?? 0; ?>)</option>
-                                    <option value="rejected"<?php echo $status_filter == 'rejected' ? 'selected' : ''; ?>>Rejected (<?php echo $counts['rejected'] ?? 0; ?>)</option>
-                                    <option value="paid"    <?php echo $status_filter == 'paid'     ? 'selected' : ''; ?>>Paid (<?php echo $counts['paid'] ?? 0; ?>)</option>
+                                    <option value="All"      <?php echo $status_filter == 'All'      ? 'selected' : ''; ?>>All Claims (<?php echo $counts['All'] ?? 0; ?>)</option>
+                                    <option value="Pending"  <?php echo $status_filter == 'Pending'  ? 'selected' : ''; ?>>Pending (<?php echo $counts['Pending'] ?? 0; ?>)</option>
+                                    <option value="Approved" <?php echo $status_filter == 'Approved' ? 'selected' : ''; ?>>Approved (<?php echo $counts['Approved'] ?? 0; ?>)</option>
+                                    <option value="Rejected" <?php echo $status_filter == 'Rejected' ? 'selected' : ''; ?>>Rejected (<?php echo $counts['Rejected'] ?? 0; ?>)</option>
+                                    <option value="Paid"     <?php echo $status_filter == 'Paid'     ? 'selected' : ''; ?>>Paid (<?php echo $counts['Paid'] ?? 0; ?>)</option>
                                 </select>
                             </div>
                             <div class="col-md-4">
@@ -137,7 +133,6 @@ $counts['all'] = array_sum($counts);
                     </form>
                 </div>
  
-                <!-- Claims Table -->
                 <div class="card border-0 shadow-lg fade-in">
                     <div class="card-body p-0">
                         <div class="table-responsive">

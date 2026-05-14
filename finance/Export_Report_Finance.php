@@ -10,21 +10,21 @@ require_once '../db.php';
 // ─── Date filter ────────────────────────────────────────────────────
 $date_from = $_GET['date_from'] ?? date('Y-m-01');          // 1st of current month
 $date_to   = $_GET['date_to']   ?? date('Y-m-t');           // last day of current month
-$status_f  = $_GET['status']    ?? 'all';
+$status_f  = $_GET['status']    ?? 'All';                   
  
 // ─── Build query ────────────────────────────────────────────────────
 $where = "WHERE c.submitted_at BETWEEN ? AND DATE_ADD(?, INTERVAL 1 DAY)";
 $params = [$date_from, $date_to];
 $types  = 'ss';
-if($status_f !== 'all') {
+if($status_f !== 'All') {
     $where .= " AND c.status = ?";
     $params[] = $status_f;
     $types   .= 's';
 }
  
 $stmt = $conn->prepare("
-    SELECT c.id, c.claim_title, c.claim_type, c.amount, c.claim_date, c.status,
-           c.submitted_at, c.finance_remark,
+    SELECT c.id, c.claim_type, c.amount, c.expense_date, c.status,
+           c.submitted_at, c.finance_comment,
            u.name AS staff, u.staff_id, u.department, u.email
     FROM claims c
     JOIN users u ON c.user_id = u.id
@@ -43,7 +43,7 @@ if(isset($_GET['export']) && $_GET['export'] === 'csv') {
     header('Content-Disposition: attachment; filename="UTMSpace_Claims_Report_' . date('Ymd') . '.csv"');
     $out = fopen('php://output', 'w');
     // Header row
-    fputcsv($out, ['Claim ID','Submitted Date','Staff Name','Staff ID','Department','Email','Claim Title','Claim Type','Amount (RM)','Expense Date','Status','Finance Remark']);
+    fputcsv($out, ['Claim ID','Submitted Date','Staff Name','Staff ID','Department','Email','Claim Type','Amount (RM)','Expense Date','Status','Finance Remark']);
     foreach($claims as $c) {
         fputcsv($out, [
             $c['id'],
@@ -52,16 +52,15 @@ if(isset($_GET['export']) && $_GET['export'] === 'csv') {
             $c['staff_id'],
             $c['department'],
             $c['email'],
-            $c['claim_title'],
             $c['claim_type'],
             number_format($c['amount'], 2),
-            $c['claim_date'] ? date('d/m/Y', strtotime($c['claim_date'])) : '',
+            $c['expense_date'] ? date('d/m/Y', strtotime($c['expense_date'])) : '',
             ucfirst($c['status']),
-            $c['finance_remark'] ?? ''
+            $c['finance_comment'] ?? ''
         ]);
     }
     // Total row
-    fputcsv($out, ['','','','','','','','','TOTAL: RM ' . number_format($total_amount, 2),'','','']);
+    fputcsv($out, ['','','','','','','','TOTAL: RM ' . number_format($total_amount, 2),'','','']);
     fclose($out);
     exit();
 }
@@ -102,14 +101,14 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
 <h2>UTMSpace Staff Pay & Claim System</h2>
 <p class="sub">
     Claims Report &nbsp;|&nbsp; Period: <?php echo date('d M Y', strtotime($date_from)); ?> – <?php echo date('d M Y', strtotime($date_to)); ?>
-    &nbsp;|&nbsp; Status: <?php echo $status_f === 'all' ? 'All' : ucfirst($status_f); ?>
+    &nbsp;|&nbsp; Status: <?php echo $status_f === 'All' ? 'All' : ucfirst($status_f); ?>
     &nbsp;|&nbsp; Generated: <?php echo date('d M Y, h:i A'); ?>
 </p>
 <table>
     <thead>
         <tr>
             <th>#</th><th>Staff Name</th><th>Staff ID</th><th>Dept</th>
-            <th>Claim Title</th><th>Type</th><th>Amount (RM)</th>
+            <th>Type</th><th>Amount (RM)</th>
             <th>Expense Date</th><th>Status</th><th>Remark</th>
         </tr>
     </thead>
@@ -120,16 +119,15 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
             <td><?php echo htmlspecialchars($c['staff']); ?></td>
             <td><?php echo htmlspecialchars($c['staff_id']); ?></td>
             <td><?php echo htmlspecialchars($c['department']); ?></td>
-            <td><?php echo htmlspecialchars($c['claim_title']); ?></td>
             <td><?php echo htmlspecialchars($c['claim_type']); ?></td>
             <td><?php echo number_format($c['amount'],2); ?></td>
-            <td><?php echo $c['claim_date'] ? date('d/m/Y',strtotime($c['claim_date'])) : '-'; ?></td>
+            <td><?php echo $c['expense_date'] ? date('d/m/Y',strtotime($c['expense_date'])) : '-'; ?></td>
             <td><?php echo ucfirst($c['status']); ?></td>
-            <td><?php echo htmlspecialchars($c['finance_remark'] ?? ''); ?></td>
+            <td><?php echo htmlspecialchars($c['finance_comment'] ?? ''); ?></td>
         </tr>
     <?php endforeach; ?>
         <tr class="total-row">
-            <td colspan="6" style="text-align:right;">TOTAL:</td>
+            <td colspan="5" style="text-align:right;">TOTAL:</td>
             <td>RM <?php echo number_format($total_amount, 2); ?></td>
             <td colspan="3"></td>
         </tr>
@@ -161,7 +159,6 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
 <body>
     <div class="container-fluid p-0">
         <div class="row g-0">
-            <!-- Sidebar -->
             <div class="col-md-3 col-lg-2 sidebar p-3">
                 <div class="text-center mb-4">
                     <i class="fas fa-chart-line fs-1" style="color: #5BC0BE;"></i>
@@ -186,7 +183,6 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
                 </nav>
             </div>
  
-            <!-- Main Content -->
             <div class="col-md-9 col-lg-10 p-4">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h2 style="color: white;">
@@ -195,7 +191,6 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
                     </h2>
                 </div>
  
-                <!-- Filters -->
                 <div class="filter-bar mb-4">
                     <form method="GET" action="Export_Report_Finance.php" id="filterForm">
                         <div class="row g-3 align-items-end">
@@ -210,11 +205,11 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
                             <div class="col-md-3">
                                 <label class="form-label fw-bold">Status</label>
                                 <select name="status" class="form-select">
-                                    <option value="all"     <?php echo $status_f=='all'      ?'selected':''; ?>>All</option>
-                                    <option value="pending" <?php echo $status_f=='pending'  ?'selected':''; ?>>Pending</option>
-                                    <option value="approved"<?php echo $status_f=='approved' ?'selected':''; ?>>Approved</option>
-                                    <option value="paid"    <?php echo $status_f=='paid'     ?'selected':''; ?>>Paid</option>
-                                    <option value="rejected"<?php echo $status_f=='rejected' ?'selected':''; ?>>Rejected</option>
+                                    <option value="All"      <?php echo $status_f=='All'      ?'selected':''; ?>>All</option>
+                                    <option value="Pending"  <?php echo $status_f=='Pending'  ?'selected':''; ?>>Pending</option>
+                                    <option value="Approved" <?php echo $status_f=='Approved' ?'selected':''; ?>>Approved</option>
+                                    <option value="Paid"     <?php echo $status_f=='Paid'     ?'selected':''; ?>>Paid</option>
+                                    <option value="Rejected" <?php echo $status_f=='Rejected' ?'selected':''; ?>>Rejected</option>
                                 </select>
                             </div>
                             <div class="col-md-3">
@@ -226,7 +221,6 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
                     </form>
                 </div>
  
-                <!-- Export Buttons -->
                 <div class="row g-4 mb-4">
                     <div class="col-md-6">
                         <div class="card border-0 shadow-lg text-center card-hover">
@@ -256,7 +250,6 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
                     </div>
                 </div>
  
-                <!-- Report Preview Table -->
                 <div class="card border-0 shadow-lg fade-in">
                     <div class="card-body p-4">
                         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -278,7 +271,6 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
                                         <th>Submitted</th>
                                         <th>Staff Name</th>
                                         <th>Dept</th>
-                                        <th>Claim Title</th>
                                         <th>Type</th>
                                         <th>Amount (RM)</th>
                                         <th>Status</th>
@@ -287,7 +279,7 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
                                 <tbody>
                                     <?php if(empty($claims)): ?>
                                     <tr>
-                                        <td colspan="8" class="text-center py-4 text-muted">
+                                        <td colspan="7" class="text-center py-4 text-muted">
                                             <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
                                             No claims found for this period.
                                         </td>
@@ -299,14 +291,13 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
                                         <td><?php echo date('d M Y', strtotime($c['submitted_at'])); ?></td>
                                         <td><?php echo htmlspecialchars($c['staff']); ?></td>
                                         <td><?php echo htmlspecialchars($c['department']); ?></td>
-                                        <td><?php echo htmlspecialchars($c['claim_title']); ?></td>
                                         <td><?php echo htmlspecialchars($c['claim_type']); ?></td>
                                         <td><?php echo number_format($c['amount'], 2); ?></td>
                                         <td><span class="status-<?php echo strtolower($c['status']); ?>"><?php echo ucfirst($c['status']); ?></span></td>
                                     </tr>
                                     <?php endforeach; ?>
                                     <tr style="background: #f8f9fa;">
-                                        <td colspan="6" class="fw-bold text-end">Total Amount:</td>
+                                        <td colspan="5" class="fw-bold text-end">Total Amount:</td>
                                         <td colspan="2" class="fw-bold" style="color: #5BC0BE;">
                                             RM <?php echo number_format($total_amount, 2); ?>
                                         </td>

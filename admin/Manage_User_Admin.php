@@ -1,5 +1,4 @@
 <?php
-
 session_start();
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
     header("Location: ../login.php");
@@ -12,11 +11,10 @@ $message      = '';
 $message_type = 'success';
 $view_user    = null;
  
-
-if (isset($_GET['delete']) && is_numeric($_GET['delete'])) {
-    $uid = (int)$_GET['delete'];
+if (isset($_GET['toggle_status']) && is_numeric($_GET['toggle_status'])) {
+    $uid = (int)$_GET['toggle_status'];
  
-    $chk = $conn->prepare("SELECT role, name FROM users WHERE id=?");
+    $chk = $conn->prepare("SELECT role, name, status FROM users WHERE id=?");
     $chk->bind_param("i", $uid);
     $chk->execute();
     $row = $chk->get_result()->fetch_assoc();
@@ -26,21 +24,24 @@ if (isset($_GET['delete']) && is_numeric($_GET['delete'])) {
         $message      = "User not found.";
         $message_type = 'danger';
     } elseif ($row['role'] === 'admin') {
-        $message      = "Cannot delete an Admin account.";
+        $message      = "Cannot alter the status of an Admin account.";
         $message_type = 'danger';
     } elseif ((int)$uid === (int)$_SESSION['user_id']) {
-        $message      = "You cannot delete your own account.";
+        $message      = "You cannot deactivate your own account.";
         $message_type = 'danger';
     } else {
-        $del = $conn->prepare("DELETE FROM users WHERE id=?");
-        $del->bind_param("i", $uid);
-        $del->execute();
-        $del->close();
-        $message = "User <strong>" . htmlspecialchars($row['name']) . "</strong> has been removed.";
+        $new_status = ($row['status'] === 'Active') ? 'Inactive' : 'Active';
+        
+        $upd = $conn->prepare("UPDATE users SET status=? WHERE id=?");
+        $upd->bind_param("si", $new_status, $uid);
+        $upd->execute();
+        $upd->close();
+        
+        $message = "User <strong>" . htmlspecialchars($row['name']) . "</strong> is now <strong>{$new_status}</strong>.";
     }
 }
  
-
+// ─── Add User ──────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'add_user') {
     $new_name     = trim($_POST['name']);
     $new_staff_id = trim($_POST['staff_id']);
@@ -48,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $new_phone    = trim($_POST['phone']);
     $new_role     = $_POST['role'];
     $new_dept     = trim($_POST['department']);
-    $new_pass     = password_hash($_POST['password'], PASSWORD_BCRYPT);
+    $new_pass     = password_hash($_POST['password'], PASSWORD_DEFAULT);
  
     $dup = $conn->prepare("SELECT id FROM users WHERE email=? OR staff_id=?");
     $dup->bind_param("ss", $new_email, $new_staff_id);
@@ -59,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $message      = "Email or Staff ID is already registered.";
         $message_type = 'danger';
     } else {
-        $ins = $conn->prepare("INSERT INTO users (name, staff_id, email, password, department, phone, role) VALUES (?,?,?,?,?,?,?)");
+        $ins = $conn->prepare("INSERT INTO users (name, staff_id, email, password, department, phone, role, status) VALUES (?,?,?,?,?,?,?,'Active')");
         $ins->bind_param("sssssss", $new_name, $new_staff_id, $new_email, $new_pass, $new_dept, $new_phone, $new_role);
         $ins->execute();
         $ins->close();
@@ -68,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $dup->close();
 }
  
-
+// ─── View User ─────────────────────────────────────────────
 if (isset($_GET['view']) && is_numeric($_GET['view'])) {
     $vid   = (int)$_GET['view'];
     $vstmt = $conn->prepare("SELECT * FROM users WHERE id=?");
@@ -78,7 +79,7 @@ if (isset($_GET['view']) && is_numeric($_GET['view'])) {
     $vstmt->close();
 }
  
-
+// ─── Search & Filter ───────────────────────────────────────
 $search      = trim($_GET['search'] ?? '');
 $filter_role = $_GET['filter_role'] ?? '';
  
@@ -123,7 +124,6 @@ $stmt->close();
 <div class="container-fluid p-0">
     <div class="row g-0">
  
-        <!-- ===== Sidebar ===== -->
         <div class="col-md-3 col-lg-2 sidebar p-3">
             <div class="text-center mb-4">
                 <i class="fas fa-user-shield fs-1" style="color:#5BC0BE;"></i>
@@ -140,7 +140,6 @@ $stmt->close();
             </nav>
         </div>
  
-        <!-- ===== Main Content ===== -->
         <div class="col-md-9 col-lg-10 p-4">
  
             <div class="d-flex justify-content-between align-items-center mb-4">
@@ -162,7 +161,6 @@ $stmt->close();
             </div>
             <?php endif; ?>
  
-            <!-- ===== View User Detail Modal ===== -->
             <?php if ($view_user): ?>
             <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.5);">
                 <div class="modal-dialog">
@@ -183,6 +181,14 @@ $stmt->close();
                                 <tr><th>Phone</th><td><?php echo htmlspecialchars($view_user['phone'] ?? '—'); ?></td></tr>
                                 <tr><th>Role</th><td><?php echo ucfirst($view_user['role']); ?></td></tr>
                                 <tr><th>Department</th><td><?php echo htmlspecialchars($view_user['department'] ?? '—'); ?></td></tr>
+                                <tr>
+                                    <th>Status</th>
+                                    <td>
+                                        <span class="badge bg-<?php echo $view_user['status'] == 'Active' ? 'success' : 'danger'; ?>">
+                                            <?php echo $view_user['status']; ?>
+                                        </span>
+                                    </td>
+                                </tr>
                                 <tr><th>Registered</th><td><?php echo date('d M Y, H:i', strtotime($view_user['created_at'])); ?></td></tr>
                             </table>
                         </div>
@@ -194,7 +200,6 @@ $stmt->close();
             </div>
             <?php endif; ?>
  
-            <!-- ===== Search & Filter ===== -->
             <div class="card border-0 shadow mb-3">
                 <div class="card-body p-3">
                     <form method="GET" class="row g-2 align-items-end">
@@ -223,7 +228,6 @@ $stmt->close();
                 </div>
             </div>
  
-            <!-- ===== Users Table ===== -->
             <div class="card border-0 shadow-lg fade-in">
                 <div class="card-body p-0">
                     <div class="table-responsive">
@@ -233,17 +237,16 @@ $stmt->close();
                                     <th>Staff ID</th>
                                     <th>Name</th>
                                     <th>Email</th>
-                                    <th>Phone</th>
                                     <th>Role</th>
                                     <th>Department</th>
-                                    <th>Registered</th>
+                                    <th>Status</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php if ($users_result->num_rows === 0): ?>
                                 <tr>
-                                    <td colspan="8" class="text-center text-muted py-4">No users found.</td>
+                                    <td colspan="7" class="text-center text-muted py-4">No users found.</td>
                                 </tr>
                                 <?php endif; ?>
                                 <?php while ($user = $users_result->fetch_assoc()): ?>
@@ -261,7 +264,6 @@ $stmt->close();
                                         <?php echo htmlspecialchars($user['name']); ?>
                                     </td>
                                     <td><?php echo htmlspecialchars($user['email']); ?></td>
-                                    <td><?php echo htmlspecialchars($user['phone'] ?? '—'); ?></td>
                                     <td>
                                         <?php
                                         $badge_bg = match($user['role']) {
@@ -275,18 +277,31 @@ $stmt->close();
                                         </span>
                                     </td>
                                     <td><?php echo htmlspecialchars($user['department'] ?? '—'); ?></td>
-                                    <td><?php echo date('d M Y', strtotime($user['created_at'])); ?></td>
+                                    <td>
+                                        <span class="badge bg-<?php echo $user['status'] == 'Active' ? 'success' : 'danger'; ?>">
+                                            <?php echo $user['status']; ?>
+                                        </span>
+                                    </td>
                                     <td>
                                         <a href="?view=<?php echo $user['id']; ?>"
                                            class="btn btn-sm" style="background:#5BC0BE; color:#0B132B;">
-                                            <i class="fas fa-eye"></i> View
+                                            <i class="fas fa-eye"></i>
                                         </a>
+                                        
                                         <?php if ($user['role'] !== 'admin' && (int)$user['id'] !== (int)$_SESSION['user_id']): ?>
-                                        <a href="?delete=<?php echo $user['id']; ?>"
-                                           class="btn btn-sm btn-danger"
-                                           onclick="return confirm('Remove <?php echo htmlspecialchars(addslashes($user['name'])); ?>? This cannot be undone.')">
-                                            <i class="fas fa-trash"></i> Remove
-                                        </a>
+                                            <?php if ($user['status'] === 'Active'): ?>
+                                                <a href="?toggle_status=<?php echo $user['id']; ?>"
+                                                   class="btn btn-sm btn-danger"
+                                                   onclick="return confirm('Deactivate <?php echo htmlspecialchars(addslashes($user['name'])); ?>? They will not be able to log in.')">
+                                                    <i class="fas fa-ban"></i>
+                                                </a>
+                                            <?php else: ?>
+                                                <a href="?toggle_status=<?php echo $user['id']; ?>"
+                                                   class="btn btn-sm btn-success"
+                                                   onclick="return confirm('Reactivate <?php echo htmlspecialchars(addslashes($user['name'])); ?>? They will be able to log in again.')">
+                                                    <i class="fas fa-check-circle"></i>
+                                                </a>
+                                            <?php endif; ?>
                                         <?php endif; ?>
                                     </td>
                                 </tr>
@@ -297,11 +312,9 @@ $stmt->close();
                 </div>
             </div>
  
-        </div><!-- /main content -->
-    </div>
+        </div></div>
 </div>
  
-<!-- ===== Add New User Modal ===== -->
 <div class="modal fade" id="addUserModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -374,4 +387,3 @@ $stmt->close();
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
-<?php $conn->close(); ?>

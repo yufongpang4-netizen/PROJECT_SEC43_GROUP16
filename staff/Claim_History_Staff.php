@@ -16,7 +16,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['cancel_id'])) {
     $cancel_id = intval($_POST['cancel_id']);
  
     // Only allow cancelling own pending claims
-    $stmt = $conn->prepare("DELETE FROM claims WHERE id = ? AND user_id = ? AND status = 'pending'");
+    $stmt = $conn->prepare("DELETE FROM claims WHERE id = ? AND user_id = ? AND status = 'Pending'");
     $stmt->bind_param('ii', $cancel_id, $user_id);
  
     if($stmt->execute() && $stmt->affected_rows > 0) {
@@ -28,20 +28,21 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['cancel_id'])) {
 }
  
 // ─── Filter ──────────────────────────────────────────────────────────
-$status_filter = $_GET['status'] ?? 'all';
+$status_filter = $_GET['status'] ?? 'All';
+$status_filter = ucfirst($status_filter);
  
 $where  = "WHERE user_id = ?";
 $params = [$user_id];
 $types  = 'i';
  
-if($status_filter !== 'all') {
+if($status_filter !== 'All') {
     $where   .= " AND status = ?";
     $params[] = $status_filter;
     $types   .= 's';
 }
  
 $stmt = $conn->prepare("
-    SELECT id, claim_title, claim_type, amount, claim_date, status, description, receipt_file, finance_remark, submitted_at
+    SELECT id, claim_type, amount, expense_date, status, description, receipt, finance_comment, submitted_at
     FROM claims
     $where
     ORDER BY submitted_at DESC
@@ -56,10 +57,10 @@ $counts_result = $conn->prepare("SELECT status, COUNT(*) as c FROM claims WHERE 
 $counts_result->bind_param('i', $user_id);
 $counts_result->execute();
 $counts_rows = $counts_result->get_result()->fetch_all(MYSQLI_ASSOC);
-$counts = ['all' => 0];
+$counts = ['All' => 0];
 foreach($counts_rows as $r) {
     $counts[$r['status']] = $r['c'];
-    $counts['all'] += $r['c'];
+    $counts['All'] += $r['c'];
 }
 ?>
 <!DOCTYPE html>
@@ -75,7 +76,6 @@ foreach($counts_rows as $r) {
 <body>
     <div class="container-fluid p-0">
         <div class="row g-0">
-            <!-- Sidebar -->
             <div class="col-md-3 col-lg-2 sidebar p-3">
                 <div class="text-center mb-4">
                     <i class="fas fa-receipt fs-1" style="color: #5BC0BE;"></i>
@@ -103,7 +103,6 @@ foreach($counts_rows as $r) {
                 </nav>
             </div>
  
-            <!-- Main Content -->
             <div class="col-md-9 col-lg-10 p-4">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h2 style="color: white;">
@@ -128,15 +127,14 @@ foreach($counts_rows as $r) {
                     </div>
                 <?php endif; ?>
  
-                <!-- Status Filter Tabs -->
                 <div class="mb-3">
                     <?php
                     $tab_statuses = [
-                        'all'      => 'All',
-                        'pending'  => 'Pending',
-                        'approved' => 'Approved',
-                        'paid'     => 'Paid',
-                        'rejected' => 'Rejected',
+                        'All'      => 'All',
+                        'Pending'  => 'Pending',
+                        'Approved' => 'Approved',
+                        'Paid'     => 'Paid',
+                        'Rejected' => 'Rejected',
                     ];
                     foreach($tab_statuses as $val => $label):
                         $active = ($status_filter === $val) ? 'active' : '';
@@ -161,7 +159,6 @@ foreach($counts_rows as $r) {
                                     <tr>
                                         <th>#</th>
                                         <th>Submitted</th>
-                                        <th>Claim Title</th>
                                         <th>Type</th>
                                         <th>Amount (RM)</th>
                                         <th>Expense Date</th>
@@ -172,7 +169,7 @@ foreach($counts_rows as $r) {
                                 <tbody>
                                     <?php if(empty($claims)): ?>
                                         <tr>
-                                            <td colspan="8" class="text-center py-5 text-muted">
+                                            <td colspan="7" class="text-center py-5 text-muted">
                                                 <i class="fas fa-folder-open fa-3x mb-3 d-block" style="color:#5BC0BE; opacity:0.5;"></i>
                                                 No claims found.
                                                 <a href="New_Claim_Staff.php" class="d-block mt-2" style="color:#5BC0BE;">Submit your first claim →</a>
@@ -183,10 +180,9 @@ foreach($counts_rows as $r) {
                                         <tr>
                                             <td><?php echo $i + 1; ?></td>
                                             <td><?php echo date('d M Y', strtotime($claim['submitted_at'])); ?></td>
-                                            <td><?php echo htmlspecialchars($claim['claim_title']); ?></td>
                                             <td><?php echo htmlspecialchars($claim['claim_type']); ?></td>
                                             <td class="fw-bold">RM <?php echo number_format($claim['amount'], 2); ?></td>
-                                            <td><?php echo $claim['claim_date'] ? date('d M Y', strtotime($claim['claim_date'])) : '-'; ?></td>
+                                            <td><?php echo $claim['expense_date'] ? date('d M Y', strtotime($claim['expense_date'])) : '-'; ?></td>
                                             <td>
                                                 <?php
                                                 $icons = [
@@ -203,22 +199,19 @@ foreach($counts_rows as $r) {
                                                 </span>
                                             </td>
                                             <td>
-                                                <!-- View Details Button -->
                                                 <button class="btn btn-sm mb-1" style="background: #5BC0BE; color: #0B132B;"
                                                     data-bs-toggle="modal" data-bs-target="#detailModal"
                                                     data-id="<?php echo $claim['id']; ?>"
-                                                    data-title="<?php echo htmlspecialchars($claim['claim_title']); ?>"
                                                     data-type="<?php echo htmlspecialchars($claim['claim_type']); ?>"
                                                     data-amount="<?php echo number_format($claim['amount'], 2); ?>"
-                                                    data-date="<?php echo $claim['claim_date'] ? date('d M Y', strtotime($claim['claim_date'])) : '-'; ?>"
+                                                    data-date="<?php echo $claim['expense_date'] ? date('d M Y', strtotime($claim['expense_date'])) : '-'; ?>"
                                                     data-status="<?php echo ucfirst($claim['status']); ?>"
                                                     data-desc="<?php echo htmlspecialchars($claim['description']); ?>"
-                                                    data-remark="<?php echo htmlspecialchars($claim['finance_remark'] ?? ''); ?>"
-                                                    data-receipt="<?php echo htmlspecialchars($claim['receipt_file'] ?? ''); ?>">
+                                                    data-remark="<?php echo htmlspecialchars($claim['finance_comment'] ?? ''); ?>"
+                                                    data-receipt="<?php echo htmlspecialchars($claim['receipt'] ?? ''); ?>">
                                                     <i class="fas fa-eye"></i> View
                                                 </button>
  
-                                                <!-- Cancel Button (only for pending claims) -->
                                                 <?php if(strtolower($claim['status']) === 'pending'): ?>
                                                 <form method="POST" class="d-inline"
                                                       onsubmit="return confirm('Cancel and delete claim #<?php echo $claim['id']; ?>? This cannot be undone.');">
@@ -236,7 +229,7 @@ foreach($counts_rows as $r) {
                                 <?php if(!empty($claims)): ?>
                                 <tfoot>
                                     <tr style="background:#f8f9fa;">
-                                        <td colspan="4" class="fw-bold text-end">Total Amount:</td>
+                                        <td colspan="3" class="fw-bold text-end">Total Amount:</td>
                                         <td colspan="4" class="fw-bold" style="color:#5BC0BE;">
                                             RM <?php echo number_format(array_sum(array_column($claims, 'amount')), 2); ?>
                                         </td>
@@ -251,14 +244,13 @@ foreach($counts_rows as $r) {
         </div>
     </div>
  
-    <!-- Claim Detail Modal -->
     <div class="modal fade" id="detailModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header" style="background:#0B132B; color:white;">
                     <h5 class="modal-title">
                         <i class="fas fa-receipt me-2" style="color:#5BC0BE;"></i>
-                        Claim Details — <span id="modal-title"></span>
+                        Claim Details
                     </h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
@@ -286,7 +278,7 @@ foreach($counts_rows as $r) {
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="text-muted small">Receipt</label>
-                            <p class="mb-0" id="modal-receipt-text"></p>
+                            <p class="mb-0" id="modal-receipt-container"></p>
                         </div>
                         <div class="col-12 mb-3">
                             <label class="text-muted small">Description</label>
@@ -319,7 +311,6 @@ foreach($counts_rows as $r) {
             };
  
             document.getElementById('modal-id').textContent     = btn.dataset.id;
-            document.getElementById('modal-title').textContent  = btn.dataset.title;
             document.getElementById('modal-type').textContent   = btn.dataset.type;
             document.getElementById('modal-amount').textContent = btn.dataset.amount;
             document.getElementById('modal-date').textContent   = btn.dataset.date;
@@ -331,7 +322,12 @@ foreach($counts_rows as $r) {
             statusEl.style.color        = 'white';
  
             const receipt = btn.dataset.receipt;
-            document.getElementById('modal-receipt-text').textContent = receipt || 'No receipt attached';
+            const receiptContainer = document.getElementById('modal-receipt-container');
+            if (receipt) {
+                receiptContainer.innerHTML = `<a href="../uploads/receipts/${receipt}" target="_blank" class="text-decoration-none" style="color: #5BC0BE;"><i class="fas fa-paperclip"></i> View Attached Receipt</a>`;
+            } else {
+                receiptContainer.textContent = 'No receipt attached';
+            }
  
             const remarkWrapper = document.getElementById('modal-remark-wrapper');
             const remark        = btn.dataset.remark;
