@@ -2,11 +2,11 @@
 session_start();
 if(isset($_SESSION['user_id'])) {
     if($_SESSION['role'] == 'staff') {
-        header("Location: staff/dashboard.php");
+        header("Location: staff/dashboard_Staff.php");
     } elseif($_SESSION['role'] == 'finance') {
-        header("Location: finance/dashboard.php");
+        header("Location: finance/dashboard_Finance.php");
     } elseif($_SESSION['role'] == 'admin') {
-        header("Location: admin/dashboard.php");
+        header("Location: admin/dashboard_Admin.php");
     }
     exit();
 }
@@ -17,27 +17,23 @@ if(isset($_SESSION['user_id'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UTMSpace - Staff Pay and Claim System</title>
-    <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Custom CSS -->
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body style="background: linear-gradient(135deg, #0B132B 0%, #1C2541 50%, #3A506B 100%); min-height: 100vh;">
 
-    <!-- Navigation -->
     <nav class="navbar navbar-expand-lg" style="background-color: #0B132B; border-bottom: 3px solid #5BC0BE;">
         <div class="container">
             <a class="navbar-brand text-white" href="index.php">
                 <i class="fas fa-coins me-2" style="color: #5BC0BE;"></i>
-<strong>UTMSpace</strong> | Pay & Claim
+                <strong>UTMSpace</strong> | Pay & Claim
             </a>
         </div>
     </nav>
-    <!-- Hero Section -->
+    
     <div class="container d-flex align-items-center justify-content-center" style="min-height: calc(100vh - 76px);">
-        <div class="row justify-content-center">
+        <div class="row justify-content-center w-100">
             <div class="col-lg-8 text-center">
                 <div class="card border-0 shadow-lg" style="background: rgba(255,255,255,0.95); border-radius: 20px;">
                     <div class="card-body p-5">
@@ -59,28 +55,28 @@ if(isset($_SESSION['user_id'])) {
                         
                         <div class="row g-4 mt-3">
                             <div class="col-md-3">
-                                <div class="feature-box p-3 rounded" style="background: #f8f9fa;">
+                                <div class="feature-box p-3 rounded h-100" style="background: #f8f9fa;">
                                     <i class="fas fa-file-invoice-dollar fs-2 mb-2" style="color: #5BC0BE;"></i>
                                     <p class="mb-0 fw-bold" style="color: #0B132B;">Submit Claims</p>
                                     <small style="color: #3A506B;">With receipts</small>
                                 </div>
                             </div>
                             <div class="col-md-3">
-                                <div class="feature-box p-3 rounded" style="background: #f8f9fa;">
+                                <div class="feature-box p-3 rounded h-100" style="background: #f8f9fa;">
                                     <i class="fas fa-chart-line fs-2 mb-2" style="color: #5BC0BE;"></i>
                                     <p class="mb-0 fw-bold" style="color: #0B132B;">Track Status</p>
                                     <small style="color: #3A506B;">Pending → Paid</small>
                                 </div>
                             </div>
                             <div class="col-md-3">
-                                <div class="feature-box p-3 rounded" style="background: #f8f9fa;">
+                                <div class="feature-box p-3 rounded h-100" style="background: #f8f9fa;">
                                     <i class="fas fa-chart-pie fs-2 mb-2" style="color: #5BC0BE;"></i>
                                     <p class="mb-0 fw-bold" style="color: #0B132B;">Finance Dashboard</p>
                                     <small style="color: #3A506B;">Manage claims</small>
                                 </div>
                             </div>
                             <div class="col-md-3">
-                                <div class="feature-box p-3 rounded" style="background: #f8f9fa;">
+                                <div class="feature-box p-3 rounded h-100" style="background: #f8f9fa;">
                                     <i class="fas fa-chart-bar fs-2 mb-2" style="color: #5BC0BE;"></i>
                                     <p class="mb-0 fw-bold" style="color: #0B132B;">Reports</p>
                                     <small style="color: #3A506B;">By department</small>
@@ -96,6 +92,3 @@ if(isset($_SESSION['user_id'])) {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
-
-
-
