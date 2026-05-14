@@ -10,9 +10,7 @@ if (isset($_SESSION['user_id'])) {
 $success = '';
 $error = '';
 
-// 获取当前想注册的角色 (从 URL 参数中抓取，默认是 staff)
 $requested_role = isset($_GET['role']) ? $_GET['role'] : 'staff';
-// 安全限制：确保角色只能是这三种之一，防止别人恶意篡改 URL
 if(!in_array($requested_role, ['staff', 'finance', 'admin'])) {
     $requested_role = 'staff';
 }
@@ -24,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $department = trim($_POST['department']);
     $password = $_POST['password'];
     $phone = trim($_POST['phone']);
-    $role = $_POST['role']; // 从隐藏表单获取角色
+    $role = $_POST['role'];
 
     if (empty($name) || empty($staff_id) || empty($email) || empty($password)) {
         $error = "Please fill in all required fields.";
