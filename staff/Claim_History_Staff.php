@@ -10,21 +10,122 @@ if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'staff') {
 $user_id = $_SESSION['user_id'];
 $success = '';
 $error   = '';
- 
-// ─── Handle Cancel (delete pending claim) ───────────────────────────
-if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['cancel_id'])) {
-    $cancel_id = intval($_POST['cancel_id']);
- 
-    // Only allow cancelling own pending claims
-    $stmt = $conn->prepare("DELETE FROM claims WHERE id = ? AND user_id = ? AND status = 'Pending'");
-    $stmt->bind_param('ii', $cancel_id, $user_id);
- 
-    if($stmt->execute() && $stmt->affected_rows > 0) {
-        $success = "Claim #$cancel_id has been cancelled and removed.";
-    } else {
-        $error = "Could not cancel the claim. It may have already been processed.";
+
+// ========== EDIT CLAIM FUNCTIONALITY ==========
+if($_SERVER['REQUEST_METHOD'] == 'POST') {
+    // Handle Edit Claim
+    if(isset($_POST['edit_id'])) {
+        $edit_id = intval($_POST['edit_id']);
+        $claim_type = $_POST['claim_type'];
+        $amount = floatval($_POST['amount']);
+        $expense_date = $_POST['expense_date'];
+        $description = trim($_POST['description']);
+        
+        // Verify claim belongs to user and is still PENDING
+        $check_sql = "SELECT id, status, receipt FROM claims WHERE id = ? AND user_id = ? AND status = 'Pending'";
+        $check_stmt = $conn->prepare($check_sql);
+        $check_stmt->bind_param("ii", $edit_id, $user_id);
+        $check_stmt->execute();
+        $check_result = $check_stmt->get_result();
+        
+        if($check_result->num_rows == 0) {
+            $error = "Claim cannot be edited. Either it doesn't exist, doesn't belong to you, or has already been processed.";
+        } else {
+            $claim_data = $check_result->fetch_assoc();
+            $old_receipt = $claim_data['receipt'];
+            
+            // Validate inputs
+            if(empty($claim_type) || empty($amount) || empty($expense_date) || empty($description)) {
+                $error = "Please fill in all required fields.";
+            } elseif(!is_numeric($amount) || $amount <= 0) {
+                $error = "Please enter a valid amount.";
+            } elseif($amount > 200) {
+                $error = "Maximum claim amount per claim is RM 200.00";
+            } else {
+                // Handle new receipt upload if provided
+                $receipt_filename = $old_receipt; // Keep old receipt by default
+                
+                if(isset($_FILES['receipt']) && $_FILES['receipt']['error'] == 0 && $_FILES['receipt']['size'] > 0) {
+                    $allowed_types = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+                    $file_type = $_FILES['receipt']['type'];
+                    $max_file_size = 5 * 1024 * 1024; // 5MB
+                    
+                    if($_FILES['receipt']['size'] > $max_file_size) {
+                        $error = "File size too large. Maximum size is 5MB.";
+                    } elseif(in_array($file_type, $allowed_types)) {
+                        $upload_dir = '../uploads/receipts/';
+                        if(!file_exists($upload_dir)) {
+                            mkdir($upload_dir, 0777, true);
+                        }
+                        
+                        $file_ext = pathinfo($_FILES['receipt']['name'], PATHINFO_EXTENSION);
+                        $receipt_filename = 'receipt_' . time() . '_' . $user_id . '.' . $file_ext;
+                        $target_file = $upload_dir . $receipt_filename;
+                        
+                        if(move_uploaded_file($_FILES['receipt']['tmp_name'], $target_file)) {
+                            // Delete old receipt if exists
+                            if($old_receipt && file_exists($upload_dir . $old_receipt)) {
+                                unlink($upload_dir . $old_receipt);
+                            }
+                        } else {
+                            $error = "Failed to save the uploaded receipt.";
+                        }
+                    } else {
+                        $error = "Invalid file format. Only PDF, JPG, and PNG are allowed.";
+                    }
+                }
+                
+                if(empty($error)) {
+                    // Update the claim
+                    $update_sql = "UPDATE claims SET claim_type = ?, amount = ?, expense_date = ?, description = ?, receipt = ? WHERE id = ? AND user_id = ? AND status = 'Pending'";
+                    $update_stmt = $conn->prepare($update_sql);
+                    $update_stmt->bind_param("sdsssii", $claim_type, $amount, $expense_date, $description, $receipt_filename, $edit_id, $user_id);
+                    
+                    if($update_stmt->execute()) {
+                        $success = "Claim #$edit_id has been updated successfully!";
+                        logActivity($conn, $user_id, 'Edit Claim', "Edited claim #$edit_id");
+                    } else {
+                        $error = "Failed to update claim. Please try again.";
+                    }
+                    $update_stmt->close();
+                }
+            }
+        }
+        $check_stmt->close();
     }
-    $stmt->close();
+    
+    // Handle Cancel (delete pending claim)
+    elseif(isset($_POST['cancel_id'])) {
+        $cancel_id = intval($_POST['cancel_id']);
+        
+        // First get the receipt filename to delete it
+        $receipt_sql = "SELECT receipt FROM claims WHERE id = ? AND user_id = ? AND status = 'Pending'";
+        $receipt_stmt = $conn->prepare($receipt_sql);
+        $receipt_stmt->bind_param("ii", $cancel_id, $user_id);
+        $receipt_stmt->execute();
+        $receipt_result = $receipt_stmt->get_result();
+        
+        if($receipt_data = $receipt_result->fetch_assoc()) {
+            $receipt_file = $receipt_data['receipt'];
+            
+            // Delete the claim
+            $stmt = $conn->prepare("DELETE FROM claims WHERE id = ? AND user_id = ? AND status = 'Pending'");
+            $stmt->bind_param('ii', $cancel_id, $user_id);
+            
+            if($stmt->execute() && $stmt->affected_rows > 0) {
+                // Delete receipt file if exists
+                if($receipt_file && file_exists("../uploads/receipts/" . $receipt_file)) {
+                    unlink("../uploads/receipts/" . $receipt_file);
+                }
+                $success = "Claim #$cancel_id has been cancelled and removed.";
+                logActivity($conn, $user_id, 'Cancel Claim', "Cancelled claim #$cancel_id");
+            } else {
+                $error = "Could not cancel the claim. It may have already been processed.";
+            }
+            $stmt->close();
+        }
+        $receipt_stmt->close();
+    }
 }
  
 // ─── Filter ──────────────────────────────────────────────────────────
@@ -199,19 +300,35 @@ foreach($counts_rows as $r) {
                                                 </span>
                                             </td>
                                             <td>
+                                                <!-- View Button - Available for all claims -->
                                                 <button class="btn btn-sm mb-1" style="background: #5BC0BE; color: #0B132B;"
                                                     data-bs-toggle="modal" data-bs-target="#detailModal"
                                                     data-id="<?php echo $claim['id']; ?>"
                                                     data-type="<?php echo htmlspecialchars($claim['claim_type']); ?>"
                                                     data-amount="<?php echo number_format($claim['amount'], 2); ?>"
-                                                    data-date="<?php echo $claim['expense_date'] ? date('d M Y', strtotime($claim['expense_date'])) : '-'; ?>"
+                                                    data-expense-date="<?php echo $claim['expense_date']; ?>"
                                                     data-status="<?php echo ucfirst($claim['status']); ?>"
                                                     data-desc="<?php echo htmlspecialchars($claim['description']); ?>"
                                                     data-remark="<?php echo htmlspecialchars($claim['finance_comment'] ?? ''); ?>"
                                                     data-receipt="<?php echo htmlspecialchars($claim['receipt'] ?? ''); ?>">
                                                     <i class="fas fa-eye"></i> View
                                                 </button>
- 
+                                                
+                                                <!-- Edit Button - ONLY for PENDING claims -->
+                                                <?php if(strtolower($claim['status']) === 'pending'): ?>
+                                                <button class="btn btn-sm btn-warning mb-1"
+                                                    data-bs-toggle="modal" data-bs-target="#editModal"
+                                                    data-id="<?php echo $claim['id']; ?>"
+                                                    data-type="<?php echo htmlspecialchars($claim['claim_type']); ?>"
+                                                    data-amount="<?php echo $claim['amount']; ?>"
+                                                    data-expense-date="<?php echo $claim['expense_date']; ?>"
+                                                    data-desc="<?php echo htmlspecialchars($claim['description']); ?>"
+                                                    data-receipt="<?php echo htmlspecialchars($claim['receipt'] ?? ''); ?>">
+                                                    <i class="fas fa-edit"></i> Edit
+                                                </button>
+                                                <?php endif; ?>
+                                                
+                                                <!-- Cancel Button - ONLY for PENDING claims -->
                                                 <?php if(strtolower($claim['status']) === 'pending'): ?>
                                                 <form method="POST" class="d-inline"
                                                       onsubmit="return confirm('Cancel and delete claim #<?php echo $claim['id']; ?>? This cannot be undone.');">
@@ -244,6 +361,7 @@ foreach($counts_rows as $r) {
         </div>
     </div>
  
+    <!-- View Detail Modal -->
     <div class="modal fade" id="detailModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -296,10 +414,80 @@ foreach($counts_rows as $r) {
             </div>
         </div>
     </div>
+    
+    <!-- Edit Claim Modal - ONLY for PENDING claims -->
+    <div class="modal fade" id="editModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header" style="background:#5BC0BE; color:#0B132B;">
+                    <h5 class="modal-title">
+                        <i class="fas fa-edit me-2"></i>
+                        Edit Pending Claim
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="modal-body p-4">
+                        <input type="hidden" name="edit_id" id="edit-id">
+                        
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            You can only edit claims while they are in <strong>Pending</strong> status. Once approved or paid, claims cannot be modified.
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Claim Type *</label>
+                                <select name="claim_type" id="edit-type" class="form-select" required>
+                                    <option value="">Select claim type</option>
+                                    <option value="Travel">Travel</option>
+                                    <option value="Meal">Meal</option>
+                                    <option value="Accommodation">Accommodation</option>
+                                    <option value="Transportation">Transportation</option>
+                                    <option value="Office Supplies">Office Supplies</option>
+                                    <option value="Training">Training</option>
+                                    <option value="Medical">Medical</option>
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Amount (RM) *</label>
+                                <input type="number" name="amount" id="edit-amount" step="0.01" min="0.01" max="200" class="form-control" required>
+                                <small class="text-muted">Maximum: RM 200.00 per claim</small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Expense Date *</label>
+                                <input type="date" name="expense_date" id="edit-expense-date" class="form-control" required max="<?php echo date('Y-m-d'); ?>">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Receipt (Optional)</label>
+                                <input type="file" name="receipt" class="form-control" accept=".pdf,.jpg,.jpeg,.png" id="edit-receipt">
+                                <small class="text-muted">Leave empty to keep current receipt. Max 5MB.</small>
+                                <div id="current-receipt" class="mt-2"></div>
+                            </div>
+                            
+                            <div class="col-12 mb-3">
+                                <label class="form-label fw-bold">Description *</label>
+                                <textarea name="description" id="edit-description" rows="4" class="form-control" required></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn" style="background: #5BC0BE; color: #0B132B;">
+                            <i class="fas fa-save me-2"></i>Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
  
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Populate modal with claim data
+        // Populate view modal with claim data
         document.getElementById('detailModal').addEventListener('show.bs.modal', function(e) {
             const btn    = e.relatedTarget;
             const status = btn.dataset.status.toLowerCase();
@@ -313,7 +501,16 @@ foreach($counts_rows as $r) {
             document.getElementById('modal-id').textContent     = btn.dataset.id;
             document.getElementById('modal-type').textContent   = btn.dataset.type;
             document.getElementById('modal-amount').textContent = btn.dataset.amount;
-            document.getElementById('modal-date').textContent   = btn.dataset.date;
+            
+            // Format date nicely
+            const expenseDate = btn.dataset.expenseDate;
+            if(expenseDate) {
+                const date = new Date(expenseDate);
+                document.getElementById('modal-date').textContent = date.toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' });
+            } else {
+                document.getElementById('modal-date').textContent = '-';
+            }
+            
             document.getElementById('modal-desc').textContent   = btn.dataset.desc;
  
             const statusEl = document.getElementById('modal-status');
@@ -337,6 +534,47 @@ foreach($counts_rows as $r) {
             } else {
                 remarkWrapper.style.display = 'none';
             }
+        });
+        
+        // Populate edit modal with claim data (for PENDING claims only)
+        document.getElementById('editModal').addEventListener('show.bs.modal', function(e) {
+            const btn = e.relatedTarget;
+            
+            document.getElementById('edit-id').value = btn.dataset.id;
+            document.getElementById('edit-type').value = btn.dataset.type;
+            document.getElementById('edit-amount').value = btn.dataset.amount;
+            document.getElementById('edit-expense-date').value = btn.dataset.expenseDate;
+            document.getElementById('edit-description').value = btn.dataset.desc;
+            
+            // Show current receipt if exists
+            const receipt = btn.dataset.receipt;
+            const receiptContainer = document.getElementById('current-receipt');
+            if (receipt) {
+                receiptContainer.innerHTML = `<div class="alert alert-info">
+                    <i class="fas fa-paperclip me-2"></i>
+                    Current receipt: <a href="../uploads/receipts/${receipt}" target="_blank">View attached file</a>
+                    <br><small>Upload a new file if you want to replace it.</small>
+                </div>`;
+            } else {
+                receiptContainer.innerHTML = `<div class="alert alert-secondary">
+                    <i class="fas fa-info-circle me-2"></i>
+                    No receipt currently attached. You can upload one now.
+                </div>`;
+            }
+        });
+        
+        // Real-time amount validation in edit modal
+        document.getElementById('editModal').addEventListener('shown.bs.modal', function() {
+            const amountInput = document.getElementById('edit-amount');
+            amountInput.addEventListener('input', function() {
+                if(parseFloat(this.value) > 200) {
+                    this.setCustomValidity('Amount cannot exceed RM 200.00');
+                    this.style.borderColor = '#dc3545';
+                } else {
+                    this.setCustomValidity('');
+                    this.style.borderColor = '#ced4da';
+                }
+            });
         });
     </script>
 </body>
