@@ -119,6 +119,63 @@ $stmt->close();
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/style.css">
+    <style>
+        /* Tooltip styling */
+        [data-tooltip] {
+            position: relative;
+            cursor: pointer;
+        }
+        
+        [data-tooltip]:before {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #0B132B;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 1000;
+            display: none;
+            font-weight: normal;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        [data-tooltip]:after {
+            content: '';
+            position: absolute;
+            bottom: 115%;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 5px;
+            border-style: solid;
+            border-color: #0B132B transparent transparent transparent;
+            display: none;
+            z-index: 1000;
+        }
+        
+        [data-tooltip]:hover:before,
+        [data-tooltip]:hover:after {
+            display: block;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+        
+        .btn-icon {
+            transition: transform 0.2s;
+        }
+        
+        .btn-icon:hover {
+            transform: scale(1.05);
+        }
+    </style>
 </head>
 <body>
 <div class="container-fluid p-0">
@@ -189,7 +246,8 @@ $stmt->close();
                                         </span>
                                     </td>
                                 </tr>
-                                <tr><th>Registered</th><td><?php echo date('d M Y, H:i', strtotime($view_user['created_at'])); ?></td></tr>
+                                <tr><th>Registered</th><td><?php echo date('d M Y, H:i', strtotime($view_user['created_at'])); ?></td>
+                                </tr>
                             </table>
                         </div>
                         <div class="modal-footer">
@@ -282,22 +340,29 @@ $stmt->close();
                                             <?php echo $user['status']; ?>
                                         </span>
                                     </td>
-                                    <td>
+                                    <td class="action-buttons">
+                                        <!-- View Button -->
                                         <a href="?view=<?php echo $user['id']; ?>"
-                                           class="btn btn-sm" style="background:#5BC0BE; color:#0B132B;">
+                                           class="btn btn-sm btn-icon"
+                                           style="background:#5BC0BE; color:#0B132B;"
+                                           data-tooltip="View Details">
                                             <i class="fas fa-eye"></i>
                                         </a>
                                         
                                         <?php if ($user['role'] !== 'admin' && (int)$user['id'] !== (int)$_SESSION['user_id']): ?>
                                             <?php if ($user['status'] === 'Active'): ?>
+                                                <!-- Deactivate Button -->
                                                 <a href="?toggle_status=<?php echo $user['id']; ?>"
-                                                   class="btn btn-sm btn-danger"
+                                                   class="btn btn-sm btn-danger btn-icon"
+                                                   data-tooltip="Deactivate User"
                                                    onclick="return confirm('Deactivate <?php echo htmlspecialchars(addslashes($user['name'])); ?>? They will not be able to log in.')">
                                                     <i class="fas fa-ban"></i>
                                                 </a>
                                             <?php else: ?>
+                                                <!-- Activate Button -->
                                                 <a href="?toggle_status=<?php echo $user['id']; ?>"
-                                                   class="btn btn-sm btn-success"
+                                                   class="btn btn-sm btn-success btn-icon"
+                                                   data-tooltip="Activate User"
                                                    onclick="return confirm('Reactivate <?php echo htmlspecialchars(addslashes($user['name'])); ?>? They will be able to log in again.')">
                                                     <i class="fas fa-check-circle"></i>
                                                 </a>
@@ -312,7 +377,8 @@ $stmt->close();
                 </div>
             </div>
  
-        </div></div>
+        </div>
+    </div>
 </div>
  
 <div class="modal fade" id="addUserModal" tabindex="-1">
