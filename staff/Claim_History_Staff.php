@@ -169,66 +169,291 @@ foreach($counts_rows as $r) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Claim History - UTMSpace</title>
+    <title>Claim History - UTMSPACE</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        /* Staff Dashboard - Soft Blue Theme */
+        :root {
+            --staff-primary: #1e3a5f;
+            --staff-secondary: #3b82f6;
+            --staff-soft: #e8f0fe;
+            --staff-accent: #5BC0BE;
+            --staff-white: #ffffff;
+            --staff-text: #1e293b;
+            --staff-gray: #64748b;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #e8f0fe 0%, #d9e6f5 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            background: linear-gradient(180deg, #1e3a5f 0%, #2c5282 100%);
+            min-height: 100vh;
+            color: white;
+            transition: all 0.3s ease;
+        }
+        
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.85);
+            padding: 12px 20px;
+            margin: 5px 0;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .sidebar .nav-link:hover {
+            background: rgba(91, 192, 190, 0.2);
+            color: #5BC0BE;
+            transform: translateX(5px);
+        }
+        
+        .sidebar .nav-link.active {
+            background: #5BC0BE;
+            color: #1e3a5f;
+            font-weight: 600;
+        }
+        
+        /* Header */
+        .page-header {
+            background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%);
+            border-radius: 20px;
+            padding: 20px 25px;
+            color: white;
+            margin-bottom: 25px;
+        }
+        
+        /* Filter Buttons */
+        .filter-btn {
+            background: white;
+            color: #1e3a5f;
+            border: 1px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+        
+        .filter-btn:hover, .filter-btn.active {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+            transform: translateY(-2px);
+        }
+        
+        .filter-badge {
+            background: #e2e8f0;
+            color: #1e3a5f;
+        }
+        
+        .filter-btn.active .filter-badge {
+            background: white;
+            color: #3b82f6;
+        }
+        
+        /* Table */
+        .claims-table {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+        }
+        
+        .claims-table thead {
+            background: #f1f5f9;
+        }
+        
+        .claims-table th {
+            color: #1e3a5f;
+            font-weight: 600;
+            padding: 15px;
+            border: none;
+        }
+        
+        .claims-table td {
+            padding: 12px 15px;
+            vertical-align: middle;
+            border-bottom: 1px solid #eef2ff;
+        }
+        
+        .claims-table tr:hover {
+            background: #f8fafc;
+        }
+        
+        /* Status Badges */
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .status-Pending { background: #fef3c7; color: #d97706; }
+        .status-Approved { background: #d1fae5; color: #059669; }
+        .status-Paid { background: #dbeafe; color: #2563eb; }
+        .status-Rejected { background: #fee2e2; color: #dc2626; }
+        
+        /* Buttons */
+        .btn-view {
+            background: #3b82f6;
+            color: white;
+            border-radius: 8px;
+            padding: 5px 12px;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-view:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+            color: white;
+        }
+        
+        .btn-edit {
+            background: #f59e0b;
+            color: white;
+            border-radius: 8px;
+            padding: 5px 12px;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-edit:hover {
+            background: #d97706;
+            transform: translateY(-2px);
+            color: white;
+        }
+        
+        .btn-cancel {
+            background: #ef4444;
+            color: white;
+            border-radius: 8px;
+            padding: 5px 12px;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-cancel:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+            color: white;
+        }
+        
+        .btn-new-claim {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 10px 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-new-claim:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.4);
+            color: white;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px;
+        }
+        
+        .empty-icon {
+            font-size: 60px;
+            color: #cbd5e1;
+            margin-bottom: 20px;
+        }
+        
+        /* Modal Styling */
+        .modal-custom-header {
+            background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%);
+            color: white;
+        }
+        
+        .modal-edit-header {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+        }
+    </style>
 </head>
 <body>
     <div class="container-fluid p-0">
         <div class="row g-0">
+            <!-- Sidebar -->
             <div class="col-md-3 col-lg-2 sidebar p-3">
                 <div class="text-center mb-4">
                     <i class="fas fa-receipt fs-1" style="color: #5BC0BE;"></i>
-                    <h5 class="mt-2">UTMSpace</h5>
+                    <h5 class="mt-2">UTMSPACE</h5>
                     <small>Staff Portal</small>
                 </div>
                 <hr style="border-color: rgba(255,255,255,0.2);">
                 <nav class="nav flex-column">
                     <a class="nav-link" href="dashboard_Staff.php">
-                        <i class="fas fa-tachometer-alt"></i> Dashboard
+                        <i class="fas fa-tachometer-alt me-2"></i> Dashboard
                     </a>
                     <a class="nav-link" href="New_Claim_Staff.php">
-                        <i class="fas fa-plus-circle"></i> New Claim
+                        <i class="fas fa-plus-circle me-2"></i> New Claim
                     </a>
                     <a class="nav-link active" href="Claim_History_Staff.php">
-                        <i class="fas fa-history"></i> Claim History
+                        <i class="fas fa-history me-2"></i> Claim History
                     </a>
                     <a class="nav-link" href="Edit_profile_Staff.php">
-                        <i class="fas fa-user-edit"></i> Edit Profile
+                        <i class="fas fa-user-edit me-2"></i> Edit Profile
                     </a>
                     <hr style="border-color: rgba(255,255,255,0.2);">
                     <a class="nav-link" href="../logout.php">
-                        <i class="fas fa-sign-out-alt"></i> Logout
+                        <i class="fas fa-sign-out-alt me-2"></i> Logout
                     </a>
                 </nav>
             </div>
  
+            <!-- Main Content -->
             <div class="col-md-9 col-lg-10 p-4">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h2 style="color: white;">
-                        <i class="fas fa-history me-2" style="color: #5BC0BE;"></i>
-                        My Claim History
-                    </h2>
-                    <a href="New_Claim_Staff.php" class="btn" style="background: #5BC0BE; color: #0B132B;">
-                        <i class="fas fa-plus me-1"></i> New Claim
-                    </a>
+                <!-- Page Header -->
+                <div class="page-header fade-in">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
+                        <div>
+                            <h3 class="mb-1">
+                                <i class="fas fa-history me-2" style="color: #5BC0BE;"></i>
+                                My Claim History
+                            </h3>
+                            <p class="mb-0 opacity-75">Track and manage all your submitted claims</p>
+                        </div>
+                        <a href="New_Claim_Staff.php" class="btn btn-new-claim mt-2 mt-sm-0">
+                            <i class="fas fa-plus me-2"></i>New Claim
+                        </a>
+                    </div>
                 </div>
  
                 <?php if($success): ?>
-                    <div class="alert alert-success alert-dismissible fade show">
+                    <div class="alert alert-success alert-dismissible fade show fade-in" role="alert">
                         <i class="fas fa-check-circle me-2"></i><?php echo $success; ?>
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                 <?php endif; ?>
                 <?php if($error): ?>
-                    <div class="alert alert-danger alert-dismissible fade show">
+                    <div class="alert alert-danger alert-dismissible fade show fade-in" role="alert">
                         <i class="fas fa-exclamation-circle me-2"></i><?php echo $error; ?>
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                 <?php endif; ?>
  
-                <div class="mb-3">
+                <!-- Filter Tabs -->
+                <div class="mb-4 fade-in">
                     <?php
                     $tab_statuses = [
                         'All'      => 'All',
@@ -238,123 +463,110 @@ foreach($counts_rows as $r) {
                         'Rejected' => 'Rejected',
                     ];
                     foreach($tab_statuses as $val => $label):
-                        $active = ($status_filter === $val) ? 'active' : '';
+                        $active = ($status_filter === $val);
                         $count  = $counts[$val] ?? 0;
                     ?>
                     <a href="?status=<?php echo $val; ?>"
-                       class="btn btn-sm me-1 mb-1 <?php echo $active ? '' : 'btn-outline-secondary'; ?>"
-                       style="<?php echo $active ? 'background:#5BC0BE; color:#0B132B; border-color:#5BC0BE;' : 'color:white; border-color:rgba(255,255,255,0.3);'; ?>">
+                       class="btn filter-btn me-2 mb-2 <?php echo $active ? 'active' : ''; ?>">
                         <?php echo $label; ?>
-                        <span class="badge ms-1" style="background:<?php echo $active ? '#0B132B' : 'rgba(255,255,255,0.2)'; ?>">
-                            <?php echo $count; ?>
-                        </span>
+                        <span class="badge filter-badge ms-1"><?php echo $count; ?></span>
                     </a>
                     <?php endforeach; ?>
                 </div>
  
-                <div class="card border-0 shadow-lg fade-in">
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-custom mb-0">
-                                <thead>
+                <!-- Claims Table -->
+                <div class="claims-table fade-in">
+                    <div class="table-responsive">
+                        <table class="table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Submitted</th>
+                                    <th>Type</th>
+                                    <th>Amount (RM)</th>
+                                    <th>Expense Date</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if(empty($claims)): ?>
                                     <tr>
-                                        <th>#</th>
-                                        <th>Submitted</th>
-                                        <th>Type</th>
-                                        <th>Amount (RM)</th>
-                                        <th>Expense Date</th>
-                                        <th>Status</th>
-                                        <th>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php if(empty($claims)): ?>
-                                        <tr>
-                                            <td colspan="7" class="text-center py-5 text-muted">
-                                                <i class="fas fa-folder-open fa-3x mb-3 d-block" style="color:#5BC0BE; opacity:0.5;"></i>
-                                                No claims found.
-                                                <a href="New_Claim_Staff.php" class="d-block mt-2" style="color:#5BC0BE;">Submit your first claim →</a>
-                                            </td>
-                                        </tr>
-                                    <?php else: ?>
-                                        <?php foreach($claims as $i => $claim): ?>
-                                        <tr>
-                                            <td><?php echo $i + 1; ?></td>
-                                            <td><?php echo date('d M Y', strtotime($claim['submitted_at'])); ?></td>
-                                            <td><?php echo htmlspecialchars($claim['claim_type']); ?></td>
-                                            <td class="fw-bold">RM <?php echo number_format($claim['amount'], 2); ?></td>
-                                            <td><?php echo $claim['expense_date'] ? date('d M Y', strtotime($claim['expense_date'])) : '-'; ?></td>
-                                            <td>
-                                                <?php
-                                                $icons = [
-                                                    'pending'  => 'fa-clock',
-                                                    'approved' => 'fa-check',
-                                                    'paid'     => 'fa-dollar-sign',
-                                                    'rejected' => 'fa-times',
-                                                ];
-                                                $icon = $icons[strtolower($claim['status'])] ?? 'fa-circle';
-                                                ?>
-                                                <span class="status-<?php echo strtolower($claim['status']); ?>">
-                                                    <i class="fas <?php echo $icon; ?> me-1"></i>
-                                                    <?php echo ucfirst($claim['status']); ?>
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <!-- View Button - Available for all claims -->
-                                                <button class="btn btn-sm mb-1" style="background: #5BC0BE; color: #0B132B;"
-                                                    data-bs-toggle="modal" data-bs-target="#detailModal"
-                                                    data-id="<?php echo $claim['id']; ?>"
-                                                    data-type="<?php echo htmlspecialchars($claim['claim_type']); ?>"
-                                                    data-amount="<?php echo number_format($claim['amount'], 2); ?>"
-                                                    data-expense-date="<?php echo $claim['expense_date']; ?>"
-                                                    data-status="<?php echo ucfirst($claim['status']); ?>"
-                                                    data-desc="<?php echo htmlspecialchars($claim['description']); ?>"
-                                                    data-remark="<?php echo htmlspecialchars($claim['finance_comment'] ?? ''); ?>"
-                                                    data-receipt="<?php echo htmlspecialchars($claim['receipt'] ?? ''); ?>">
-                                                    <i class="fas fa-eye"></i> View
-                                                </button>
-                                                
-                                                <!-- Edit Button - ONLY for PENDING claims -->
-                                                <?php if(strtolower($claim['status']) === 'pending'): ?>
-                                                <button class="btn btn-sm btn-warning mb-1"
-                                                    data-bs-toggle="modal" data-bs-target="#editModal"
-                                                    data-id="<?php echo $claim['id']; ?>"
-                                                    data-type="<?php echo htmlspecialchars($claim['claim_type']); ?>"
-                                                    data-amount="<?php echo $claim['amount']; ?>"
-                                                    data-expense-date="<?php echo $claim['expense_date']; ?>"
-                                                    data-desc="<?php echo htmlspecialchars($claim['description']); ?>"
-                                                    data-receipt="<?php echo htmlspecialchars($claim['receipt'] ?? ''); ?>">
-                                                    <i class="fas fa-edit"></i> Edit
-                                                </button>
-                                                <?php endif; ?>
-                                                
-                                                <!-- Cancel Button - ONLY for PENDING claims -->
-                                                <?php if(strtolower($claim['status']) === 'pending'): ?>
-                                                <form method="POST" class="d-inline"
-                                                      onsubmit="return confirm('Cancel and delete claim #<?php echo $claim['id']; ?>? This cannot be undone.');">
-                                                    <input type="hidden" name="cancel_id" value="<?php echo $claim['id']; ?>">
-                                                    <button type="submit" class="btn btn-sm btn-danger mb-1">
-                                                        <i class="fas fa-times"></i> Cancel
-                                                    </button>
-                                                </form>
-                                                <?php endif; ?>
-                                            </td>
-                                        </tr>
-                                        <?php endforeach; ?>
-                                    <?php endif; ?>
-                                </tbody>
-                                <?php if(!empty($claims)): ?>
-                                <tfoot>
-                                    <tr style="background:#f8f9fa;">
-                                        <td colspan="3" class="fw-bold text-end">Total Amount:</td>
-                                        <td colspan="4" class="fw-bold" style="color:#5BC0BE;">
-                                            RM <?php echo number_format(array_sum(array_column($claims, 'amount')), 2); ?>
+                                        <td colspan="7" class="empty-state">
+                                            <div class="empty-icon">
+                                                <i class="fas fa-folder-open"></i>
+                                            </div>
+                                            <h5 style="color: #1e3a5f;">No claims found</h5>
+                                            <p class="text-muted">You haven't submitted any claims yet.</p>
+                                            <a href="New_Claim_Staff.php" class="btn btn-new-claim">
+                                                <i class="fas fa-plus me-2"></i>Submit Your First Claim
+                                            </a>
                                         </td>
                                     </tr>
-                                </tfoot>
+                                <?php else: ?>
+                                    <?php foreach($claims as $i => $claim): ?>
+                                    <tr>
+                                        <td class="fw-bold"><?php echo $i + 1; ?></td>
+                                        <td><?php echo date('d M Y', strtotime($claim['submitted_at'])); ?></td>
+                                        <td><?php echo htmlspecialchars($claim['claim_type']); ?></td>
+                                        <td class="fw-bold" style="color: #1e3a5f;">RM <?php echo number_format($claim['amount'], 2); ?></td>
+                                        <td><?php echo $claim['expense_date'] ? date('d M Y', strtotime($claim['expense_date'])) : '-'; ?></td>
+                                        <td>
+                                            <span class="status-badge status-<?php echo $claim['status']; ?>">
+                                                <i class="fas <?php echo $claim['status'] == 'Pending' ? 'fa-clock' : ($claim['status'] == 'Approved' ? 'fa-check' : ($claim['status'] == 'Paid' ? 'fa-dollar-sign' : 'fa-times')); ?> me-1"></i>
+                                                <?php echo $claim['status']; ?>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-view btn-sm me-1"
+                                                data-bs-toggle="modal" data-bs-target="#detailModal"
+                                                data-id="<?php echo $claim['id']; ?>"
+                                                data-type="<?php echo htmlspecialchars($claim['claim_type']); ?>"
+                                                data-amount="<?php echo number_format($claim['amount'], 2); ?>"
+                                                data-expense-date="<?php echo $claim['expense_date']; ?>"
+                                                data-status="<?php echo $claim['status']; ?>"
+                                                data-desc="<?php echo htmlspecialchars($claim['description']); ?>"
+                                                data-remark="<?php echo htmlspecialchars($claim['finance_comment'] ?? ''); ?>"
+                                                data-receipt="<?php echo htmlspecialchars($claim['receipt'] ?? ''); ?>">
+                                                <i class="fas fa-eye"></i> View
+                                            </button>
+                                            
+                                            <?php if(strtolower($claim['status']) === 'pending'): ?>
+                                            <button class="btn btn-edit btn-sm me-1"
+                                                data-bs-toggle="modal" data-bs-target="#editModal"
+                                                data-id="<?php echo $claim['id']; ?>"
+                                                data-type="<?php echo htmlspecialchars($claim['claim_type']); ?>"
+                                                data-amount="<?php echo $claim['amount']; ?>"
+                                                data-expense-date="<?php echo $claim['expense_date']; ?>"
+                                                data-desc="<?php echo htmlspecialchars($claim['description']); ?>"
+                                                data-receipt="<?php echo htmlspecialchars($claim['receipt'] ?? ''); ?>">
+                                                <i class="fas fa-edit"></i> Edit
+                                            </button>
+                                            
+                                            <form method="POST" class="d-inline"
+                                                  onsubmit="return confirm('Cancel and delete claim #<?php echo $claim['id']; ?>? This cannot be undone.');">
+                                                <input type="hidden" name="cancel_id" value="<?php echo $claim['id']; ?>">
+                                                <button type="submit" class="btn btn-cancel btn-sm">
+                                                    <i class="fas fa-trash"></i> Cancel
+                                                </button>
+                                            </form>
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
                                 <?php endif; ?>
-                            </table>
-                        </div>
+                            </tbody>
+                            <?php if(!empty($claims)): ?>
+                            <tfoot style="background: #f1f5f9;">
+                                <tr>
+                                    <td colspan="3" class="fw-bold text-end">Total Amount:</td>
+                                    <td colspan="4" class="fw-bold" style="color: #3b82f6; font-size: 18px;">
+                                        RM <?php echo number_format(array_sum(array_column($claims, 'amount')), 2); ?>
+                                    </td>
+                                </tr>
+                            </tfoot>
+                            <?php endif; ?>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -365,9 +577,9 @@ foreach($counts_rows as $r) {
     <div class="modal fade" id="detailModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
-                <div class="modal-header" style="background:#0B132B; color:white;">
+                <div class="modal-header modal-custom-header">
                     <h5 class="modal-title">
-                        <i class="fas fa-receipt me-2" style="color:#5BC0BE;"></i>
+                        <i class="fas fa-receipt me-2"></i>
                         Claim Details
                     </h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
@@ -380,7 +592,7 @@ foreach($counts_rows as $r) {
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="text-muted small">Status</label>
-                            <p class="mb-0"><span id="modal-status" class="badge fs-6"></span></p>
+                            <p class="mb-0"><span id="modal-status" class="status-badge"></span></p>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="text-muted small">Claim Type</label>
@@ -388,7 +600,7 @@ foreach($counts_rows as $r) {
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="text-muted small">Amount</label>
-                            <p class="fw-bold mb-0 fs-5" style="color:#5BC0BE;">RM <span id="modal-amount"></span></p>
+                            <p class="fw-bold mb-0 fs-5" style="color: #3b82f6;">RM <span id="modal-amount"></span></p>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="text-muted small">Expense Date</label>
@@ -415,16 +627,16 @@ foreach($counts_rows as $r) {
         </div>
     </div>
     
-    <!-- Edit Claim Modal - ONLY for PENDING claims -->
+    <!-- Edit Claim Modal -->
     <div class="modal fade" id="editModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
-                <div class="modal-header" style="background:#5BC0BE; color:#0B132B;">
+                <div class="modal-header modal-edit-header">
                     <h5 class="modal-title">
                         <i class="fas fa-edit me-2"></i>
                         Edit Pending Claim
                     </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <form method="POST" enctype="multipart/form-data">
                     <div class="modal-body p-4">
@@ -432,7 +644,7 @@ foreach($counts_rows as $r) {
                         
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle me-2"></i>
-                            You can only edit claims while they are in <strong>Pending</strong> status. Once approved or paid, claims cannot be modified.
+                            You can only edit claims while they are in <strong>Pending</strong> status.
                         </div>
                         
                         <div class="row">
@@ -476,7 +688,7 @@ foreach($counts_rows as $r) {
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn" style="background: #5BC0BE; color: #0B132B;">
+                        <button type="submit" class="btn" style="background: #f59e0b; color: white;">
                             <i class="fas fa-save me-2"></i>Save Changes
                         </button>
                     </div>
@@ -489,20 +701,13 @@ foreach($counts_rows as $r) {
     <script>
         // Populate view modal with claim data
         document.getElementById('detailModal').addEventListener('show.bs.modal', function(e) {
-            const btn    = e.relatedTarget;
-            const status = btn.dataset.status.toLowerCase();
-            const statusColors = {
-                'pending':  '#f59e0b',
-                'approved': '#10b981',
-                'paid':     '#5BC0BE',
-                'rejected': '#ef4444'
-            };
- 
-            document.getElementById('modal-id').textContent     = btn.dataset.id;
-            document.getElementById('modal-type').textContent   = btn.dataset.type;
+            const btn = e.relatedTarget;
+            const status = btn.dataset.status;
+            
+            document.getElementById('modal-id').textContent = btn.dataset.id;
+            document.getElementById('modal-type').textContent = btn.dataset.type;
             document.getElementById('modal-amount').textContent = btn.dataset.amount;
             
-            // Format date nicely
             const expenseDate = btn.dataset.expenseDate;
             if(expenseDate) {
                 const date = new Date(expenseDate);
@@ -511,23 +716,22 @@ foreach($counts_rows as $r) {
                 document.getElementById('modal-date').textContent = '-';
             }
             
-            document.getElementById('modal-desc').textContent   = btn.dataset.desc;
- 
+            document.getElementById('modal-desc').textContent = btn.dataset.desc;
+            
             const statusEl = document.getElementById('modal-status');
-            statusEl.textContent        = btn.dataset.status;
-            statusEl.style.background   = statusColors[status] || '#888';
-            statusEl.style.color        = 'white';
- 
+            statusEl.textContent = status;
+            statusEl.className = `status-badge status-${status}`;
+            
             const receipt = btn.dataset.receipt;
             const receiptContainer = document.getElementById('modal-receipt-container');
             if (receipt) {
-                receiptContainer.innerHTML = `<a href="../uploads/receipts/${receipt}" target="_blank" class="text-decoration-none" style="color: #5BC0BE;"><i class="fas fa-paperclip"></i> View Attached Receipt</a>`;
+                receiptContainer.innerHTML = `<a href="../uploads/receipts/${receipt}" target="_blank" class="text-decoration-none" style="color: #3b82f6;"><i class="fas fa-paperclip"></i> View Attached Receipt</a>`;
             } else {
                 receiptContainer.textContent = 'No receipt attached';
             }
- 
+            
             const remarkWrapper = document.getElementById('modal-remark-wrapper');
-            const remark        = btn.dataset.remark;
+            const remark = btn.dataset.remark;
             if(remark) {
                 remarkWrapper.style.display = 'block';
                 document.getElementById('modal-remark').textContent = remark;
@@ -536,7 +740,7 @@ foreach($counts_rows as $r) {
             }
         });
         
-        // Populate edit modal with claim data (for PENDING claims only)
+        // Populate edit modal with claim data
         document.getElementById('editModal').addEventListener('show.bs.modal', function(e) {
             const btn = e.relatedTarget;
             
@@ -546,7 +750,6 @@ foreach($counts_rows as $r) {
             document.getElementById('edit-expense-date').value = btn.dataset.expenseDate;
             document.getElementById('edit-description').value = btn.dataset.desc;
             
-            // Show current receipt if exists
             const receipt = btn.dataset.receipt;
             const receiptContainer = document.getElementById('current-receipt');
             if (receipt) {
@@ -563,7 +766,7 @@ foreach($counts_rows as $r) {
             }
         });
         
-        // Real-time amount validation in edit modal
+        // Real-time amount validation
         document.getElementById('editModal').addEventListener('shown.bs.modal', function() {
             const amountInput = document.getElementById('edit-amount');
             amountInput.addEventListener('input', function() {
