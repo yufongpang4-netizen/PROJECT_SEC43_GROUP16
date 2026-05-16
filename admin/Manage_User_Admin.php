@@ -115,12 +115,306 @@ $stmt->close();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Users - Admin</title>
+    <title>Manage Users - Admin | UTMSPACE</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../css/style.css">
     <style>
-        /* Tooltip styling */
+        /* Admin Dashboard - Soft Purple Theme */
+        :root {
+            --admin-primary: #4c1d95;
+            --admin-secondary: #8b5cf6;
+            --admin-soft: #f5f3ff;
+            --admin-accent: #5BC0BE;
+            --admin-white: #ffffff;
+            --admin-text: #4c1d95;
+            --admin-gray: #6b7280;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+        }
+        
+        .container-fluid {
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        .row.g-0 {
+            height: 100%;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            background: linear-gradient(180deg, #4c1d95 0%, #6d28d9 100%);
+            height: 100vh;
+            color: white;
+            transition: all 0.3s ease;
+            overflow-y: auto;
+            position: sticky;
+            top: 0;
+        }
+        
+        .sidebar::-webkit-scrollbar {
+            width: 5px;
+        }
+        
+        .sidebar::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .sidebar::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.3);
+            border-radius: 5px;
+        }
+        
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.85);
+            padding: 12px 20px;
+            margin: 5px 0;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .sidebar .nav-link:hover {
+            background: rgba(91, 192, 190, 0.2);
+            color: #5BC0BE;
+            transform: translateX(5px);
+        }
+        
+        .sidebar .nav-link.active {
+            background: #5BC0BE;
+            color: #4c1d95;
+            font-weight: 600;
+        }
+        
+        /* Main Content */
+        .main-content {
+            height: 100vh;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        .main-content::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .main-content::-webkit-scrollbar-track {
+            background: #e5e7eb;
+            border-radius: 10px;
+        }
+        
+        .main-content::-webkit-scrollbar-thumb {
+            background: #8b5cf6;
+            border-radius: 10px;
+        }
+        
+        .main-content::-webkit-scrollbar-thumb:hover {
+            background: #4c1d95;
+        }
+        
+        /* Page Header */
+        .page-header {
+            background: linear-gradient(135deg, #4c1d95 0%, #6d28d9 100%);
+            border-radius: 20px;
+            padding: 20px 25px;
+            color: white;
+            margin-bottom: 25px;
+        }
+        
+        /* Search Card */
+        .search-card {
+            background: white;
+            border-radius: 20px;
+            border: none;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+            margin-bottom: 25px;
+        }
+        
+        .form-label {
+            font-weight: 600;
+            color: #4c1d95;
+            margin-bottom: 8px;
+        }
+        
+        .form-control, .form-select {
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            padding: 10px 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+        }
+        
+        .btn-search {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 10px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-search:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(139, 92, 246, 0.4);
+            color: white;
+        }
+        
+        .btn-reset {
+            background: #e5e7eb;
+            color: #4c1d95;
+            border: none;
+            border-radius: 10px;
+            padding: 10px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-reset:hover {
+            background: #d1d5db;
+            transform: translateY(-2px);
+        }
+        
+        .btn-add {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 10px 20px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-add:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.4);
+            color: white;
+        }
+        
+        /* Table Card */
+        .table-card {
+            background: white;
+            border-radius: 20px;
+            border: none;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+        
+        .table-custom {
+            margin-bottom: 0;
+        }
+        
+        .table-custom thead {
+            background: #f1f5f9;
+        }
+        
+        .table-custom th {
+            color: #4c1d95;
+            font-weight: 600;
+            padding: 15px;
+            border: none;
+        }
+        
+        .table-custom td {
+            padding: 12px 15px;
+            vertical-align: middle;
+            border-bottom: 1px solid #eef2ff;
+        }
+        
+        .table-custom tr:hover {
+            background: #faf5ff;
+        }
+        
+        /* Role Badges */
+        .role-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .role-staff { background: #3b82f6; color: white; }
+        .role-finance { background: #10b981; color: white; }
+        .role-admin { background: #ef4444; color: white; }
+        
+        /* Status Badges */
+        .status-active { background: #d1fae5; color: #059669; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; }
+        .status-inactive { background: #fee2e2; color: #dc2626; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; }
+        
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .btn-view {
+            background: #8b5cf6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-view:hover {
+            background: #7c3aed;
+            transform: translateY(-2px);
+            color: white;
+        }
+        
+        .btn-deactivate {
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-deactivate:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+            color: white;
+        }
+        
+        .btn-activate {
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-activate:hover {
+            background: #059669;
+            transform: translateY(-2px);
+            color: white;
+        }
+        
+        /* Tooltip */
         [data-tooltip] {
             position: relative;
             cursor: pointer;
@@ -132,16 +426,14 @@ $stmt->close();
             bottom: 125%;
             left: 50%;
             transform: translateX(-50%);
-            background: #0B132B;
+            background: #4c1d95;
             color: white;
             padding: 5px 10px;
             border-radius: 5px;
-            font-size: 12px;
+            font-size: 11px;
             white-space: nowrap;
             z-index: 1000;
             display: none;
-            font-weight: normal;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
         
         [data-tooltip]:after {
@@ -152,9 +444,8 @@ $stmt->close();
             transform: translateX(-50%);
             border-width: 5px;
             border-style: solid;
-            border-color: #0B132B transparent transparent transparent;
+            border-color: #4c1d95 transparent transparent transparent;
             display: none;
-            z-index: 1000;
         }
         
         [data-tooltip]:hover:before,
@@ -162,56 +453,119 @@ $stmt->close();
             display: block;
         }
         
-        .action-buttons {
-            display: flex;
-            gap: 5px;
-            flex-wrap: wrap;
+        /* Modal */
+        .modal-custom-header {
+            background: linear-gradient(135deg, #4c1d95 0%, #6d28d9 100%);
+            color: white;
         }
         
-        .btn-icon {
-            transition: transform 0.2s;
+        .btn-save {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 20px;
+            font-weight: 600;
+            transition: all 0.3s ease;
         }
         
-        .btn-icon:hover {
-            transform: scale(1.05);
+        .btn-save:hover {
+            transform: translateY(-2px);
+            color: white;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        hr {
+            border-color: #f3e8ff;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px;
+        }
+        
+        .empty-icon {
+            font-size: 60px;
+            color: #cbd5e1;
+            margin-bottom: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                height: auto;
+                position: relative;
+            }
+            .main-content {
+                height: auto;
+                overflow-y: visible;
+            }
+            .action-buttons {
+                flex-direction: column;
+                gap: 5px;
+            }
         }
     </style>
 </head>
 <body>
-<div class="container-fluid p-0">
+<div class="container-fluid">
     <div class="row g-0">
  
-        <div class="col-md-3 col-lg-2 sidebar p-3">
-            <div class="text-center mb-4">
-                <i class="fas fa-user-shield fs-1" style="color:#5BC0BE;"></i>
-                <h5 class="mt-2">UTMSpace</h5>
-                <small>Admin Portal</small>
+        <!-- Sidebar -->
+        <div class="col-md-3 col-lg-2 sidebar">
+            <div class="p-3">
+                <div class="text-center mb-4">
+                    <i class="fas fa-user-shield fs-1" style="color:#5BC0BE;"></i>
+                    <h5 class="mt-2">UTMSPACE</h5>
+                    <small>Admin Portal</small>
+                </div>
+                <hr style="border-color: rgba(255,255,255,0.2);">
+                <nav class="nav flex-column">
+                    <a class="nav-link" href="dashboard_Admin.php">
+                        <i class="fas fa-tachometer-alt me-2"></i> Dashboard
+                    </a>
+                    <a class="nav-link active" href="Manage_User_Admin.php">
+                        <i class="fas fa-users me-2"></i> Manage Accounts
+                    </a>
+                    <a class="nav-link" href="Generate_Report_Admin.php">
+                        <i class="fas fa-chart-bar me-2"></i> Generate Report
+                    </a>
+                    <hr style="border-color: rgba(255,255,255,0.2);">
+                    <a class="nav-link" href="../logout.php">
+                        <i class="fas fa-sign-out-alt me-2"></i> Logout
+                    </a>
+                </nav>
             </div>
-            <hr style="border-color:rgba(255,255,255,0.2);">
-            <nav class="nav flex-column">
-                <a class="nav-link" href="dashboard_Admin.php"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
-                <a class="nav-link active" href="Manage_User_Admin.php"><i class="fas fa-users"></i> Manage Accounts</a>
-                <a class="nav-link" href="Generate_Report_Admin.php"><i class="fas fa-chart-bar"></i> Generate Report</a>
-                <hr style="border-color:rgba(255,255,255,0.2);">
-                <a class="nav-link" href="../logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a>
-            </nav>
         </div>
  
-        <div class="col-md-9 col-lg-10 p-4">
+        <!-- Main Content -->
+        <div class="col-md-9 col-lg-10 main-content">
  
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2 style="color:white;">
-                    <i class="fas fa-users me-2" style="color:#5BC0BE;"></i>
-                    Manage Staff & Finance Accounts
-                </h2>
-                <button class="btn" style="background:#5BC0BE; color:#0B132B;"
-                        data-bs-toggle="modal" data-bs-target="#addUserModal">
-                    <i class="fas fa-plus me-2"></i>Add New User
-                </button>
+            <!-- Page Header -->
+            <div class="page-header fade-in">
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                    <div>
+                        <h3 class="mb-1">
+                            <i class="fas fa-users me-2" style="color: #5BC0BE;"></i>
+                            Manage User Accounts
+                        </h3>
+                        <p class="mb-0 opacity-75">View, add, and manage staff, finance, and admin accounts</p>
+                    </div>
+                    <button class="btn btn-add mt-2 mt-sm-0" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                        <i class="fas fa-plus me-2"></i>Add New User
+                    </button>
+                </div>
             </div>
  
             <?php if ($message): ?>
-            <div class="alert alert-<?php echo $message_type; ?> alert-dismissible fade show" role="alert">
+            <div class="alert alert-<?php echo $message_type; ?> alert-dismissible fade show fade-in" role="alert">
                 <i class="fas fa-<?php echo $message_type === 'success' ? 'check-circle' : 'exclamation-triangle'; ?> me-2"></i>
                 <?php echo $message; ?>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
@@ -222,33 +576,29 @@ $stmt->close();
             <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.5);">
                 <div class="modal-dialog">
                     <div class="modal-content">
-                        <div class="modal-header" style="background:#0B132B; color:white;">
+                        <div class="modal-header modal-custom-header">
                             <h5 class="modal-title">
-                                <i class="fas fa-user me-2" style="color:#5BC0BE;"></i>
+                                <i class="fas fa-user me-2" style="color: #5BC0BE;"></i>
                                 User Details
                             </h5>
                             <a href="Manage_User_Admin.php" class="btn-close btn-close-white"></a>
                         </div>
                         <div class="modal-body">
-                            <table class="table table-bordered">
-                                <tr><th>ID</th><td><?php echo $view_user['id']; ?></td></tr>
-                                <tr><th>Staff ID</th><td><?php echo htmlspecialchars($view_user['staff_id'] ?? '—'); ?></td></tr>
-                                <tr><th>Name</th><td><?php echo htmlspecialchars($view_user['name']); ?></td></tr>
-                                <tr><th>Email</th><td><?php echo htmlspecialchars($view_user['email']); ?></td></tr>
-                                <tr><th>Phone</th><td><?php echo htmlspecialchars($view_user['phone'] ?? '—'); ?></td></tr>
-                                <tr><th>Role</th><td><?php echo ucfirst($view_user['role']); ?></td></tr>
-                                <tr><th>Department</th><td><?php echo htmlspecialchars($view_user['department'] ?? '—'); ?></td></tr>
-                                <tr>
-                                    <th>Status</th>
-                                    <td>
-                                        <span class="badge bg-<?php echo $view_user['status'] == 'Active' ? 'success' : 'danger'; ?>">
-                                            <?php echo $view_user['status']; ?>
-                                        </span>
-                                    </td>
-                                </tr>
-                                <tr><th>Registered</th><td><?php echo date('d M Y, H:i', strtotime($view_user['created_at'])); ?></td>
-                                </tr>
-                            </table>
+                            <div class="row">
+                                <div class="col-md-6 mb-2"><strong>ID:</strong><br><?php echo $view_user['id']; ?></div>
+                                <div class="col-md-6 mb-2"><strong>Staff ID:</strong><br><?php echo htmlspecialchars($view_user['staff_id'] ?? '—'); ?></div>
+                                <div class="col-md-12 mb-2"><strong>Name:</strong><br><?php echo htmlspecialchars($view_user['name']); ?></div>
+                                <div class="col-md-12 mb-2"><strong>Email:</strong><br><?php echo htmlspecialchars($view_user['email']); ?></div>
+                                <div class="col-md-6 mb-2"><strong>Phone:</strong><br><?php echo htmlspecialchars($view_user['phone'] ?? '—'); ?></div>
+                                <div class="col-md-6 mb-2"><strong>Role:</strong><br><?php echo ucfirst($view_user['role']); ?></div>
+                                <div class="col-md-6 mb-2"><strong>Department:</strong><br><?php echo htmlspecialchars($view_user['department'] ?? '—'); ?></div>
+                                <div class="col-md-6 mb-2"><strong>Status:</strong><br>
+                                    <span class="<?php echo $view_user['status'] == 'Active' ? 'status-active' : 'status-inactive'; ?>">
+                                        <?php echo $view_user['status']; ?>
+                                    </span>
+                                </div>
+                                <div class="col-md-12 mb-2"><strong>Registered:</strong><br><?php echo date('d M Y, H:i', strtotime($view_user['created_at'])); ?></div>
+                            </div>
                         </div>
                         <div class="modal-footer">
                             <a href="Manage_User_Admin.php" class="btn btn-secondary">Close</a>
@@ -258,15 +608,18 @@ $stmt->close();
             </div>
             <?php endif; ?>
  
-            <div class="card border-0 shadow mb-3">
-                <div class="card-body p-3">
-                    <form method="GET" class="row g-2 align-items-end">
+            <!-- Search & Filter Card -->
+            <div class="search-card fade-in">
+                <div class="card-body p-4">
+                    <form method="GET" class="row g-3 align-items-end">
                         <div class="col-md-5">
+                            <label class="form-label">Search</label>
                             <input type="text" name="search" class="form-control"
                                    placeholder="Search by name, email or staff ID..."
                                    value="<?php echo htmlspecialchars($search); ?>">
                         </div>
                         <div class="col-md-3">
+                            <label class="form-label">Filter by Role</label>
                             <select name="filter_role" class="form-select">
                                 <option value="">All Roles</option>
                                 <option value="staff"   <?php echo $filter_role === 'staff'   ? 'selected' : ''; ?>>Staff</option>
@@ -275,118 +628,120 @@ $stmt->close();
                             </select>
                         </div>
                         <div class="col-md-2">
-                            <button type="submit" class="btn w-100" style="background:#5BC0BE; color:#0B132B;">
+                            <button type="submit" class="btn btn-search w-100">
                                 <i class="fas fa-search me-1"></i> Search
                             </button>
                         </div>
                         <div class="col-md-2">
-                            <a href="Manage_User_Admin.php" class="btn btn-outline-secondary w-100">Reset</a>
+                            <a href="Manage_User_Admin.php" class="btn btn-reset w-100">
+                                <i class="fas fa-sync-alt me-1"></i> Reset
+                            </a>
                         </div>
                     </form>
                 </div>
             </div>
  
-            <div class="card border-0 shadow-lg fade-in">
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-custom mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Staff ID</th>
-                                    <th>Name</th>
-                                    <th>Email</th>
-                                    <th>Role</th>
-                                    <th>Department</th>
-                                    <th>Status</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php if ($users_result->num_rows === 0): ?>
-                                <tr>
-                                    <td colspan="7" class="text-center text-muted py-4">No users found.</td>
-                                </tr>
-                                <?php endif; ?>
-                                <?php while ($user = $users_result->fetch_assoc()): ?>
-                                <tr>
-                                    <td><code><?php echo htmlspecialchars($user['staff_id'] ?? '—'); ?></code></td>
-                                    <td>
-                                        <?php
-                                        $icon = match($user['role']) {
-                                            'finance' => 'fa-user-tie',
-                                            'admin'   => 'fa-user-shield',
-                                            default   => 'fa-user'
-                                        };
-                                        ?>
-                                        <i class="fas <?php echo $icon; ?> me-2" style="color:#5BC0BE;"></i>
-                                        <?php echo htmlspecialchars($user['name']); ?>
-                                    </td>
-                                    <td><?php echo htmlspecialchars($user['email']); ?></td>
-                                    <td>
-                                        <?php
-                                        $badge_bg = match($user['role']) {
-                                            'finance' => '#5BC0BE',
-                                            'admin'   => '#0B132B',
-                                            default   => '#3A506B'
-                                        };
-                                        ?>
-                                        <span class="badge" style="background:<?php echo $badge_bg; ?>">
-                                            <?php echo ucfirst($user['role']); ?>
-                                        </span>
-                                    </td>
-                                    <td><?php echo htmlspecialchars($user['department'] ?? '—'); ?></td>
-                                    <td>
-                                        <span class="badge bg-<?php echo $user['status'] == 'Active' ? 'success' : 'danger'; ?>">
-                                            <?php echo $user['status']; ?>
-                                        </span>
-                                    </td>
-                                    <td class="action-buttons">
-                                        <!-- View Button -->
-                                        <a href="?view=<?php echo $user['id']; ?>"
-                                           class="btn btn-sm btn-icon"
-                                           style="background:#5BC0BE; color:#0B132B;"
-                                           data-tooltip="View Details">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        
-                                        <?php if ($user['role'] !== 'admin' && (int)$user['id'] !== (int)$_SESSION['user_id']): ?>
-                                            <?php if ($user['status'] === 'Active'): ?>
-                                                <!-- Deactivate Button -->
-                                                <a href="?toggle_status=<?php echo $user['id']; ?>"
-                                                   class="btn btn-sm btn-danger btn-icon"
-                                                   data-tooltip="Deactivate User"
-                                                   onclick="return confirm('Deactivate <?php echo htmlspecialchars(addslashes($user['name'])); ?>? They will not be able to log in.')">
-                                                    <i class="fas fa-ban"></i>
-                                                </a>
-                                            <?php else: ?>
-                                                <!-- Activate Button -->
-                                                <a href="?toggle_status=<?php echo $user['id']; ?>"
-                                                   class="btn btn-sm btn-success btn-icon"
-                                                   data-tooltip="Activate User"
-                                                   onclick="return confirm('Reactivate <?php echo htmlspecialchars(addslashes($user['name'])); ?>? They will be able to log in again.')">
-                                                    <i class="fas fa-check-circle"></i>
-                                                </a>
-                                            <?php endif; ?>
+            <!-- Users Table -->
+            <div class="table-card fade-in">
+                <div class="table-responsive">
+                    <table class="table table-custom">
+                        <thead>
+                            <tr>
+                                <th>Staff ID</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Department</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if ($users_result->num_rows === 0): ?>
+                            <tr>
+                                <td colspan="7" class="empty-state">
+                                    <div class="empty-icon">
+                                        <i class="fas fa-users-slash"></i>
+                                    </div>
+                                    <h5 style="color: #4c1d95;">No users found</h5>
+                                    <p class="text-muted">Try adjusting your search or filter criteria</p>
+                                    <button class="btn btn-add mt-2" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                                        <i class="fas fa-plus me-2"></i>Add New User
+                                    </button>
+                                </td>
+                            </tr>
+                            <?php endif; ?>
+                            <?php while ($user = $users_result->fetch_assoc()): ?>
+                            <tr>
+                                <td><code><?php echo htmlspecialchars($user['staff_id'] ?? '—'); ?></code></td>
+                                <td class="fw-semibold">
+                                    <?php
+                                    $icon = match($user['role']) {
+                                        'finance' => 'fa-user-tie',
+                                        'admin'   => 'fa-user-shield',
+                                        default   => 'fa-user'
+                                    };
+                                    ?>
+                                    <i class="fas <?php echo $icon; ?> me-2" style="color: #8b5cf6;"></i>
+                                    <?php echo htmlspecialchars($user['name']); ?>
+                                </td>
+                                <td><?php echo htmlspecialchars($user['email']); ?></td>
+                                <td>
+                                    <span class="role-badge role-<?php echo $user['role']; ?>">
+                                        <?php echo ucfirst($user['role']); ?>
+                                    </span>
+                                </td>
+                                <td><?php echo htmlspecialchars($user['department'] ?? '—'); ?></td>
+                                <td>
+                                    <span class="<?php echo $user['status'] == 'Active' ? 'status-active' : 'status-inactive'; ?>">
+                                        <?php echo $user['status']; ?>
+                                    </span>
+                                </td>
+                                <td class="action-buttons">
+                                    <!-- View Button -->
+                                    <a href="?view=<?php echo $user['id']; ?>"
+                                       class="btn btn-view"
+                                       data-tooltip="View Details">
+                                        <i class="fas fa-eye me-1"></i> View
+                                    </a>
+                                    
+                                    <?php if ($user['role'] !== 'admin' && (int)$user['id'] !== (int)$_SESSION['user_id']): ?>
+                                        <?php if ($user['status'] === 'Active'): ?>
+                                            <a href="?toggle_status=<?php echo $user['id']; ?>"
+                                               class="btn btn-deactivate"
+                                               data-tooltip="Deactivate User"
+                                               onclick="return confirm('Deactivate <?php echo htmlspecialchars(addslashes($user['name'])); ?>? They will not be able to log in.')">
+                                                <i class="fas fa-ban me-1"></i> Deactivate
+                                            </a>
+                                        <?php else: ?>
+                                            <a href="?toggle_status=<?php echo $user['id']; ?>"
+                                               class="btn btn-activate"
+                                               data-tooltip="Activate User"
+                                               onclick="return confirm('Reactivate <?php echo htmlspecialchars(addslashes($user['name'])); ?>? They will be able to log in again.')">
+                                                <i class="fas fa-check-circle me-1"></i> Activate
+                                            </a>
                                         <?php endif; ?>
-                                    </td>
-                                </tr>
-                                <?php endwhile; ?>
-                            </tbody>
-                        </table>
-                    </div>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                            <?php endwhile; ?>
+                        </tbody>
+                    </table>
                 </div>
             </div>
- 
+            
+            <div style="height: 20px;"></div>
         </div>
     </div>
 </div>
  
+<!-- Add User Modal -->
 <div class="modal fade" id="addUserModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header" style="background:#0B132B; color:white;">
+            <div class="modal-header modal-custom-header">
                 <h5 class="modal-title">
-                    <i class="fas fa-user-plus me-2" style="color:#5BC0BE;"></i>
+                    <i class="fas fa-user-plus me-2" style="color: #5BC0BE;"></i>
                     Add New User
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
@@ -396,30 +751,30 @@ $stmt->close();
                 <div class="modal-body">
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Full Name *</label>
+                            <label class="form-label">Full Name *</label>
                             <input type="text" name="name" class="form-control" required>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Staff ID *</label>
+                            <label class="form-label">Staff ID *</label>
                             <input type="text" name="staff_id" class="form-control" placeholder="e.g. ST999" required>
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Email Address *</label>
+                        <label class="form-label">Email Address *</label>
                         <input type="email" name="email" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Phone</label>
+                        <label class="form-label">Phone</label>
                         <input type="text" name="phone" class="form-control" placeholder="+601XXXXXXXX">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Password *</label>
+                        <label class="form-label">Password *</label>
                         <input type="password" name="password" class="form-control" required minlength="6">
                         <small class="text-muted">Minimum 6 characters.</small>
                     </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Role *</label>
+                            <label class="form-label">Role *</label>
                             <select name="role" class="form-select" required>
                                 <option value="staff">Staff</option>
                                 <option value="finance">Finance</option>
@@ -427,7 +782,7 @@ $stmt->close();
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Department</label>
+                            <label class="form-label">Department</label>
                             <select name="department" class="form-select">
                                 <option value="">— Select —</option>
                                 <option value="Information Technology">Information Technology</option>
@@ -441,7 +796,7 @@ $stmt->close();
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn" style="background:#5BC0BE; color:#0B132B;">
+                    <button type="submit" class="btn btn-save">
                         <i class="fas fa-save me-1"></i> Save User
                     </button>
                 </div>
