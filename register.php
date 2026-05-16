@@ -150,6 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
         }
         
+        /* Logo Styles */
         .utm-logo {
             text-align: center;
             margin-bottom: 25px;
@@ -157,19 +158,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             border-bottom: 2px solid rgba(193, 39, 45, 0.15);
         }
         
-        .utm-logo h1 {
-            font-size: 32px;
-            font-weight: 800;
-            color: var(--utm-navy);
-            letter-spacing: 3px;
-            margin-bottom: 5px;
+        .utm-logo-img {
+            max-width: 160px;
+            height: auto;
+            margin-bottom: 8px;
         }
         
-        .utm-logo .estd {
-            color: var(--utm-red);
-            font-size: 10px;
-            letter-spacing: 4px;
-            font-weight: 500;
+        .logo-divider {
+            width: 50px;
+            height: 3px;
+            background: var(--utm-red);
+            margin: 10px auto 0;
+            border-radius: 3px;
         }
         
         .btn-register {
@@ -259,9 +259,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="col-md-7">
                     <div class="glass-card fade-in-up">
                         <div class="card-body p-4 p-md-5">
+                            <!-- UTMSPACE Logo Image -->
                             <div class="utm-logo">
-                                <h1>UTMSPACE</h1>
-                                <p class="estd">ESTD 1993</p>
+                                <img src="css/images/utm-logo.png" alt="UTMSPACE Logo" class="utm-logo-img" 
+                                     onerror="this.src='css/images/utm space1.jpg'">
+                                <div class="logo-divider"></div>
                             </div>
                             
                             <div class="text-center mb-4">
