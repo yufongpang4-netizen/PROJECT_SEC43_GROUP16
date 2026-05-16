@@ -19,12 +19,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $conn->prepare("SELECT id, name, email, password, role, status FROM users WHERE email = ?");
         $stmt->bind_param("s", $email);
         $stmt->execute();
-
         $result = $stmt->get_result();
 
         if ($result->num_rows === 1) {
             $user = $result->fetch_assoc();
-
             if (password_verify($password, $user['password'])) {
                 if ($user['status'] === 'Inactive') {
                     $error = "Your account has been deactivated. Please contact Admin.";
@@ -40,8 +38,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         header("Location: finance/dashboard_Finance.php");
                     } elseif ($user['role'] === 'admin') {
                         header("Location: admin/dashboard_Admin.php");
-                    } else {
-                        header("Location: index.php");
                     }
                     exit();
                 }
@@ -63,21 +59,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --utm-navy: #0B3B5E;
+            --utm-red: #C1272D;
+            --utm-gray: #475569;
+            --utm-light: #F8FAFC;
+            --utm-dark: #082c47;
         }
         
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         
-        /* Blurry Background */
-        .login-page {
-            position: relative;
-            min-height: 100vh;
-        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        
+        .login-page { position: relative; min-height: 100vh; }
         
         .blurry-bg {
             position: fixed;
@@ -94,14 +88,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             z-index: 0;
         }
         
-        .blurry-bg::before {
+        .blurry-bg::after {
             content: '';
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(11, 19, 43, 0.65);
+            background: rgba(11, 59, 94, 0.75);
         }
         
         .content-wrapper {
@@ -115,34 +109,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         .glass-card {
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(255, 255, 255, 0.96);
             backdrop-filter: blur(10px);
             border-radius: 25px;
             border: none;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
         }
         
+        .utm-logo {
+            text-align: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid rgba(193, 39, 45, 0.15);
+        }
+        
+        .utm-logo-img {
+            max-width: 150px;
+            height: auto;
+            margin-bottom: 8px;
+        }
+        
+        .logo-divider {
+            width: 50px;
+            height: 3px;
+            background: var(--utm-red);
+            margin: 10px auto 0;
+            border-radius: 3px;
+        }
+        
         .btn-login {
-            background: linear-gradient(135deg, #5BC0BE 0%, #3a9e9c 100%);
-            color: #0B132B;
+            background: var(--utm-navy);
+            color: white;
             border: none;
+            border-radius: 50px;
             padding: 12px;
-            border-radius: 10px;
             font-weight: 600;
             transition: all 0.3s ease;
         }
         
         .btn-login:hover {
+            background: var(--utm-red);
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px -5px rgba(91, 192, 190, 0.4);
-            color: #0B132B;
+            box-shadow: 0 10px 20px -5px rgba(193, 39, 45, 0.4);
+            color: white;
         }
         
         .btn-register {
-            border: 2px solid #3A506B;
+            border: 2px solid var(--utm-navy);
             background: transparent;
-            color: #3A506B;
-            border-radius: 10px;
+            color: var(--utm-navy);
+            border-radius: 50px;
             padding: 10px;
             font-weight: 500;
             transition: all 0.3s ease;
@@ -152,143 +168,116 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         .btn-register:hover {
-            background: #3A506B;
+            background: var(--utm-navy);
             color: white;
             transform: translateY(-2px);
         }
         
-        .utm-logo {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        
-        .utm-logo h1 {
-            font-size: 32px;
-            font-weight: 800;
-            color: #0B132B;
-            letter-spacing: 3px;
-            margin-bottom: 5px;
-        }
-        
-        .utm-logo .estd {
-            color: #5BC0BE;
-            font-size: 10px;
-            letter-spacing: 4px;
-            font-weight: 500;
-        }
-        
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        .fade-in-up {
-            animation: fadeInUp 0.6s ease-out;
-        }
-        
-        .demo-card {
-            background: rgba(91, 192, 190, 0.1);
-            border-left: 3px solid #5BC0BE;
-        }
-        
         .form-control {
-            border-radius: 10px;
-            border: 1px solid #dee2e6;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
             padding: 12px 15px;
         }
         
         .form-control:focus {
-            border-color: #5BC0BE;
-            box-shadow: 0 0 0 3px rgba(91, 192, 190, 0.2);
+            border-color: var(--utm-red);
+            box-shadow: 0 0 0 3px rgba(193, 39, 45, 0.1);
         }
         
         .form-label {
             font-weight: 600;
-            color: #0B132B;
+            color: var(--utm-navy);
             margin-bottom: 8px;
         }
+        
+        .demo-card {
+            background: rgba(193, 39, 45, 0.05);
+            border-left: 3px solid var(--utm-red);
+            border-radius: 12px;
+        }
+        
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .fade-in-up { animation: fadeInUp 0.6s ease-out; }
+        
+        .accent-red { color: var(--utm-red); }
     </style>
 </head>
 <body class="login-page">
-    <!-- Blurry Background Image -->
     <div class="blurry-bg"></div>
     
     <div class="content-wrapper">
         <div class="container">
             <div class="row justify-content-center">
                 <div class="col-md-5">
-                    <div class="glass-card fade-in-up">
-                        <div class="card-body p-5">
-                            <div class="utm-logo">
-                                <h1>UTMSPACE</h1>
-                                <p class="estd">ESTD 1993</p>
+                    <div class="glass-card p-4 p-md-5 fade-in-up">
+                        <!-- UTMSPACE Logo Image -->
+                        <div class="utm-logo">
+                            <img src="css/images/utm-logo.png" alt="UTMSPACE Logo" class="utm-logo-img" 
+                                 onerror="this.src='css/images/utm space1.jpg'">
+                            <div class="logo-divider"></div>
+                        </div>
+                        
+                        <div class="text-center mb-4">
+                            <i class="fas fa-lock" style="font-size: 45px; color: var(--utm-red);"></i>
+                            <h3 class="mt-3" style="color: var(--utm-navy);">Welcome Back!</h3>
+                            <p style="color: #64748b;">Login to your account</p>
+                        </div>
+                        
+                        <?php if($error): ?>
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-triangle me-2"></i><?php echo $error; ?>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <form method="POST">
+                            <div class="mb-3">
+                                <label class="form-label">
+                                    <i class="fas fa-envelope me-1" style="color: var(--utm-red);"></i>Email Address
+                                </label>
+                                <input type="email" name="email" class="form-control" required placeholder="staff@utmspace.com">
                             </div>
                             
-                            <div class="text-center mb-4">
-                                <i class="fas fa-lock" style="font-size: 45px; color: #5BC0BE;"></i>
-                                <h3 class="mt-3" style="color: #0B132B;">Welcome Back!</h3>
-                                <p style="color: #3A506B;">Login to your account</p>
+                            <div class="mb-3">
+                                <label class="form-label">
+                                    <i class="fas fa-key me-1" style="color: var(--utm-red);"></i>Password
+                                </label>
+                                <input type="password" name="password" class="form-control" required placeholder="••••••">
                             </div>
                             
-                            <?php if($error): ?>
-                                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                                    <i class="fas fa-exclamation-triangle me-2"></i><?php echo $error; ?>
-                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                                </div>
-                            <?php endif; ?>
-                            
-                            <form method="POST">
-                                <div class="mb-3">
-                                    <label class="form-label">
-                                        <i class="fas fa-envelope me-1" style="color: #5BC0BE;"></i>Email Address
-                                    </label>
-                                    <input type="email" name="email" class="form-control" required placeholder="staff@utmspace.com">
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label class="form-label">
-                                        <i class="fas fa-key me-1" style="color: #5BC0BE;"></i>Password
-                                    </label>
-                                    <input type="password" name="password" class="form-control" required placeholder="••••••">
-                                </div>
-                                
-                                <button type="submit" class="btn btn-login w-100">
-                                    <i class="fas fa-sign-in-alt me-2"></i>Login
-                                </button>
-                            </form>
-                            
-                            <hr class="my-4">
-                            
-                            <div class="text-center">
-                                <p class="mb-3" style="color: #3A506B;">Don't have an account?</p>
-                                <div class="d-flex flex-column gap-2">
-                                    <a href="register.php?role=staff" class="btn-register">
-                                        <i class="fas fa-user-plus me-2"></i>Register as Staff
-                                    </a>
-                                    <a href="register.php?role=finance" class="btn-register">
-                                        <i class="fas fa-user-tie me-2"></i>Register as Finance
-                                    </a>
-                                    <a href="register.php?role=admin" class="btn-register">
-                                        <i class="fas fa-user-shield me-2"></i>Register as Admin
-                                    </a>
-                                </div>
+                            <button type="submit" class="btn btn-login w-100">
+                                <i class="fas fa-sign-in-alt me-2"></i>Login
+                            </button>
+                        </form>
+                        
+                        <hr class="my-4">
+                        
+                        <div class="text-center">
+                            <p class="mb-3" style="color: var(--utm-navy);">Don't have an account?</p>
+                            <div class="d-flex flex-column gap-2">
+                                <a href="register.php?role=staff" class="btn-register">
+                                    <i class="fas fa-user-plus me-2"></i>Register as Staff
+                                </a>
+                                <a href="register.php?role=finance" class="btn-register">
+                                    <i class="fas fa-user-tie me-2"></i>Register as Finance
+                                </a>
+                                <a href="register.php?role=admin" class="btn-register">
+                                    <i class="fas fa-user-shield me-2"></i>Register as Admin
+                                </a>
                             </div>
-                            
-                            <div class="mt-4 p-3 rounded demo-card">
-                                <small>
-                                    <i class="fas fa-info-circle me-1" style="color: #5BC0BE;"></i>
-                                    <strong>Demo Credentials:</strong><br>
-                                    <i class="fas fa-user me-1"></i> Staff: staff@utmspace.com / staff123<br>
-                                    <i class="fas fa-user-tie me-1"></i> Finance: finance@utmspace.com / finance123<br>
-                                    <i class="fas fa-user-shield me-1"></i> Admin: admin@utmspace.com / admin123
-                                </small>
-                            </div>
+                        </div>
+                        
+                        <div class="mt-4 p-3 demo-card">
+                            <small>
+                                <i class="fas fa-info-circle me-1" style="color: var(--utm-red);"></i>
+                                <strong>Demo Credentials:</strong><br>
+                                <i class="fas fa-user me-1"></i> Staff: staff@utmspace.com / staff123<br>
+                                <i class="fas fa-user-tie me-1"></i> Finance: finance@utmspace.com / finance123<br>
+                                <i class="fas fa-user-shield me-1"></i> Admin: admin@utmspace.com / admin123
+                            </small>
                         </div>
                     </div>
                 </div>

@@ -33,64 +33,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // ========== SET DEPARTMENT BASED ON ROLE ==========
     if ($role == 'finance') {
-        $department = 'Finance'; // Auto-assigned for finance
+        $department = 'Finance';
     } elseif ($role == 'admin') {
-        $department = NULL; // No department for admin
+        $department = NULL;
     } else {
-        $department = trim($_POST['department'] ?? ''); // Staff selects their department
+        $department = trim($_POST['department'] ?? '');
     }
 
     // ========== VALIDATION RULES ==========
-    
-    // 1. Check all required fields
     if (empty($name) || empty($staff_id) || empty($email) || empty($password)) {
         $error = "Please fill in all required fields.";
-    }
-    
-    // 2. NAME validation
-    elseif (!preg_match('/^[a-zA-Z\s\'-]{2,50}$/', $name)) {
+    } elseif (!preg_match('/^[a-zA-Z\s\'-]{2,50}$/', $name)) {
         $error = "Name must be 2-50 characters and can only contain letters, spaces, hyphens, and apostrophes.";
-    }
-    
-    // 3. STAFF ID validation
-    elseif (!preg_match('/^[a-zA-Z0-9]{5,15}$/', $staff_id)) {
-        $error = "Staff ID must be 5-15 characters and can only contain letters and numbers (no spaces or symbols).";
-    }
-    
-    // 4. EMAIL validation
-    elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $error = "Please enter a valid email address (example: name@domain.com)!";
-    }
-    
-    // 5. DEPARTMENT validation - ONLY for staff role (must select a department)
-    elseif ($role == 'staff' && empty($department)) {
+    } elseif (!preg_match('/^[a-zA-Z0-9]{5,15}$/', $staff_id)) {
+        $error = "Staff ID must be 5-15 characters and can only contain letters and numbers.";
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $error = "Please enter a valid email address!";
+    } elseif ($role == 'staff' && empty($department)) {
         $error = "Please select a department for Staff account.";
-    }
-    
-    // 6. PHONE validation (optional but must be valid if provided)
-    elseif (!empty($phone) && !preg_match('/^(\+?6?01)[0-9]{8,9}$/', $phone)) {
-        $error = "Please enter a valid phone number! Example: 0123456789 or +60123456789";
-    }
-    
-    // 7. PASSWORD validation
-    elseif (strlen($password) < 8) {
+    } elseif (!empty($phone) && !preg_match('/^(\+?6?01)[0-9]{8,9}$/', $phone)) {
+        $error = "Please enter a valid phone number! Example: 0123456789";
+    } elseif (strlen($password) < 8) {
         $error = "Password must be at least 8 characters long!";
-    }
-    elseif (!preg_match('/[A-Z]/', $password)) {
+    } elseif (!preg_match('/[A-Z]/', $password)) {
         $error = "Password must contain at least 1 uppercase letter!";
-    }
-    elseif (!preg_match('/[a-z]/', $password)) {
+    } elseif (!preg_match('/[a-z]/', $password)) {
         $error = "Password must contain at least 1 lowercase letter!";
-    }
-    elseif (!preg_match('/[0-9]/', $password)) {
+    } elseif (!preg_match('/[0-9]/', $password)) {
         $error = "Password must contain at least 1 number!";
-    }
-    elseif (!preg_match('/[!@#$%^&*()_+\-=\[\]{};:\'",.<>?]/', $password)) {
-        $error = "Password must contain at least 1 special character (!@#$%^&* etc)!";
-    }
-    
-    else {
-        // Check if email or staff_id already exists
+    } elseif (!preg_match('/[!@#$%^&*()_+\-=\[\]{};:\'",.<>?]/', $password)) {
+        $error = "Password must contain at least 1 special character!";
+    } else {
         $check = $conn->prepare("SELECT id FROM users WHERE email = ? OR staff_id = ?");
         $check->bind_param("ss", $email, $staff_id);
         $check->execute();
@@ -100,24 +73,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = "Email or Staff ID already exists.";
         } else {
             $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-
-            $stmt = $conn->prepare("
-                INSERT INTO users 
-                (name, staff_id, email, department, password, phone, role, status) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, 'Active')
-            ");
-
-            $stmt->bind_param(
-                "sssssss",
-                $name,
-                $staff_id,
-                $email,
-                $department,
-                $hashed_password,
-                $phone,
-                $role
-            );
-
+            $stmt = $conn->prepare("INSERT INTO users (name, staff_id, email, department, password, phone, role, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'Active')");
+            $stmt->bind_param("sssssss", $name, $staff_id, $email, $department, $hashed_password, $phone, $role);
+            
             if ($stmt->execute()) {
                 $success = "Registration successful! You can now login.";
             } else {
@@ -136,21 +94,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --utm-navy: #0B3B5E;
+            --utm-red: #C1272D;
+            --utm-gray: #475569;
+            --utm-light: #F8FAFC;
+            --utm-dark: #082c47;
         }
         
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         
-        /* Blurry Background */
-        .register-page {
-            position: relative;
-            min-height: 100vh;
-        }
+        .register-page { position: relative; min-height: 100vh; }
         
         .blurry-bg {
             position: fixed;
@@ -174,7 +129,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(11, 19, 43, 0.65);
+            background: rgba(11, 59, 94, 0.7);
         }
         
         .content-wrapper {
@@ -188,35 +143,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         .glass-card {
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(255, 255, 255, 0.96);
             backdrop-filter: blur(10px);
             border-radius: 25px;
             border: none;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
         }
         
+        .utm-logo {
+            text-align: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid rgba(193, 39, 45, 0.15);
+        }
+        
+        .utm-logo h1 {
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--utm-navy);
+            letter-spacing: 3px;
+            margin-bottom: 5px;
+        }
+        
+        .utm-logo .estd {
+            color: var(--utm-red);
+            font-size: 10px;
+            letter-spacing: 4px;
+            font-weight: 500;
+        }
+        
         .btn-register {
-            background: linear-gradient(135deg, #5BC0BE 0%, #3a9e9c 100%);
-            color: #0B132B;
+            background: var(--utm-navy);
+            color: white;
             border: none;
             padding: 12px;
-            border-radius: 10px;
+            border-radius: 50px;
             font-weight: 600;
             transition: all 0.3s ease;
         }
         
         .btn-register:hover {
+            background: var(--utm-red);
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px -5px rgba(91, 192, 190, 0.4);
-            color: #0B132B;
+            box-shadow: 0 10px 20px -5px rgba(193, 39, 45, 0.4);
+            color: white;
         }
         
         .role-switch-btn {
-            border: 2px solid #5BC0BE;
+            border: 2px solid var(--utm-navy);
             background: transparent;
-            color: #5BC0BE;
-            border-radius: 10px;
-            padding: 8px 15px;
+            color: var(--utm-navy);
+            border-radius: 50px;
+            padding: 8px 18px;
             font-weight: 500;
             transition: all 0.3s ease;
             text-decoration: none;
@@ -224,72 +202,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         .role-switch-btn:hover, .role-switch-btn.active {
-            background: #5BC0BE;
-            color: #0B132B;
+            background: var(--utm-navy);
+            color: white;
             transform: translateY(-2px);
         }
         
-        .utm-logo {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        
-        .utm-logo h1 {
-            font-size: 32px;
-            font-weight: 800;
-            color: #0B132B;
-            letter-spacing: 3px;
-            margin-bottom: 5px;
-        }
-        
-        .utm-logo .estd {
-            color: #5BC0BE;
-            font-size: 10px;
-            letter-spacing: 4px;
-            font-weight: 500;
-        }
-        
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        .fade-in-up {
-            animation: fadeInUp 0.6s ease-out;
-        }
-        
         .form-control, .form-select {
-            border-radius: 10px;
-            border: 1px solid #dee2e6;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
             padding: 12px 15px;
         }
         
         .form-control:focus, .form-select:focus {
-            border-color: #5BC0BE;
-            box-shadow: 0 0 0 3px rgba(91, 192, 190, 0.2);
+            border-color: var(--utm-red);
+            box-shadow: 0 0 0 3px rgba(193, 39, 45, 0.1);
         }
         
         .form-label {
             font-weight: 600;
-            color: #0B132B;
+            color: var(--utm-navy);
             margin-bottom: 8px;
         }
         
         .role-badge {
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             padding: 5px 12px;
             border-radius: 20px;
             display: inline-block;
         }
-        .role-staff { background: #17a2b8; color: white; }
-        .role-finance { background: #28a745; color: white; }
-        .role-admin { background: #dc3545; color: white; }
+        .role-staff { background: #3b82f6; color: white; }
+        .role-finance { background: #10b981; color: white; }
+        .role-admin { background: var(--utm-red); color: white; }
         
         .password-strength {
             height: 5px;
@@ -298,10 +241,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             transition: all 0.3s;
             display: none;
         }
+        
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .fade-in-up { animation: fadeInUp 0.6s ease-out; }
     </style>
 </head>
 <body class="register-page">
-    <!-- Blurry Background based on role -->
     <div class="blurry-bg"></div>
     
     <div class="content-wrapper">
@@ -316,11 +265,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </div>
                             
                             <div class="text-center mb-4">
-                                <i class="fas <?php echo $requested_role == 'admin' ? 'fa-user-shield' : ($requested_role == 'finance' ? 'fa-user-tie' : 'fa-user-plus'); ?>" style="font-size: 45px; color: #5BC0BE;"></i>
-                                <h3 class="mt-2" style="color: #0B132B;"><?php echo ucfirst($requested_role); ?> Registration</h3>
-                                <p style="color: #3A506B;">Create your account with valid information</p>
+                                <i class="fas <?php echo $requested_role == 'admin' ? 'fa-user-shield' : ($requested_role == 'finance' ? 'fa-user-tie' : 'fa-user-plus'); ?>" style="font-size: 45px; color: var(--utm-red);"></i>
+                                <h3 class="mt-2" style="color: var(--utm-navy);"><?php echo ucfirst($requested_role); ?> Registration</h3>
+                                <p style="color: var(--utm-gray);">Create your account with valid information</p>
                                 
-                                <!-- Show role info badge -->
                                 <?php if($requested_role == 'finance'): ?>
                                     <span class="role-badge role-finance"><i class="fas fa-building"></i> Department: Finance (Auto-assigned)</span>
                                 <?php elseif($requested_role == 'admin'): ?>
@@ -348,40 +296,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 
                                 <div class="row">
                                     <div class="col-md-6 mb-3">
-                                        <label class="form-label">
-                                            <i class="fas fa-user me-1" style="color: #5BC0BE;"></i>Full Name *
-                                        </label>
-                                        <input type="text" name="name" class="form-control" id="name" required 
-                                               pattern="[a-zA-Z\s\'-]{2,50}" 
-                                               title="Only letters, spaces, hyphens, and apostrophes. 2-50 characters.">
-                                        <small class="text-muted">Only letters, spaces, hyphens, and apostrophes (2-50 chars)</small>
+                                        <label class="form-label"><i class="fas fa-user me-1" style="color: var(--utm-red);"></i>Full Name *</label>
+                                        <input type="text" name="name" class="form-control" required>
+                                        <small class="text-muted">Letters, spaces, hyphens (2-50 chars)</small>
                                     </div>
                                     
                                     <div class="col-md-6 mb-3">
-                                        <label class="form-label">
-                                            <i class="fas fa-id-card me-1" style="color: #5BC0BE;"></i>Staff ID *
-                                        </label>
-                                        <input type="text" name="staff_id" class="form-control" id="staff_id" required
-                                               pattern="[a-zA-Z0-9]{5,15}"
-                                               title="Only letters and numbers, 5-15 characters.">
-                                        <small class="text-muted">5-15 characters, letters and numbers only (e.g., STAFF123)</small>
+                                        <label class="form-label"><i class="fas fa-id-card me-1" style="color: var(--utm-red);"></i>Staff ID *</label>
+                                        <input type="text" name="staff_id" class="form-control" required>
+                                        <small class="text-muted">5-15 characters, letters & numbers only</small>
                                     </div>
                                     
                                     <div class="col-md-12 mb-3">
-                                        <label class="form-label">
-                                            <i class="fas fa-envelope me-1" style="color: #5BC0BE;"></i>Email *
-                                        </label>
-                                        <input type="email" name="email" class="form-control" id="email" required>
-                                        <small class="text-muted">Enter a valid email address</small>
+                                        <label class="form-label"><i class="fas fa-envelope me-1" style="color: var(--utm-red);"></i>Email *</label>
+                                        <input type="email" name="email" class="form-control" required>
                                     </div>
                                     
-                                    <!-- DEPARTMENT FIELD - Only show for STAFF role -->
                                     <?php if($requested_role == 'staff'): ?>
                                     <div class="col-md-12 mb-3">
-                                        <label class="form-label">
-                                            <i class="fas fa-building me-1" style="color: #5BC0BE;"></i>Department *
-                                        </label>
-                                        <select name="department" class="form-select" id="department" required>
+                                        <label class="form-label"><i class="fas fa-building me-1" style="color: var(--utm-red);"></i>Department *</label>
+                                        <select name="department" class="form-select" required>
                                             <option value="">Select Department</option>
                                             <option value="Information Technology">Information Technology</option>
                                             <option value="Human Resources">Human Resources</option>
@@ -389,55 +323,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                             <option value="Operations">Operations</option>
                                             <option value="Sales">Sales</option>
                                             <option value="Customer Service">Customer Service</option>
-                                            <option value="Research & Development">Research & Development</option>
                                         </select>
-                                        <small class="text-muted">Select your working department</small>
                                     </div>
                                     <?php endif; ?>
                                     
-                                    <!-- For FINANCE role - Show disabled field with "Finance" auto-filled -->
                                     <?php if($requested_role == 'finance'): ?>
                                     <div class="col-md-12 mb-3">
-                                        <label class="form-label">
-                                            <i class="fas fa-building me-1" style="color: #5BC0BE;"></i>Department
-                                        </label>
-                                        <input type="text" class="form-control" value="Finance" disabled 
-                                               style="background: #e9ecef;">
-                                        <small class="text-muted text-success">
-                                            <i class="fas fa-info-circle"></i> Finance department is automatically assigned
-                                        </small>
+                                        <label class="form-label"><i class="fas fa-building me-1" style="color: var(--utm-red);"></i>Department</label>
+                                        <input type="text" class="form-control" value="Finance" disabled style="background: #e9ecef;">
+                                        <small class="text-success">Finance department is automatically assigned</small>
                                     </div>
                                     <?php endif; ?>
                                     
-                                    <!-- For ADMIN role - Show no department field at all -->
                                     <?php if($requested_role == 'admin'): ?>
                                     <div class="col-md-12 mb-3">
                                         <div class="alert alert-info">
-                                            <i class="fas fa-info-circle"></i> 
-                                            <strong>Admin Account:</strong> No department assignment needed.
+                                            <i class="fas fa-info-circle"></i> Admin accounts have no department assignment.
                                         </div>
                                     </div>
                                     <?php endif; ?>
                                     
                                     <div class="col-md-12 mb-3">
-                                        <label class="form-label">
-                                            <i class="fas fa-phone me-1" style="color: #5BC0BE;"></i>Phone Number (Optional)
-                                        </label>
-                                        <input type="tel" name="phone" class="form-control" id="phone" 
-                                               pattern="^(\+?6?01)[0-9]{8,9}$"
-                                               placeholder="0123456789 or +60123456789">
-                                        <small class="text-muted">Malaysian format: 0123456789 or +60123456789</small>
+                                        <label class="form-label"><i class="fas fa-phone me-1" style="color: var(--utm-red);"></i>Phone Number</label>
+                                        <input type="tel" name="phone" class="form-control" placeholder="0123456789">
+                                        <small class="text-muted">Optional - Malaysian format</small>
                                     </div>
                                     
                                     <div class="col-md-12 mb-3">
-                                        <label class="form-label">
-                                            <i class="fas fa-key me-1" style="color: #5BC0BE;"></i>Password *
-                                        </label>
+                                        <label class="form-label"><i class="fas fa-key me-1" style="color: var(--utm-red);"></i>Password *</label>
                                         <input type="password" name="password" class="form-control" id="password" required>
                                         <div class="password-strength" id="passwordStrength"></div>
-                                        <small class="text-muted">
-                                            Minimum 8 characters with: uppercase, lowercase, number, and special character (!@#$%^&*)
-                                        </small>
+                                        <small class="text-muted">Min 8 chars with uppercase, lowercase, number & special character</small>
                                         <ul class="small mt-1" id="passwordRequirements">
                                             <li id="req-length" class="text-muted">✗ At least 8 characters</li>
                                             <li id="req-upper" class="text-muted">✗ At least 1 uppercase letter</li>
@@ -456,7 +372,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <hr class="my-4">
                             
                             <div class="text-center">
-                                <p class="mb-3">Already have an account? <a href="login.php" style="color: #5BC0BE; font-weight: bold;">Login here</a></p>
+                                <p class="mb-3">Already have an account? <a href="login.php" style="color: var(--utm-red); font-weight: bold;">Login here</a></p>
                             </div>
                             
                             <div class="mt-3 text-center">
@@ -482,7 +398,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Real-time password validation
         const password = document.getElementById('password');
         const reqLength = document.getElementById('req-length');
         const reqUpper = document.getElementById('req-upper');
@@ -493,7 +408,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         password.addEventListener('input', function() {
             const val = this.value;
-            
             const hasLength = val.length >= 8;
             const hasUpper = /[A-Z]/.test(val);
             const hasLower = /[a-z]/.test(val);
@@ -513,19 +427,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 strengthBar.style.display = 'block';
                 let color, width;
-                if (strength <= 2) {
-                    color = '#dc3545';
-                    width = '20%';
-                } else if (strength <= 3) {
-                    color = '#ffc107';
-                    width = '50%';
-                } else if (strength <= 4) {
-                    color = '#17a2b8';
-                    width = '75%';
-                } else {
-                    color = '#28a745';
-                    width = '100%';
-                }
+                if (strength <= 2) { color = '#dc3545'; width = '20%'; }
+                else if (strength <= 3) { color = '#ffc107'; width = '50%'; }
+                else if (strength <= 4) { color = '#17a2b8'; width = '75%'; }
+                else { color = '#28a745'; width = '100%'; }
                 strengthBar.style.background = color;
                 strengthBar.style.width = width;
             }
@@ -539,18 +444,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 element.innerHTML = '✗ ' + element.innerText.substring(2);
                 element.style.color = '#6c757d';
             }
-        }
-        
-        // Phone validation
-        const phoneInput = document.getElementById('phone');
-        if(phoneInput) {
-            phoneInput.addEventListener('input', function() {
-                if (this.value && !this.value.match(/^(\+?6?01)[0-9]{8,9}$/)) {
-                    this.style.borderColor = '#dc3545';
-                } else {
-                    this.style.borderColor = '#ced4da';
-                }
-            });
         }
     </script>
 </body>
