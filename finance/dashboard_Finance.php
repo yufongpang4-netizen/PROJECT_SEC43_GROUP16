@@ -33,150 +33,438 @@ $pending_amount = $conn->query("SELECT SUM(amount) as total FROM claims WHERE st
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Dashboard - UTMSpace</title>
+    <title>Finance Dashboard - UTMSPACE</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        /* Finance Dashboard - Soft Green Theme */
+        :root {
+            --finance-primary: #064e3b;
+            --finance-secondary: #10b981;
+            --finance-soft: #ecfdf5;
+            --finance-accent: #5BC0BE;
+            --finance-white: #ffffff;
+            --finance-text: #064e3b;
+            --finance-gray: #6b7280;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            background: linear-gradient(180deg, #064e3b 0%, #047857 100%);
+            min-height: 100vh;
+            color: white;
+            transition: all 0.3s ease;
+        }
+        
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.85);
+            padding: 12px 20px;
+            margin: 5px 0;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .sidebar .nav-link:hover {
+            background: rgba(91, 192, 190, 0.2);
+            color: #5BC0BE;
+            transform: translateX(5px);
+        }
+        
+        .sidebar .nav-link.active {
+            background: #5BC0BE;
+            color: #064e3b;
+            font-weight: 600;
+        }
+        
+        /* Page Header */
+        .page-header {
+            background: linear-gradient(135deg, #064e3b 0%, #047857 100%);
+            border-radius: 20px;
+            padding: 20px 25px;
+            color: white;
+            margin-bottom: 25px;
+        }
+        
+        /* Stats Cards */
+        .stat-card {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            border: 1px solid #d1fae5;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            border-color: #10b981;
+        }
+        
+        .stat-icon {
+            width: 55px;
+            height: 55px;
+            background: rgba(16, 185, 129, 0.1);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #10b981;
+            margin: 0 auto 15px;
+        }
+        
+        .stat-number {
+            font-size: 28px;
+            font-weight: 700;
+            color: #064e3b;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            color: #6b7280;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        /* Alert Banner */
+        .payment-alert {
+            background: linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%);
+            border-left: 4px solid #f59e0b;
+            border-radius: 15px;
+            padding: 15px 20px;
+            margin-bottom: 25px;
+            color: #92400e;
+        }
+        
+        /* Action Cards */
+        .action-card, .summary-card, .recent-card {
+            background: white;
+            border-radius: 20px;
+            border: none;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+        
+        .action-card:hover, .summary-card:hover, .recent-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        }
+        
+        /* Buttons */
+        .btn-primary-custom {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.4);
+            color: white;
+        }
+        
+        .btn-secondary-custom {
+            background: #e5e7eb;
+            color: #064e3b;
+            border: none;
+            padding: 12px;
+            border-radius: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-secondary-custom:hover {
+            background: #d1d5db;
+            transform: translateY(-2px);
+        }
+        
+        .btn-dark-custom {
+            background: #1f2937;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-dark-custom:hover {
+            background: #374151;
+            transform: translateY(-2px);
+            color: white;
+        }
+        
+        /* Status Badges */
+        .status-pending { background: #fef3c7; color: #d97706; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .status-approved { background: #d1fae5; color: #059669; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .status-paid { background: #dbeafe; color: #2563eb; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .status-rejected { background: #fee2e2; color: #dc2626; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        
+        /* Summary Items */
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .summary-item:last-child {
+            border-bottom: none;
+        }
+        
+        .summary-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .summary-value {
+            font-weight: 700;
+            color: #064e3b;
+            font-size: 18px;
+        }
+        
+        /* Table */
+        .table-custom {
+            margin-bottom: 0;
+        }
+        
+        .table-custom th {
+            color: #064e3b;
+            font-weight: 600;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .table-custom td {
+            vertical-align: middle;
+            padding: 12px 8px;
+        }
+        
+        .btn-view {
+            background: #10b981;
+            color: white;
+            border-radius: 8px;
+            padding: 5px 12px;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-view:hover {
+            background: #059669;
+            transform: translateY(-2px);
+            color: white;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        hr {
+            border-color: #e5e7eb;
+        }
+        
+        .badge-number {
+            background: #ef4444;
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: 5px;
+        }
+    </style>
 </head>
 <body>
     <div class="container-fluid p-0">
         <div class="row g-0">
+            <!-- Sidebar -->
             <div class="col-md-3 col-lg-2 sidebar p-3">
                 <div class="text-center mb-4">
                     <i class="fas fa-chart-line fs-1" style="color: #5BC0BE;"></i>
-                    <h5 class="mt-2">UTMSpace</h5>
+                    <h5 class="mt-2">UTMSPACE</h5>
                     <small>Finance Portal</small>
                 </div>
                 <hr style="border-color: rgba(255,255,255,0.2);">
                 <nav class="nav flex-column">
                     <a class="nav-link active" href="dashboard_Finance.php">
-                        <i class="fas fa-tachometer-alt"></i> Dashboard
+                        <i class="fas fa-tachometer-alt me-2"></i> Dashboard
                     </a>
                     <a class="nav-link" href="All_Claim_Finance.php">
-                        <i class="fas fa-file-invoice"></i> All Claims
+                        <i class="fas fa-file-invoice me-2"></i> All Claims
                     </a>
                     <a class="nav-link" href="Export_Report_Finance.php">
-                        <i class="fas fa-download"></i> Export Report
+                        <i class="fas fa-download me-2"></i> Export Report
                     </a>
                     <hr style="border-color: rgba(255,255,255,0.2);">
                     <a class="nav-link" href="../logout.php">
-                        <i class="fas fa-sign-out-alt"></i> Logout
+                        <i class="fas fa-sign-out-alt me-2"></i> Logout
                     </a>
                 </nav>
             </div>
  
+            <!-- Main Content -->
             <div class="col-md-9 col-lg-10 p-4">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h2 style="color: white;">
-                        <i class="fas fa-chart-line me-2" style="color: #5BC0BE;"></i>
-                        Finance Dashboard
-                    </h2>
-                    <div class="text-white">
-                        <i class="fas fa-user-circle me-1"></i> <?php echo htmlspecialchars($_SESSION['user_name']); ?>
+                <!-- Page Header -->
+                <div class="page-header fade-in">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
+                        <div>
+                            <h3 class="mb-1">
+                                <i class="fas fa-chart-line me-2" style="color: #5BC0BE;"></i>
+                                Finance Dashboard
+                            </h3>
+                            <p class="mb-0 opacity-75">Manage and review all staff claims</p>
+                        </div>
+                        <div class="mt-2 mt-sm-0">
+                            <i class="fas fa-user-circle me-1"></i> 
+                            <?php echo htmlspecialchars($_SESSION['user_name']); ?>
+                        </div>
                     </div>
                 </div>
  
-                <div class="row g-4 mb-4">
-                    <div class="col-md-3">
+                <!-- Stats Cards -->
+                <div class="row g-4 mb-4 fade-in">
+                    <div class="col-md-3 col-sm-6">
                         <div class="stat-card text-center">
-                            <div class="stat-icon"><i class="fas fa-file-invoice"></i></div>
+                            <div class="stat-icon mx-auto">
+                                <i class="fas fa-file-invoice"></i>
+                            </div>
                             <div class="stat-number"><?php echo $total; ?></div>
                             <div class="stat-label">Total Claims</div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-3 col-sm-6">
                         <div class="stat-card text-center">
-                            <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                            <div class="stat-icon mx-auto">
+                                <i class="fas fa-clock"></i>
+                            </div>
                             <div class="stat-number"><?php echo $pending; ?></div>
                             <div class="stat-label">Pending Approval</div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-3 col-sm-6">
                         <div class="stat-card text-center">
-                            <div class="stat-icon"><i class="fas fa-hourglass-half"></i></div>
+                            <div class="stat-icon mx-auto">
+                                <i class="fas fa-hourglass-half"></i>
+                            </div>
                             <div class="stat-number"><?php echo $approved; ?></div>
                             <div class="stat-label">Pending Payment</div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-3 col-sm-6">
                         <div class="stat-card text-center">
-                            <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+                            <div class="stat-icon mx-auto">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
                             <div class="stat-number"><?php echo $completed; ?></div>
                             <div class="stat-label">Completed</div>
                         </div>
                     </div>
                 </div>
  
+                <!-- Payment Alert -->
                 <?php if($approved > 0): ?>
-                <div class="alert mb-4" style="background: rgba(91,192,190,0.15); border: 1px solid #5BC0BE; color: white;">
-                    <i class="fas fa-exclamation-circle me-2" style="color:#5BC0BE;"></i>
-                    <strong><?php echo $approved; ?> claim(s)</strong> approved and awaiting payment —
-                    Total: <strong>RM <?php echo number_format($pending_amount, 2); ?></strong>
-                    <a href="All_Claim_Finance.php?status=Approved" class="btn btn-sm ms-3" style="background:#5BC0BE; color:#0B132B;">Process Now</a>
+                <div class="payment-alert fade-in">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
+                        <div>
+                            <i class="fas fa-exclamation-circle me-2" style="color: #f59e0b;"></i>
+                            <strong><?php echo $approved; ?> claim(s)</strong> approved and awaiting payment —
+                            Total: <strong>RM <?php echo number_format($pending_amount, 2); ?></strong>
+                        </div>
+                        <a href="All_Claim_Finance.php?status=Approved" class="btn btn-sm mt-2 mt-sm-0" style="background: #f59e0b; color: white; border-radius: 10px;">
+                            <i class="fas fa-money-bill me-1"></i> Process Payment
+                        </a>
+                    </div>
                 </div>
                 <?php endif; ?>
  
-                <div class="row">
+                <div class="row g-4 fade-in">
+                    <!-- Quick Actions Column -->
                     <div class="col-md-5">
-                        <div class="card border-0 shadow-lg fade-in">
+                        <div class="action-card">
                             <div class="card-body p-4">
-                                <h5 style="color: #0B132B;">
-                                    <i class="fas fa-bolt me-2" style="color: #5BC0BE;"></i>
+                                <h5 style="color: #064e3b;">
+                                    <i class="fas fa-bolt me-2" style="color: #10b981;"></i>
                                     Quick Actions
                                 </h5>
                                 <hr>
-                                <a href="All_Claim_Finance.php?status=Pending" class="btn w-100 mb-2" style="background: #5BC0BE; color: #0B132B; border-radius: 10px;">
+                                <a href="All_Claim_Finance.php?status=Pending" class="btn btn-primary-custom w-100 mb-3">
                                     <i class="fas fa-clock me-2"></i>Review Pending Claims
                                     <?php if($pending > 0): ?>
-                                        <span class="badge bg-danger ms-1"><?php echo $pending; ?></span>
+                                        <span class="badge-number"><?php echo $pending; ?></span>
                                     <?php endif; ?>
                                 </a>
-                                <a href="All_Claim_Finance.php" class="btn w-100 mb-2" style="background: #3A506B; color: white; border-radius: 10px;">
+                                <a href="All_Claim_Finance.php" class="btn btn-secondary-custom w-100 mb-3">
                                     <i class="fas fa-list me-2"></i>View All Claims
                                 </a>
-                                <a href="Export_Report_Finance.php" class="btn w-100" style="background: #1C2541; color: white; border-radius: 10px;">
+                                <a href="Export_Report_Finance.php" class="btn btn-dark-custom w-100">
                                     <i class="fas fa-download me-2"></i>Export Monthly Report
                                 </a>
                             </div>
                         </div>
  
-                        <div class="card border-0 shadow-lg fade-in mt-4">
+                        <!-- Claims Summary Card -->
+                        <div class="summary-card mt-4">
                             <div class="card-body p-4">
-                                <h5 style="color: #0B132B;">
-                                    <i class="fas fa-chart-pie me-2" style="color: #5BC0BE;"></i>
+                                <h5 style="color: #064e3b;">
+                                    <i class="fas fa-chart-pie me-2" style="color: #10b981;"></i>
                                     Claims Summary
                                 </h5>
                                 <hr>
-                                <div class="d-flex justify-content-between py-1 border-bottom">
-                                    <span><span class="status-pending">Pending</span></span>
-                                    <strong><?php echo $pending; ?></strong>
+                                <div class="summary-item">
+                                    <div class="summary-label">
+                                        <span class="status-pending">Pending</span>
+                                    </div>
+                                    <div class="summary-value"><?php echo $pending; ?></div>
                                 </div>
-                                <div class="d-flex justify-content-between py-1 border-bottom">
-                                    <span><span class="status-approved">Approved</span></span>
-                                    <strong><?php echo $approved; ?></strong>
+                                <div class="summary-item">
+                                    <div class="summary-label">
+                                        <span class="status-approved">Approved</span>
+                                    </div>
+                                    <div class="summary-value"><?php echo $approved; ?></div>
                                 </div>
-                                <div class="d-flex justify-content-between py-1 border-bottom">
-                                    <span><span class="status-paid">Paid</span></span>
-                                    <strong><?php echo $paid; ?></strong>
+                                <div class="summary-item">
+                                    <div class="summary-label">
+                                        <span class="status-paid">Paid</span>
+                                    </div>
+                                    <div class="summary-value"><?php echo $paid; ?></div>
                                 </div>
-                                <div class="d-flex justify-content-between py-1">
-                                    <span><span class="status-rejected">Rejected</span></span>
-                                    <strong><?php echo $rejected; ?></strong>
+                                <div class="summary-item">
+                                    <div class="summary-label">
+                                        <span class="status-rejected">Rejected</span>
+                                    </div>
+                                    <div class="summary-value"><?php echo $rejected; ?></div>
                                 </div>
                             </div>
                         </div>
                     </div>
  
+                    <!-- Recent Claims Column -->
                     <div class="col-md-7">
-                        <div class="card border-0 shadow-lg fade-in">
+                        <div class="recent-card">
                             <div class="card-body p-4">
-                                <h5 style="color: #0B132B;">
-                                    <i class="fas fa-bell me-2" style="color: #5BC0BE;"></i>
+                                <h5 style="color: #064e3b;">
+                                    <i class="fas fa-clock me-2" style="color: #10b981;"></i>
                                     Recent Claims
                                 </h5>
                                 <hr>
                                 <div class="table-responsive">
-                                    <table class="table table-sm">
+                                    <table class="table table-custom">
                                         <thead>
                                             <tr>
                                                 <th>Staff</th>
@@ -188,17 +476,22 @@ $pending_amount = $conn->query("SELECT SUM(amount) as total FROM claims WHERE st
                                         </thead>
                                         <tbody>
                                             <?php if(empty($recent_claims)): ?>
-                                            <tr><td colspan="5" class="text-center text-muted">No claims found.</td></tr>
+                                            <tr>
+                                                <td colspan="5" class="text-center text-muted py-4">
+                                                    <i class="fas fa-inbox fa-2x mb-2 d-block opacity-50"></i>
+                                                    No claims found
+                                                </td>
+                                            </tr>
                                             <?php else: ?>
                                             <?php foreach($recent_claims as $rc): ?>
                                             <tr>
-                                                <td><?php echo htmlspecialchars($rc['name']); ?></td>
+                                                <td class="fw-semibold"><?php echo htmlspecialchars($rc['name']); ?></td>
                                                 <td><?php echo htmlspecialchars($rc['claim_type']); ?></td>
-                                                <td>RM <?php echo number_format($rc['amount'], 2); ?></td>
+                                                <td class="fw-bold" style="color: #064e3b;">RM <?php echo number_format($rc['amount'], 2); ?></td>
                                                 <td><span class="status-<?php echo strtolower($rc['status']); ?>"><?php echo ucfirst($rc['status']); ?></span></td>
                                                 <td>
-                                                    <a href="Claim_details_Finance.php?id=<?php echo $rc['id']; ?>" class="btn btn-sm" style="background:#5BC0BE; color:#0B132B;">
-                                                        <i class="fas fa-eye"></i>
+                                                    <a href="Claim_details_Finance.php?id=<?php echo $rc['id']; ?>" class="btn btn-view btn-sm">
+                                                        <i class="fas fa-eye me-1"></i> View
                                                     </a>
                                                 </td>
                                             </tr>
@@ -207,7 +500,9 @@ $pending_amount = $conn->query("SELECT SUM(amount) as total FROM claims WHERE st
                                         </tbody>
                                     </table>
                                 </div>
-                                <a href="All_Claim_Finance.php" class="btn btn-sm w-100 mt-2" style="background:#3A506B; color:white;">View All Claims</a>
+                                <a href="All_Claim_Finance.php" class="btn btn-secondary-custom w-100 mt-3">
+                                    <i class="fas fa-arrow-right me-2"></i>View All Claims
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -215,6 +510,7 @@ $pending_amount = $conn->query("SELECT SUM(amount) as total FROM claims WHERE st
             </div>
         </div>
     </div>
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

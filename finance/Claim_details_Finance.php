@@ -66,121 +66,381 @@ $status = strtolower($claim['status']);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Claim Details - Finance</title>
+    <title>Claim Details - Finance | UTMSPACE</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        /* Finance Dashboard - Soft Green Theme */
+        :root {
+            --finance-primary: #064e3b;
+            --finance-secondary: #10b981;
+            --finance-soft: #ecfdf5;
+            --finance-accent: #5BC0BE;
+            --finance-white: #ffffff;
+            --finance-text: #064e3b;
+            --finance-gray: #6b7280;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            background: linear-gradient(180deg, #064e3b 0%, #047857 100%);
+            min-height: 100vh;
+            color: white;
+            transition: all 0.3s ease;
+        }
+        
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.85);
+            padding: 12px 20px;
+            margin: 5px 0;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .sidebar .nav-link:hover {
+            background: rgba(91, 192, 190, 0.2);
+            color: #5BC0BE;
+            transform: translateX(5px);
+        }
+        
+        .sidebar .nav-link.active {
+            background: #5BC0BE;
+            color: #064e3b;
+            font-weight: 600;
+        }
+        
+        /* Page Header */
+        .page-header {
+            background: linear-gradient(135deg, #064e3b 0%, #047857 100%);
+            border-radius: 20px;
+            padding: 20px 25px;
+            color: white;
+            margin-bottom: 25px;
+        }
+        
+        /* Cards */
+        .info-card, .receipt-card, .action-card {
+            background: white;
+            border-radius: 20px;
+            border: none;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+        
+        .card-title {
+            color: #064e3b;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        /* Info Grid */
+        .info-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+        
+        .info-value {
+            font-weight: 600;
+            color: #064e3b;
+            margin-bottom: 12px;
+        }
+        
+        .info-value-amount {
+            font-size: 28px;
+            font-weight: 700;
+            color: #10b981;
+        }
+        
+        /* Status Badges */
+        .status-pending { background: #fef3c7; color: #d97706; padding: 5px 15px; border-radius: 20px; font-size: 13px; font-weight: 600; display: inline-block; }
+        .status-approved { background: #d1fae5; color: #059669; padding: 5px 15px; border-radius: 20px; font-size: 13px; font-weight: 600; display: inline-block; }
+        .status-paid { background: #dbeafe; color: #2563eb; padding: 5px 15px; border-radius: 20px; font-size: 13px; font-weight: 600; display: inline-block; }
+        .status-rejected { background: #fee2e2; color: #dc2626; padding: 5px 15px; border-radius: 20px; font-size: 13px; font-weight: 600; display: inline-block; }
+        
+        /* Buttons */
+        .btn-approve {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-approve:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.4);
+            color: white;
+        }
+        
+        .btn-reject {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-reject:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(239, 68, 68, 0.4);
+            color: white;
+        }
+        
+        .btn-paid {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-paid:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(139, 92, 246, 0.4);
+            color: white;
+        }
+        
+        .btn-back {
+            background: #e5e7eb;
+            color: #064e3b;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-back:hover {
+            background: #d1d5db;
+            transform: translateY(-2px);
+        }
+        
+        .btn-preview, .btn-download {
+            border-radius: 10px;
+            padding: 10px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-preview {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-preview:hover {
+            background: #059669;
+            transform: translateY(-2px);
+            color: white;
+        }
+        
+        .btn-download {
+            background: #064e3b;
+            color: white;
+        }
+        
+        .btn-download:hover {
+            background: #047857;
+            transform: translateY(-2px);
+            color: white;
+        }
+        
+        /* Alert States */
+        .alert-info-custom {
+            background: #dbeafe;
+            border-left: 4px solid #2563eb;
+            color: #1e40af;
+        }
+        
+        .alert-success-custom {
+            background: #d1fae5;
+            border-left: 4px solid #059669;
+            color: #065f46;
+        }
+        
+        .alert-danger-custom {
+            background: #fee2e2;
+            border-left: 4px solid #dc2626;
+            color: #991b1b;
+        }
+        
+        .alert-warning-custom {
+            background: #fef3c7;
+            border-left: 4px solid #d97706;
+            color: #92400e;
+        }
+        
+        /* Form Controls */
+        .form-control, .form-select {
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            padding: 12px 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: #10b981;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        hr {
+            border-color: #e5e7eb;
+        }
+        
+        .receipt-img {
+            max-height: 180px;
+            object-fit: contain;
+            border-radius: 10px;
+        }
+        
+        .remark-box {
+            background: #f0fdf4;
+            border-radius: 12px;
+            padding: 15px;
+        }
+    </style>
 </head>
 <body>
     <div class="container-fluid p-0">
         <div class="row g-0">
+            <!-- Sidebar -->
             <div class="col-md-3 col-lg-2 sidebar p-3">
                 <div class="text-center mb-4">
                     <i class="fas fa-chart-line fs-1" style="color: #5BC0BE;"></i>
-                    <h5 class="mt-2">UTMSpace</h5>
+                    <h5 class="mt-2">UTMSPACE</h5>
                     <small>Finance Portal</small>
                 </div>
                 <hr style="border-color: rgba(255,255,255,0.2);">
                 <nav class="nav flex-column">
                     <a class="nav-link" href="dashboard_Finance.php">
-                        <i class="fas fa-tachometer-alt"></i> Dashboard
+                        <i class="fas fa-tachometer-alt me-2"></i> Dashboard
                     </a>
                     <a class="nav-link active" href="All_Claim_Finance.php">
-                        <i class="fas fa-file-invoice"></i> All Claims
+                        <i class="fas fa-file-invoice me-2"></i> All Claims
                     </a>
                     <a class="nav-link" href="Export_Report_Finance.php">
-                        <i class="fas fa-download"></i> Export Report
+                        <i class="fas fa-download me-2"></i> Export Report
                     </a>
                     <hr style="border-color: rgba(255,255,255,0.2);">
                     <a class="nav-link" href="../logout.php">
-                        <i class="fas fa-sign-out-alt"></i> Logout
+                        <i class="fas fa-sign-out-alt me-2"></i> Logout
                     </a>
                 </nav>
             </div>
  
+            <!-- Main Content -->
             <div class="col-md-9 col-lg-10 p-4">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h2 style="color: white;">
-                        <i class="fas fa-file-invoice me-2" style="color: #5BC0BE;"></i>
-                        Claim Details
-                    </h2>
-                    <a href="All_Claim_Finance.php" class="btn" style="background: #3A506B; color: white;">
-                        <i class="fas fa-arrow-left me-2"></i>Back to Claims
-                    </a>
+                <!-- Page Header -->
+                <div class="page-header fade-in">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
+                        <div>
+                            <h3 class="mb-1">
+                                <i class="fas fa-file-invoice me-2" style="color: #5BC0BE;"></i>
+                                Claim Details
+                            </h3>
+                            <p class="mb-0 opacity-75">Review and manage claim #<?php echo $claim['id']; ?></p>
+                        </div>
+                        <a href="All_Claim_Finance.php" class="btn btn-back mt-2 mt-sm-0">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Claims
+                        </a>
+                    </div>
                 </div>
  
                 <?php if($success): ?>
-                    <div class="alert alert-success">
+                    <div class="alert alert-success-custom fade-in">
                         <i class="fas fa-check-circle me-2"></i><?php echo $success; ?>
                     </div>
                 <?php endif; ?>
                 <?php if($error): ?>
-                    <div class="alert alert-danger">
+                    <div class="alert alert-danger-custom fade-in">
                         <i class="fas fa-exclamation-circle me-2"></i><?php echo $error; ?>
                     </div>
                 <?php endif; ?>
  
-                <div class="row">
+                <div class="row g-4 fade-in">
+                    <!-- Claim Information Column -->
                     <div class="col-md-7">
-                        <div class="card border-0 shadow-lg fade-in">
+                        <div class="info-card">
                             <div class="card-body p-4">
-                                <h4 style="color: #0B132B;">
-                                    <i class="fas fa-receipt me-2" style="color: #5BC0BE;"></i>
-                                    Claim Information
-                                </h4>
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-receipt me-2" style="color: #10b981;"></i>
+                                        Claim Information
+                                    </h5>
+                                    <span class="status-<?php echo $status; ?>"><?php echo ucfirst($status); ?></span>
+                                </div>
                                 <hr>
+                                
                                 <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <label class="text-muted small">Claim ID</label>
-                                        <p class="fw-bold mb-0">#<?php echo $claim['id']; ?></p>
+                                    <div class="col-md-6">
+                                        <div class="info-label">Claim ID</div>
+                                        <div class="info-value">#<?php echo $claim['id']; ?></div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label class="text-muted small">Status</label>
-                                        <p><span class="status-<?php echo $status; ?>"><?php echo ucfirst($status); ?></span></p>
+                                    <div class="col-md-6">
+                                        <div class="info-label">Submitted On</div>
+                                        <div class="info-value"><?php echo date('d M Y, h:i A', strtotime($claim['submitted_at'])); ?></div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label class="text-muted small">Staff Name</label>
-                                        <p class="fw-bold mb-0"><?php echo htmlspecialchars($claim['staff']); ?></p>
+                                    <div class="col-md-6">
+                                        <div class="info-label">Staff Name</div>
+                                        <div class="info-value"><?php echo htmlspecialchars($claim['staff']); ?></div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label class="text-muted small">Staff ID</label>
-                                        <p class="fw-bold mb-0"><?php echo htmlspecialchars($claim['staff_id']); ?></p>
+                                    <div class="col-md-6">
+                                        <div class="info-label">Staff ID</div>
+                                        <div class="info-value"><?php echo htmlspecialchars($claim['staff_id']); ?></div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label class="text-muted small">Email</label>
-                                        <p><?php echo htmlspecialchars($claim['staff_email']); ?></p>
+                                    <div class="col-md-6">
+                                        <div class="info-label">Email</div>
+                                        <div class="info-value"><?php echo htmlspecialchars($claim['staff_email']); ?></div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label class="text-muted small">Department</label>
-                                        <p><?php echo htmlspecialchars($claim['department']); ?></p>
+                                    <div class="col-md-6">
+                                        <div class="info-label">Department</div>
+                                        <div class="info-value"><?php echo htmlspecialchars($claim['department'] ?: '—'); ?></div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label class="text-muted small">Claim Type</label>
-                                        <p><?php echo htmlspecialchars($claim['claim_type']); ?></p>
+                                    <div class="col-md-6">
+                                        <div class="info-label">Claim Type</div>
+                                        <div class="info-value"><?php echo htmlspecialchars($claim['claim_type']); ?></div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label class="text-muted small">Amount</label>
-                                        <p class="fs-3 fw-bold" style="color: #5BC0BE;">RM <?php echo number_format($claim['amount'], 2); ?></p>
+                                    <div class="col-md-6">
+                                        <div class="info-label">Expense Date</div>
+                                        <div class="info-value"><?php echo $claim['expense_date'] ? date('d M Y', strtotime($claim['expense_date'])) : '-'; ?></div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label class="text-muted small">Expense Date</label>
-                                        <p><?php echo $claim['expense_date'] ? date('d M Y', strtotime($claim['expense_date'])) : '-'; ?></p>
+                                    <div class="col-md-12">
+                                        <div class="info-label">Amount</div>
+                                        <div class="info-value-amount">RM <?php echo number_format($claim['amount'], 2); ?></div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label class="text-muted small">Submitted On</label>
-                                        <p><?php echo date('d M Y, h:i A', strtotime($claim['submitted_at'])); ?></p>
-                                    </div>
-                                    <div class="col-12 mb-3">
-                                        <label class="text-muted small">Description</label>
-                                        <p><?php echo nl2br(htmlspecialchars($claim['description'] ?? '-')); ?></p>
+                                    <div class="col-12 mt-2">
+                                        <div class="info-label">Description</div>
+                                        <div class="info-value"><?php echo nl2br(htmlspecialchars($claim['description'] ?? '-')); ?></div>
                                     </div>
                                     
                                     <?php if(!empty($claim['finance_comment'])): ?>
-                                    <div class="col-12">
-                                        <label class="text-muted small">Finance Remark</label>
-                                        <div class="alert alert-info mb-0">
-                                            <i class="fas fa-comment me-2"></i>
-                                            <?php echo nl2br(htmlspecialchars($claim['finance_comment'])); ?>
+                                    <div class="col-12 mt-3">
+                                        <div class="remark-box">
+                                            <i class="fas fa-comment me-2" style="color: #10b981;"></i>
+                                            <strong>Finance Remark</strong>
+                                            <p class="mb-0 mt-2"><?php echo nl2br(htmlspecialchars($claim['finance_comment'])); ?></p>
                                         </div>
                                     </div>
                                     <?php endif; ?>
@@ -189,38 +449,48 @@ $status = strtolower($claim['status']);
                         </div>
                     </div>
  
+                    <!-- Receipt & Actions Column -->
                     <div class="col-md-5">
-                        <div class="card border-0 shadow-lg mb-4">
+                        <!-- Receipt Card -->
+                        <div class="receipt-card mb-4">
                             <div class="card-body text-center p-4">
-                                <i class="fas fa-paperclip" style="font-size: 40px; color: #5BC0BE;"></i>
-                                <h5 class="mt-3">Attached Receipt</h5>
+                                <i class="fas fa-paperclip" style="font-size: 45px; color: #10b981;"></i>
+                                <h5 class="mt-3" style="color: #064e3b;">Attached Receipt</h5>
+                                
                                 <?php if(!empty($claim['receipt'])): ?>
                                     <p class="text-muted small"><?php echo htmlspecialchars($claim['receipt']); ?></p>
+                                    
+                                    <?php
+                                    $receipt_path = '../uploads/receipts/' . $claim['receipt'];
+                                    $ext = strtolower(pathinfo($claim['receipt'], PATHINFO_EXTENSION));
+                                    ?>
+                                    
+                                    <?php if(in_array($ext, ['jpg','jpeg','png','gif'])): ?>
+                                        <img src="<?php echo $receipt_path; ?>" class="receipt-img mb-3" alt="Receipt">
+                                    <?php endif; ?>
+                                    
                                     <div class="d-grid gap-2">
-                                        <?php
-                                        $receipt_path = '../uploads/receipts/' . $claim['receipt'];
-                                        $ext = strtolower(pathinfo($claim['receipt'], PATHINFO_EXTENSION));
-                                        ?>
-                                        <?php if(in_array($ext, ['jpg','jpeg','png','gif'])): ?>
-                                            <img src="<?php echo $receipt_path; ?>" class="img-fluid rounded mb-2" alt="Receipt" style="max-height:200px; object-fit:contain;">
-                                        <?php endif; ?>
-                                        <a href="<?php echo $receipt_path; ?>" target="_blank" class="btn" style="background: #5BC0BE; color: #0B132B;">
+                                        <a href="<?php echo $receipt_path; ?>" target="_blank" class="btn btn-preview">
                                             <i class="fas fa-eye me-2"></i>Preview Receipt
                                         </a>
-                                        <a href="<?php echo $receipt_path; ?>" download class="btn" style="background: #3A506B; color: white;">
+                                        <a href="<?php echo $receipt_path; ?>" download class="btn btn-download">
                                             <i class="fas fa-download me-2"></i>Download Receipt
                                         </a>
                                     </div>
                                 <?php else: ?>
-                                    <p class="text-muted">No receipt attached.</p>
+                                    <div class="alert-warning-custom p-3 rounded mt-2">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        No receipt attached to this claim.
+                                    </div>
                                 <?php endif; ?>
                             </div>
                         </div>
  
-                        <div class="card border-0 shadow-lg">
+                        <!-- Actions Card -->
+                        <div class="action-card">
                             <div class="card-body p-4">
-                                <h5 style="color: #0B132B;">
-                                    <i class="fas fa-gavel me-2" style="color: #5BC0BE;"></i>
+                                <h5 class="card-title">
+                                    <i class="fas fa-gavel me-2" style="color: #10b981;"></i>
                                     Finance Actions
                                 </h5>
                                 <hr>
@@ -231,43 +501,49 @@ $status = strtolower($claim['status']);
                                             <label class="form-label fw-bold">Comments / Remarks</label>
                                             <textarea name="comments" class="form-control" rows="3"
                                                 placeholder="Add your comments here... (required for rejection)"></textarea>
+                                            <small class="text-muted mt-1 d-block">
+                                                <i class="fas fa-info-circle me-1"></i> Remarks will be visible to the staff member
+                                            </small>
                                         </div>
                                         <div class="d-grid gap-2">
-                                            <button type="submit" name="approve" class="btn" style="background: #48bb78; color: white;"
+                                            <button type="submit" name="approve" class="btn btn-approve"
                                                 onclick="return confirm('Approve this claim?')">
-                                                <i class="fas fa-check me-2"></i>Approve Claim
+                                                <i class="fas fa-check-circle me-2"></i>Approve Claim
                                             </button>
-                                            <button type="submit" name="reject" class="btn btn-danger"
-                                                onclick="return confirm('Reject this claim? Please ensure you have entered a reason.')">
-                                                <i class="fas fa-times me-2"></i>Reject Claim
+                                            <button type="submit" name="reject" class="btn btn-reject"
+                                                onclick="return confirm('Reject this claim? This action cannot be undone.')">
+                                                <i class="fas fa-times-circle me-2"></i>Reject Claim
                                             </button>
                                         </div>
                                     </form>
  
                                 <?php elseif($status == 'approved'): ?>
-                                    <div class="alert alert-info mb-3">
+                                    <div class="alert-warning-custom p-3 mb-3">
                                         <i class="fas fa-info-circle me-2"></i>
+                                        <strong>Claim Approved</strong><br>
                                         This claim has been approved. Mark as paid once payment is processed.
                                     </div>
                                     <form method="POST">
                                         <div class="d-grid">
-                                            <button type="submit" name="mark_paid" class="btn" style="background: #5BC0BE; color: #0B132B;"
-                                                onclick="return confirm('Confirm payment of RM <?php echo number_format($claim['amount'],2); ?>?')">
+                                            <button type="submit" name="mark_paid" class="btn btn-paid"
+                                                onclick="return confirm('Confirm payment of RM <?php echo number_format($claim['amount'],2); ?>? This will mark the claim as PAID.')">
                                                 <i class="fas fa-dollar-sign me-2"></i>Mark as Paid
                                             </button>
                                         </div>
                                     </form>
  
                                 <?php elseif($status == 'paid'): ?>
-                                    <div class="alert alert-success text-center">
+                                    <div class="alert-success-custom p-3 text-center">
                                         <i class="fas fa-check-circle me-2"></i>
-                                        This claim has been <strong>paid</strong>. No further action required.
+                                        <strong>Claim Paid</strong><br>
+                                        This claim has been paid. No further action required.
                                     </div>
  
                                 <?php elseif($status == 'rejected'): ?>
-                                    <div class="alert alert-danger text-center">
+                                    <div class="alert-danger-custom p-3 text-center">
                                         <i class="fas fa-times-circle me-2"></i>
-                                        This claim has been <strong>rejected</strong>.
+                                        <strong>Claim Rejected</strong><br>
+                                        This claim has been rejected.
                                     </div>
                                 <?php endif; ?>
                             </div>
@@ -277,6 +553,7 @@ $status = strtolower($claim['status']);
             </div>
         </div>
     </div>
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
