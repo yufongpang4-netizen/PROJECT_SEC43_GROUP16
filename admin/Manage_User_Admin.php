@@ -62,8 +62,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     
     if (empty($new_email)) { $errors[] = "Email address is required."; } 
     elseif (!filter_var($new_email, FILTER_VALIDATE_EMAIL)) { $errors[] = "Please enter a valid email address."; }
-    
-    if (!empty($new_phone) && !preg_match('/^(\+?6?01)[0-9]{8,9}$/', $new_phone)) { $errors[] = "Invalid phone number format."; }
+
+    if (empty($new_phone)) { 
+        $errors[] = "Phone number is required."; 
+    } elseif (!preg_match('/^(\+?6?01)[0-9]{8,9}$/', $new_phone)) { 
+        $errors[] = "Please enter a valid Malaysian phone number! (e.g., 0123456789)"; 
+    }
     
     if (empty($new_pass)) { $errors[] = "Password is required."; } 
     elseif (strlen($new_pass) < 6) { $errors[] = "Password must be at least 6 characters long."; } 
@@ -322,7 +326,7 @@ $stmt->close();
                 <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>Add New User</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" id="addUserForm" onsubmit="return validateForm()">
+            <form method="POST" id="addUserForm">
                 <input type="hidden" name="action" value="add_user">
                 <div class="modal-body">
                     <div class="row">
@@ -340,8 +344,10 @@ $stmt->close();
                         <input type="email" name="email" id="email" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Phone</label>
-                        <input type="text" name="phone" id="phone" class="form-control">
+                        <label class="form-label">Phone *</label>
+                        <input type="tel" name="phone" id="phoneInput" class="form-control" required 
+                               pattern="^(\+?6?01)[0-9]{8,9}$" 
+                               title="Please enter a valid Malaysian phone number (e.g., 0123456789)">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Password *</label>
@@ -385,7 +391,6 @@ $stmt->close();
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
-    // 激活 DataTables
     $(document).ready(function() {
         $('#adminUsersTable').DataTable({
             "pageLength": 10,
@@ -403,6 +408,13 @@ $stmt->close();
         if (role === 'admin') { deptContainer.style.display = 'none'; deptSelect.removeAttribute('required'); } 
         else if (role === 'finance') { deptContainer.style.display = 'block'; deptSelect.value = 'Finance'; deptSelect.disabled = true; deptSelect.removeAttribute('required'); } 
         else { deptContainer.style.display = 'block'; deptSelect.disabled = false; deptSelect.value = ''; deptSelect.setAttribute('required', 'required'); }
+    }
+    
+    const phoneInput = document.getElementById('phoneInput');
+    if (phoneInput) {
+        phoneInput.addEventListener('input', function() {
+            this.value = this.value.replace(/[^0-9+]/g, '');
+        });
     }
     
     function confirmAction(action, name, url) {
