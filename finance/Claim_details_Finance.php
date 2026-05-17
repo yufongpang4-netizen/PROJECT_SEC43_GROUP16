@@ -70,19 +70,21 @@ $status = strtolower($claim['status']);
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Finance Dashboard - Soft Green Theme */
+        /* FINANCE - DARK GREEN THEME WITH LIGHT BACKGROUND */
         :root {
             --finance-primary: #064e3b;
-            --finance-secondary: #10b981;
-            --finance-soft: #ecfdf5;
-            --finance-accent: #5BC0BE;
-            --finance-white: #ffffff;
+            --finance-secondary: #047857;
+            --finance-accent: #10b981;
+            --finance-bg: #ecfdf5;
+            --finance-card: #ffffff;
             --finance-text: #064e3b;
             --finance-gray: #6b7280;
         }
         
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         body {
-            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            background: var(--finance-bg);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             min-height: 100vh;
         }
@@ -104,13 +106,13 @@ $status = strtolower($claim['status']);
         }
         
         .sidebar .nav-link:hover {
-            background: rgba(91, 192, 190, 0.2);
-            color: #5BC0BE;
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
             transform: translateX(5px);
         }
         
         .sidebar .nav-link.active {
-            background: #5BC0BE;
+            background: #10b981;
             color: #064e3b;
             font-weight: 600;
         }
@@ -216,7 +218,7 @@ $status = strtolower($claim['status']);
         }
         
         .btn-back {
-            background: #e5e7eb;
+            background: #f1f5f9;
             color: #064e3b;
             border: none;
             border-radius: 10px;
@@ -225,8 +227,9 @@ $status = strtolower($claim['status']);
         }
         
         .btn-back:hover {
-            background: #d1d5db;
+            background: #e2e8f0;
             transform: translateY(-2px);
+            color: #064e3b;
         }
         
         .btn-preview, .btn-download {
@@ -285,7 +288,7 @@ $status = strtolower($claim['status']);
         
         /* Form Controls */
         .form-control, .form-select {
-            border-radius: 10px;
+            border-radius: 12px;
             border: 1px solid #e5e7eb;
             padding: 12px 15px;
             transition: all 0.3s ease;
@@ -328,7 +331,7 @@ $status = strtolower($claim['status']);
             <!-- Sidebar -->
             <div class="col-md-3 col-lg-2 sidebar p-3">
                 <div class="text-center mb-4">
-                    <i class="fas fa-chart-line fs-1" style="color: #5BC0BE;"></i>
+                    <i class="fas fa-chart-line fs-1" style="color: #10b981;"></i>
                     <h5 class="mt-2">UTMSPACE</h5>
                     <small>Finance Portal</small>
                 </div>
@@ -357,7 +360,7 @@ $status = strtolower($claim['status']);
                     <div class="d-flex justify-content-between align-items-center flex-wrap">
                         <div>
                             <h3 class="mb-1">
-                                <i class="fas fa-file-invoice me-2" style="color: #5BC0BE;"></i>
+                                <i class="fas fa-file-invoice me-2" style="color: #10b981;"></i>
                                 Claim Details
                             </h3>
                             <p class="mb-0 opacity-75">Review and manage claim #<?php echo $claim['id']; ?></p>

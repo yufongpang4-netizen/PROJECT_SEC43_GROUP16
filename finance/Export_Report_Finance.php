@@ -42,7 +42,6 @@ if(isset($_GET['export']) && $_GET['export'] === 'csv') {
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename="UTMSpace_Claims_Report_' . date('Ymd') . '.csv"');
     $out = fopen('php://output', 'w');
-    // Header row
     fputcsv($out, ['Claim ID','Submitted Date','Staff Name','Staff ID','Department','Email','Claim Type','Amount (RM)','Expense Date','Status','Finance Remark']);
     foreach($claims as $c) {
         fputcsv($out, [
@@ -59,7 +58,6 @@ if(isset($_GET['export']) && $_GET['export'] === 'csv') {
             $c['finance_comment'] ?? ''
         ]);
     }
-    // Total row
     fputcsv($out, ['','','','','','','','TOTAL: RM ' . number_format($total_amount, 2),'','','']);
     fclose($out);
     exit();
@@ -67,7 +65,6 @@ if(isset($_GET['export']) && $_GET['export'] === 'csv') {
  
 // ─── HTML / Print-PDF Export ─────────────────────────────────────────
 if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
-    // Render a print-ready HTML page; browser prints it to PDF
     ?><!DOCTYPE html>
 <html>
 <head>
@@ -165,19 +162,21 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Finance Dashboard - Soft Green Theme */
+        /* FINANCE - DARK GREEN THEME WITH LIGHT BACKGROUND */
         :root {
             --finance-primary: #064e3b;
-            --finance-secondary: #10b981;
-            --finance-soft: #ecfdf5;
-            --finance-accent: #5BC0BE;
-            --finance-white: #ffffff;
+            --finance-secondary: #047857;
+            --finance-accent: #10b981;
+            --finance-bg: #ecfdf5;
+            --finance-card: #ffffff;
             --finance-text: #064e3b;
             --finance-gray: #6b7280;
         }
         
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         body {
-            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            background: var(--finance-bg);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             min-height: 100vh;
         }
@@ -199,13 +198,13 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
         }
         
         .sidebar .nav-link:hover {
-            background: rgba(91, 192, 190, 0.2);
-            color: #5BC0BE;
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
             transform: translateX(5px);
         }
         
         .sidebar .nav-link.active {
-            background: #5BC0BE;
+            background: #10b981;
             color: #064e3b;
             font-weight: 600;
         }
@@ -236,7 +235,7 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
         }
         
         .form-control, .form-select {
-            border-radius: 10px;
+            border-radius: 12px;
             border: 1px solid #e5e7eb;
             padding: 10px 15px;
             transition: all 0.3s ease;
@@ -251,7 +250,7 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
             background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             color: white;
             border: none;
-            border-radius: 10px;
+            border-radius: 12px;
             padding: 10px;
             font-weight: 600;
             transition: all 0.3s ease;
@@ -288,7 +287,7 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
             background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             color: white;
             border: none;
-            border-radius: 10px;
+            border-radius: 12px;
             padding: 10px 20px;
             font-weight: 600;
             transition: all 0.3s ease;
@@ -304,7 +303,7 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
             background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
             color: white;
             border: none;
-            border-radius: 10px;
+            border-radius: 12px;
             padding: 10px 20px;
             font-weight: 600;
             transition: all 0.3s ease;
@@ -388,7 +387,7 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
             <!-- Sidebar -->
             <div class="col-md-3 col-lg-2 sidebar p-3">
                 <div class="text-center mb-4">
-                    <i class="fas fa-chart-line fs-1" style="color: #5BC0BE;"></i>
+                    <i class="fas fa-chart-line fs-1" style="color: #10b981;"></i>
                     <h5 class="mt-2">UTMSPACE</h5>
                     <small>Finance Portal</small>
                 </div>
@@ -417,7 +416,7 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
                     <div class="d-flex justify-content-between align-items-center flex-wrap">
                         <div>
                             <h3 class="mb-1">
-                                <i class="fas fa-download me-2" style="color: #5BC0BE;"></i>
+                                <i class="fas fa-download me-2" style="color: #10b981;"></i>
                                 Export Claim Report
                             </h3>
                             <p class="mb-0 opacity-75">Generate and download claim reports in multiple formats</p>

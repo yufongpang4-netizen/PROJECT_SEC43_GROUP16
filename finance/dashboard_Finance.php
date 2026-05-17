@@ -37,19 +37,21 @@ $pending_amount = $conn->query("SELECT SUM(amount) as total FROM claims WHERE st
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Finance Dashboard - Soft Green Theme */
+        /* FINANCE - DARK GREEN THEME WITH LIGHT BACKGROUND */
         :root {
             --finance-primary: #064e3b;
-            --finance-secondary: #10b981;
-            --finance-soft: #ecfdf5;
-            --finance-accent: #5BC0BE;
-            --finance-white: #ffffff;
+            --finance-secondary: #047857;
+            --finance-accent: #10b981;
+            --finance-bg: #ecfdf5;
+            --finance-card: #ffffff;
             --finance-text: #064e3b;
             --finance-gray: #6b7280;
         }
         
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         body {
-            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            background: var(--finance-bg);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             min-height: 100vh;
         }
@@ -71,13 +73,13 @@ $pending_amount = $conn->query("SELECT SUM(amount) as total FROM claims WHERE st
         }
         
         .sidebar .nav-link:hover {
-            background: rgba(91, 192, 190, 0.2);
-            color: #5BC0BE;
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
             transform: translateX(5px);
         }
         
         .sidebar .nav-link.active {
-            background: #5BC0BE;
+            background: #10b981;
             color: #064e3b;
             font-weight: 600;
         }
@@ -91,7 +93,7 @@ $pending_amount = $conn->query("SELECT SUM(amount) as total FROM claims WHERE st
             margin-bottom: 25px;
         }
         
-        /* Stats Cards */
+        /* Stats Cards with Hover Colors */
         .stat-card {
             background: white;
             border-radius: 20px;
@@ -99,13 +101,44 @@ $pending_amount = $conn->query("SELECT SUM(amount) as total FROM claims WHERE st
             transition: all 0.3s ease;
             border: 1px solid #d1fae5;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+            cursor: pointer;
         }
         
         .stat-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        }
+        
+        /* Total Claims - Green theme */
+        .stat-card-total:hover {
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
             border-color: #10b981;
         }
+        .stat-card-total:hover .stat-icon { background: #10b981; color: white; }
+        
+        /* Pending - Yellow theme */
+        .stat-card-pending:hover {
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+            border-color: #f59e0b;
+        }
+        .stat-card-pending:hover .stat-icon { background: #f59e0b; color: white; }
+        .stat-card-pending:hover .stat-number { color: #b45309; }
+        
+        /* Pending Payment - Blue theme */
+        .stat-card-approved:hover {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            border-color: #3b82f6;
+        }
+        .stat-card-approved:hover .stat-icon { background: #3b82f6; color: white; }
+        .stat-card-approved:hover .stat-number { color: #1e40af; }
+        
+        /* Completed - Purple theme */
+        .stat-card-completed:hover {
+            background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+            border-color: #8b5cf6;
+        }
+        .stat-card-completed:hover .stat-icon { background: #8b5cf6; color: white; }
+        .stat-card-completed:hover .stat-number { color: #6d28d9; }
         
         .stat-icon {
             width: 55px;
@@ -118,6 +151,7 @@ $pending_amount = $conn->query("SELECT SUM(amount) as total FROM claims WHERE st
             font-size: 24px;
             color: #10b981;
             margin: 0 auto 15px;
+            transition: all 0.3s ease;
         }
         
         .stat-number {
@@ -125,12 +159,14 @@ $pending_amount = $conn->query("SELECT SUM(amount) as total FROM claims WHERE st
             font-weight: 700;
             color: #064e3b;
             margin-bottom: 5px;
+            transition: all 0.3s ease;
         }
         
         .stat-label {
             color: #6b7280;
             font-size: 14px;
             font-weight: 500;
+            transition: all 0.3s ease;
         }
         
         /* Alert Banner */
@@ -175,7 +211,7 @@ $pending_amount = $conn->query("SELECT SUM(amount) as total FROM claims WHERE st
         }
         
         .btn-secondary-custom {
-            background: #e5e7eb;
+            background: #f1f5f9;
             color: #064e3b;
             border: none;
             padding: 12px;
@@ -185,8 +221,9 @@ $pending_amount = $conn->query("SELECT SUM(amount) as total FROM claims WHERE st
         }
         
         .btn-secondary-custom:hover {
-            background: #d1d5db;
+            background: #e2e8f0;
             transform: translateY(-2px);
+            color: #064e3b;
         }
         
         .btn-dark-custom {
@@ -206,10 +243,10 @@ $pending_amount = $conn->query("SELECT SUM(amount) as total FROM claims WHERE st
         }
         
         /* Status Badges */
-        .status-pending { background: #fef3c7; color: #d97706; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-        .status-approved { background: #d1fae5; color: #059669; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-        .status-paid { background: #dbeafe; color: #2563eb; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-        .status-rejected { background: #fee2e2; color: #dc2626; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .status-pending { background: #fef3c7; color: #d97706; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block; }
+        .status-approved { background: #d1fae5; color: #059669; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block; }
+        .status-paid { background: #dbeafe; color: #2563eb; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block; }
+        .status-rejected { background: #fee2e2; color: #dc2626; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block; }
         
         /* Summary Items */
         .summary-item {
@@ -220,37 +257,15 @@ $pending_amount = $conn->query("SELECT SUM(amount) as total FROM claims WHERE st
             border-bottom: 1px solid #e5e7eb;
         }
         
-        .summary-item:last-child {
-            border-bottom: none;
-        }
+        .summary-item:last-child { border-bottom: none; }
         
-        .summary-label {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .summary-value {
-            font-weight: 700;
-            color: #064e3b;
-            font-size: 18px;
-        }
+        .summary-label { display: flex; align-items: center; gap: 10px; }
+        .summary-value { font-weight: 700; color: #064e3b; font-size: 18px; }
         
         /* Table */
-        .table-custom {
-            margin-bottom: 0;
-        }
-        
-        .table-custom th {
-            color: #064e3b;
-            font-weight: 600;
-            border-bottom: 2px solid #e5e7eb;
-        }
-        
-        .table-custom td {
-            vertical-align: middle;
-            padding: 12px 8px;
-        }
+        .table-custom { margin-bottom: 0; }
+        .table-custom th { color: #064e3b; font-weight: 600; border-bottom: 2px solid #e5e7eb; }
+        .table-custom td { vertical-align: middle; padding: 12px 8px; }
         
         .btn-view {
             background: #10b981;
@@ -272,13 +287,8 @@ $pending_amount = $conn->query("SELECT SUM(amount) as total FROM claims WHERE st
             to { opacity: 1; transform: translateY(0); }
         }
         
-        .fade-in {
-            animation: fadeIn 0.5s ease-out;
-        }
-        
-        hr {
-            border-color: #e5e7eb;
-        }
+        .fade-in { animation: fadeIn 0.5s ease-out; }
+        hr { border-color: #e5e7eb; }
         
         .badge-number {
             background: #ef4444;
@@ -296,7 +306,7 @@ $pending_amount = $conn->query("SELECT SUM(amount) as total FROM claims WHERE st
             <!-- Sidebar -->
             <div class="col-md-3 col-lg-2 sidebar p-3">
                 <div class="text-center mb-4">
-                    <i class="fas fa-chart-line fs-1" style="color: #5BC0BE;"></i>
+                    <i class="fas fa-chart-line fs-1" style="color: #10b981;"></i>
                     <h5 class="mt-2">UTMSPACE</h5>
                     <small>Finance Portal</small>
                 </div>
@@ -325,7 +335,7 @@ $pending_amount = $conn->query("SELECT SUM(amount) as total FROM claims WHERE st
                     <div class="d-flex justify-content-between align-items-center flex-wrap">
                         <div>
                             <h3 class="mb-1">
-                                <i class="fas fa-chart-line me-2" style="color: #5BC0BE;"></i>
+                                <i class="fas fa-chart-line me-2" style="color: #10b981;"></i>
                                 Finance Dashboard
                             </h3>
                             <p class="mb-0 opacity-75">Manage and review all staff claims</p>
@@ -337,40 +347,32 @@ $pending_amount = $conn->query("SELECT SUM(amount) as total FROM claims WHERE st
                     </div>
                 </div>
  
-                <!-- Stats Cards -->
+                <!-- Stats Cards with Individual Hover Colors -->
                 <div class="row g-4 mb-4 fade-in">
                     <div class="col-md-3 col-sm-6">
-                        <div class="stat-card text-center">
-                            <div class="stat-icon mx-auto">
-                                <i class="fas fa-file-invoice"></i>
-                            </div>
+                        <div class="stat-card stat-card-total text-center">
+                            <div class="stat-icon mx-auto"><i class="fas fa-file-invoice"></i></div>
                             <div class="stat-number"><?php echo $total; ?></div>
                             <div class="stat-label">Total Claims</div>
                         </div>
                     </div>
                     <div class="col-md-3 col-sm-6">
-                        <div class="stat-card text-center">
-                            <div class="stat-icon mx-auto">
-                                <i class="fas fa-clock"></i>
-                            </div>
+                        <div class="stat-card stat-card-pending text-center">
+                            <div class="stat-icon mx-auto"><i class="fas fa-clock"></i></div>
                             <div class="stat-number"><?php echo $pending; ?></div>
                             <div class="stat-label">Pending Approval</div>
                         </div>
                     </div>
                     <div class="col-md-3 col-sm-6">
-                        <div class="stat-card text-center">
-                            <div class="stat-icon mx-auto">
-                                <i class="fas fa-hourglass-half"></i>
-                            </div>
+                        <div class="stat-card stat-card-approved text-center">
+                            <div class="stat-icon mx-auto"><i class="fas fa-hourglass-half"></i></div>
                             <div class="stat-number"><?php echo $approved; ?></div>
                             <div class="stat-label">Pending Payment</div>
                         </div>
                     </div>
                     <div class="col-md-3 col-sm-6">
-                        <div class="stat-card text-center">
-                            <div class="stat-icon mx-auto">
-                                <i class="fas fa-check-circle"></i>
-                            </div>
+                        <div class="stat-card stat-card-completed text-center">
+                            <div class="stat-icon mx-auto"><i class="fas fa-check-circle"></i></div>
                             <div class="stat-number"><?php echo $completed; ?></div>
                             <div class="stat-label">Completed</div>
                         </div>
@@ -427,27 +429,19 @@ $pending_amount = $conn->query("SELECT SUM(amount) as total FROM claims WHERE st
                                 </h5>
                                 <hr>
                                 <div class="summary-item">
-                                    <div class="summary-label">
-                                        <span class="status-pending">Pending</span>
-                                    </div>
+                                    <div class="summary-label"><span class="status-pending">Pending</span></div>
                                     <div class="summary-value"><?php echo $pending; ?></div>
                                 </div>
                                 <div class="summary-item">
-                                    <div class="summary-label">
-                                        <span class="status-approved">Approved</span>
-                                    </div>
+                                    <div class="summary-label"><span class="status-approved">Approved</span></div>
                                     <div class="summary-value"><?php echo $approved; ?></div>
                                 </div>
                                 <div class="summary-item">
-                                    <div class="summary-label">
-                                        <span class="status-paid">Paid</span>
-                                    </div>
+                                    <div class="summary-label"><span class="status-paid">Paid</span></div>
                                     <div class="summary-value"><?php echo $paid; ?></div>
                                 </div>
                                 <div class="summary-item">
-                                    <div class="summary-label">
-                                        <span class="status-rejected">Rejected</span>
-                                    </div>
+                                    <div class="summary-label"><span class="status-rejected">Rejected</span></div>
                                     <div class="summary-value"><?php echo $rejected; ?></div>
                                 </div>
                             </div>
