@@ -58,6 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>Login - UTMSPACE</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bootstrap-4/bootstrap-4.css">
     <style>
         :root {
             --utm-navy: #0B3B5E;
@@ -73,22 +74,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .login-page { position: relative; min-height: 100vh; }
         
         .blurry-bg {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-image: url('css/images/utm.jpg');
-            background-size: cover;
-            background-position: center;
-            filter: blur(12px);
-            transform: scale(1.1);
-            z-index: 0;
+            background-size: cover; background-position: center;
+            filter: blur(12px); transform: scale(1.1); z-index: 0;
         }
         
         .blurry-bg::after {
-            content: '';
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(11, 59, 94, 0.65);
         }
         
@@ -100,65 +93,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         .glass-card {
             background: rgba(255, 255, 255, 0.88);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
             border-radius: 30px;
             border: 1px solid rgba(255, 255, 255, 0.8);
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
-            width: 100%;
-            max-width: 450px;
+            width: 100%; max-width: 450px;
         }
 
         .utm-logo-img { max-width: 180px; height: auto; margin-bottom: 15px; }
         .logo-divider { width: 60px; height: 4px; background: var(--utm-red); margin: 0 auto; border-radius: 4px; }
         
         .form-control {
-            border-radius: 15px;
-            padding: 12px 18px;
+            border-radius: 15px; padding: 12px 18px;
             border: 1px solid rgba(11, 59, 94, 0.1);
-            background: rgba(255, 255, 255, 0.5);
-            transition: all 0.3s;
+            background: rgba(255, 255, 255, 0.5); transition: all 0.3s;
         }
         
         .form-control:focus {
             box-shadow: 0 0 0 4px rgba(193, 39, 45, 0.1);
-            border-color: var(--utm-red);
-            background: white;
+            border-color: var(--utm-red); background: white;
         }
 
         .btn-primary-custom {
-            background: var(--utm-navy);
-            color: white;
-            border-radius: 50px;
-            padding: 12px;
-            font-weight: 600;
-            transition: all 0.3s;
-            border: none;
+            background: var(--utm-navy); color: white; border-radius: 50px;
+            padding: 12px; font-weight: 600; transition: all 0.3s; border: none;
             box-shadow: 0 4px 15px rgba(11, 59, 94, 0.2);
         }
         
         .btn-primary-custom:hover {
-            background: var(--utm-dark);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(11, 59, 94, 0.3);
-            color: white;
+            background: var(--utm-dark); transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(11, 59, 94, 0.3); color: white;
         }
 
         .btn-outline-custom {
-            border: 2px solid var(--utm-navy);
-            color: var(--utm-navy);
-            border-radius: 50px;
-            padding: 10px;
-            font-weight: 600;
-            transition: all 0.3s;
-            text-decoration: none;
+            border: 2px solid var(--utm-navy); color: var(--utm-navy);
+            border-radius: 50px; padding: 10px; font-weight: 600;
+            transition: all 0.3s; text-decoration: none;
             display: block; text-align: center;
         }
 
-        .btn-outline-custom:hover {
-            background: var(--utm-navy);
-            color: white;
-        }
+        .btn-outline-custom:hover { background: var(--utm-navy); color: white; }
 
         @keyframes fadeInUp {
             from { opacity: 0; transform: translateY(30px); }
@@ -181,12 +155,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <p class="text-muted">Enter your credentials to access your account</p>
             </div>
 
-            <?php if($error): ?>
-                <div class="alert alert-danger border-0 rounded-4 mb-4">
-                    <i class="fas fa-exclamation-circle me-2"></i><?php echo $error; ?>
-                </div>
-            <?php endif; ?>
-
             <form method="POST">
                 <div class="mb-3">
                     <label class="form-label text-navy ms-1"><i class="fas fa-envelope me-2 opacity-75"></i>Email Address</label>
@@ -197,7 +165,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <input type="password" name="password" class="form-control" placeholder="••••••••" required>
                 </div>
                 <button type="submit" class="btn btn-primary-custom w-100 mb-4">
-                    <i class="fas fa-sign-in-alt me-2"></i>Sign In
+                    <i class="fas fa-sign-out-alt me-2"></i>Sign In
                 </button>
             </form>
 
@@ -209,5 +177,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         </div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <?php if($error): ?>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            Swal.fire({
+                icon: 'error',
+                title: 'Login Failed',
+                html: '<?php echo addslashes($error); ?>',
+                confirmButtonColor: '#0B3B5E',
+                background: 'rgba(255, 255, 255, 0.95)',
+                backdrop: `rgba(11, 59, 94, 0.3)`,
+                showClass: { popup: 'animate__animated animate__shakeX' }
+            });
+        });
+    </script>
+    <?php endif; ?>
 </body>
 </html>

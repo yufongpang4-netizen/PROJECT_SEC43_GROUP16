@@ -30,10 +30,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     elseif ($role == 'admin') { $department = NULL; } 
     else { $department = trim($_POST['department'] ?? ''); }
 
-    if (empty($name) || empty($staff_id) || empty($email) || empty($password)) {
-        $error = "Please fill in all required fields.";
+    if (empty($name) || empty($staff_id) || empty($email) || empty($password) || empty($phone)) {
+        $error = "Please fill in all required fields including Phone number.";
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = "Please enter a valid email address!";
+    } elseif (!preg_match('/^(\+?6?01)[0-9]{8,9}$/', $phone)) {
+        $error = "Please enter a valid Malaysian phone number! (e.g., 0123456789)";
     } elseif (strlen($password) < 8 || !preg_match('/[A-Z]/', $password) || !preg_match('/[0-9]/', $password)) {
         $error = "Password does not meet security requirements!";
     } else {
@@ -150,51 +152,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="role-badge mb-2"><i class="fas fa-id-badge me-2"></i>UTMSPACE Official Portal</div>
             </div>
 
-            <?php if($success): ?>
-                <div class="alert alert-success border-0 rounded-4 text-center">
-                    <i class="fas fa-check-circle me-2"></i>Registered Successfully! <a href="login.php" class="fw-bold">Login now →</a>
-                </div>
-            <?php elseif($error): ?>
-                <div class="alert alert-danger border-0 rounded-4">
-                    <i class="fas fa-exclamation-triangle me-2"></i><?php echo $error; ?>
-                </div>
-            <?php endif; ?>
-
             <form method="POST" id="regForm">
                 <input type="hidden" name="role" value="<?php echo $requested_role; ?>">
                 <div class="row g-3">
                     <div class="col-md-6">
-                        <label class="form-label ms-1">Full Name</label>
-                        <input type="text" name="name" class="form-control" required>
+                        <label class="form-label ms-1">Full Name *</label>
+                        <input type="text" name="name" class="form-control" required value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>">
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label ms-1">Staff ID</label>
-                        <input type="text" name="staff_id" class="form-control" required>
+                        <label class="form-label ms-1">Staff ID *</label>
+                        <input type="text" name="staff_id" class="form-control" required value="<?php echo htmlspecialchars($_POST['staff_id'] ?? ''); ?>">
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label ms-1">Email</label>
-                        <input type="email" name="email" class="form-control" required>
+                        <label class="form-label ms-1">Email *</label>
+                        <input type="email" name="email" class="form-control" required value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label ms-1">Phone</label>
-                        <input type="tel" name="phone" class="form-control" placeholder="0123456789">
+                        <label class="form-label ms-1">Phone *</label>
+                        <input type="tel" name="phone" id="phoneInput" class="form-control" required 
+                               pattern="^(\+?6?01)[0-9]{8,9}$" 
+                               title="Please enter a valid Malaysian phone number (e.g., 0123456789)"
+                               placeholder="0123456789" value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>">
                     </div>
                     
                     <?php if($requested_role == 'staff'): ?>
                     <div class="col-12">
-                        <label class="form-label ms-1">Department</label>
+                        <label class="form-label ms-1">Department *</label>
                         <select name="department" class="form-select" required>
                             <option value="">Choose your department...</option>
-                            <option>Information Technology</option>
-                            <option>Human Resources</option>
-                            <option>Marketing</option>
-                            <option>Finance</option>
+                            <option <?php echo (($_POST['department'] ?? '') == 'Information Technology') ? 'selected' : ''; ?>>Information Technology</option>
+                            <option <?php echo (($_POST['department'] ?? '') == 'Human Resources') ? 'selected' : ''; ?>>Human Resources</option>
+                            <option <?php echo (($_POST['department'] ?? '') == 'Marketing') ? 'selected' : ''; ?>>Marketing</option>
+                            <option <?php echo (($_POST['department'] ?? '') == 'Finance') ? 'selected' : ''; ?>>Finance</option>
                         </select>
                     </div>
                     <?php endif; ?>
 
                     <div class="col-12">
-                        <label class="form-label ms-1">Password</label>
+                        <label class="form-label ms-1">Password *</label>
                         <input type="password" name="password" id="password" class="form-control" required>
                         <ul class="small text-muted mt-2 list-unstyled ms-1" id="reqs">
                             <li id="l">✗ Min 8 characters</li>
@@ -220,9 +215,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         const p = document.getElementById('password');
         const fl = document.getElementById('l'), fu = document.getElementById('u');
+        const form = document.getElementById('regForm');
+        let isPasswordValid = false;
+
         p.addEventListener('input', () => {
             const v = p.value;
             const okL = v.length >= 8;
@@ -231,7 +230,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             fl.style.color = okL ? '#28a745' : '#6c757d';
             fu.innerHTML = (okU ? '✓' : '✗') + ' At least 1 Uppercase & 1 Number';
             fu.style.color = okU ? '#28a745' : '#6c757d';
+            
+            isPasswordValid = okL && okU;
         });
+
+        const phoneInput = document.getElementById('phoneInput');
+        if (phoneInput) {
+            phoneInput.addEventListener('input', function() {
+                this.value = this.value.replace(/[^0-9+]/g, '');
+            });
+        }
+
+        form.addEventListener('submit', function(e) {
+            if (!isPasswordValid) {
+                e.preventDefault();
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Weak Password',
+                    text: 'Please ensure your password meets all the security requirements (min 8 chars, 1 uppercase, 1 number).',
+                    confirmButtonColor: '#C1272D',
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    backdrop: `rgba(11, 59, 94, 0.4)`
+                });
+            }
+        });
+
+        <?php if($success): ?>
+            Swal.fire({
+                icon: 'success',
+                title: 'Registration Successful!',
+                text: 'Your account has been created successfully.',
+                confirmButtonText: '<i class="fas fa-sign-in-alt me-1"></i> Login Now',
+                confirmButtonColor: '#0B3B5E',
+                background: 'rgba(255, 255, 255, 0.95)',
+                backdrop: `rgba(11, 59, 94, 0.4)`
+            }).then((result) => {
+                if (result.isConfirmed || result.isDismissed) {
+                    window.location.href = 'login.php';
+                }
+            });
+        <?php elseif($error): ?>
+            Swal.fire({
+                icon: 'error',
+                title: 'Registration Failed',
+                text: '<?php echo addslashes($error); ?>',
+                confirmButtonColor: '#C1272D',
+                background: 'rgba(255, 255, 255, 0.95)',
+                backdrop: `rgba(11, 59, 94, 0.4)`,
+                showClass: { popup: 'animate__animated animate__shakeX' }
+            });
+        <?php endif; ?>
     </script>
 </body>
 </html>

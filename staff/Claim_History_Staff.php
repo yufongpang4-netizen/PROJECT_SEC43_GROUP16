@@ -164,6 +164,7 @@ foreach($counts_rows as $r) {
     <title>Claim History - UTMSPACE</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bootstrap-4/bootstrap-4.css">
     <style>
         /* STAFF - DARK BLUE THEME WITH LIGHT BACKGROUND */
         :root {
@@ -319,11 +320,7 @@ foreach($counts_rows as $r) {
             border: none;
         }
         
-        .btn-view:hover {
-            background: #2563eb;
-            transform: translateY(-2px);
-            color: white;
-        }
+        .btn-view:hover { background: #2563eb; transform: translateY(-2px); color: white; }
         
         .btn-edit {
             background: #f59e0b;
@@ -335,11 +332,7 @@ foreach($counts_rows as $r) {
             border: none;
         }
         
-        .btn-edit:hover {
-            background: #d97706;
-            transform: translateY(-2px);
-            color: white;
-        }
+        .btn-edit:hover { background: #d97706; transform: translateY(-2px); color: white; }
         
         .btn-cancel {
             background: #ef4444;
@@ -351,11 +344,7 @@ foreach($counts_rows as $r) {
             border: none;
         }
         
-        .btn-cancel:hover {
-            background: #dc2626;
-            transform: translateY(-2px);
-            color: white;
-        }
+        .btn-cancel:hover { background: #dc2626; transform: translateY(-2px); color: white; }
         
         .btn-new-claim {
             background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
@@ -377,36 +366,17 @@ foreach($counts_rows as $r) {
             to { opacity: 1; transform: translateY(0); }
         }
         
-        .fade-in {
-            animation: fadeIn 0.5s ease-out;
-        }
+        .fade-in { animation: fadeIn 0.5s ease-out; }
         
         /* Empty State */
-        .empty-state {
-            text-align: center;
-            padding: 60px;
-        }
-        
-        .empty-icon {
-            font-size: 60px;
-            color: #cbd5e1;
-            margin-bottom: 20px;
-        }
+        .empty-state { text-align: center; padding: 60px; }
+        .empty-icon { font-size: 60px; color: #cbd5e1; margin-bottom: 20px; }
         
         /* Modal Styling */
-        .modal-custom-header {
-            background: linear-gradient(135deg, #0f2b4d 0%, #1e4d8c 100%);
-            color: white;
-        }
+        .modal-custom-header { background: linear-gradient(135deg, #0f2b4d 0%, #1e4d8c 100%); color: white; }
+        .modal-edit-header { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; }
         
-        .modal-edit-header {
-            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-            color: white;
-        }
-        
-        @media (max-width: 768px) {
-            .sidebar { min-height: auto; }
-        }
+        @media (max-width: 768px) { .sidebar { min-height: auto; } }
     </style>
 </head>
 <body>
@@ -422,20 +392,20 @@ foreach($counts_rows as $r) {
                     <hr style="border-color: rgba(255,255,255,0.2);">
                     <nav class="nav flex-column">
                         <a class="nav-link" href="dashboard_Staff.php">
-                            <i class="fas fa-tachometer-alt me-2"></i> Dashboard
+                            <i class="fas fa-tachometer-alt fa-fw me-2"></i> Dashboard
                         </a>
                         <a class="nav-link" href="New_Claim_Staff.php">
-                            <i class="fas fa-plus-circle me-2"></i> New Claim
+                            <i class="fas fa-plus-circle fa-fw me-2"></i> New Claim
                         </a>
                         <a class="nav-link active" href="Claim_History_Staff.php">
-                            <i class="fas fa-history me-2"></i> Claim History
+                            <i class="fas fa-history fa-fw me-2"></i> Claim History
                         </a>
                         <a class="nav-link" href="Edit_profile_Staff.php">
-                            <i class="fas fa-user-edit me-2"></i> Edit Profile
+                            <i class="fas fa-user-edit fa-fw me-2"></i> Edit Profile
                         </a>
                         <hr style="border-color: rgba(255,255,255,0.2);">
                         <a class="nav-link" href="../logout.php">
-                            <i class="fas fa-sign-out-alt me-2"></i> Logout
+                            <i class="fas fa-sign-out-alt fa-fw me-2"></i> Logout
                         </a>
                     </nav>
                 </div>
@@ -456,19 +426,6 @@ foreach($counts_rows as $r) {
                         </a>
                     </div>
                 </div>
- 
-                <?php if($success): ?>
-                    <div class="alert alert-success alert-dismissible fade show fade-in" role="alert">
-                        <i class="fas fa-check-circle me-2"></i><?php echo $success; ?>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                <?php endif; ?>
-                <?php if($error): ?>
-                    <div class="alert alert-danger alert-dismissible fade show fade-in" role="alert">
-                        <i class="fas fa-exclamation-circle me-2"></i><?php echo $error; ?>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                <?php endif; ?>
  
                 <div class="mb-4 fade-in">
                     <?php
@@ -512,11 +469,19 @@ foreach($counts_rows as $r) {
                                             <div class="empty-icon">
                                                 <i class="fas fa-folder-open"></i>
                                             </div>
-                                            <h5 style="color: #0f2b4d;">No claims found</h5>
-                                            <p class="text-muted">You haven't submitted any claims yet.</p>
-                                            <a href="New_Claim_Staff.php" class="btn btn-new-claim">
-                                                <i class="fas fa-plus me-2"></i>Submit Your First Claim
-                                            </a>
+                                            <?php if($counts['All'] == 0): ?>
+                                                <h5 style="color: #0f2b4d;">No claims found</h5>
+                                                <p class="text-muted">You haven't submitted any claims yet.</p>
+                                                <a href="New_Claim_Staff.php" class="btn btn-new-claim">
+                                                    <i class="fas fa-plus me-2"></i>Submit Your First Claim
+                                                </a>
+                                            <?php else: ?>
+                                                <h5 style="color: #0f2b4d;">No <?php echo $status_filter === 'All' ? '' : strtolower($status_filter); ?> claims</h5>
+                                                <p class="text-muted">There are currently no claims matching this status.</p>
+                                                <a href="New_Claim_Staff.php" class="btn btn-new-claim">
+                                                    <i class="fas fa-plus me-2"></i>Submit a New Claim
+                                                </a>
+                                            <?php endif; ?>
                                         </td>
                                     </tr>
                                 <?php else: ?>
@@ -559,10 +524,9 @@ foreach($counts_rows as $r) {
                                                 <i class="fas fa-edit"></i> Edit
                                             </button>
                                             
-                                            <form method="POST" class="d-inline"
-                                                  onsubmit="return confirm('Cancel and delete claim #<?php echo $claim['id']; ?>? This cannot be undone.');">
+                                            <form method="POST" class="d-inline" id="cancel-form-<?php echo $claim['id']; ?>">
                                                 <input type="hidden" name="cancel_id" value="<?php echo $claim['id']; ?>">
-                                                <button type="submit" class="btn btn-cancel btn-sm">
+                                                <button type="button" class="btn btn-cancel btn-sm" onclick="confirmCancel(<?php echo $claim['id']; ?>)">
                                                     <i class="fas fa-trash"></i> Cancel
                                                 </button>
                                             </form>
@@ -712,6 +676,9 @@ foreach($counts_rows as $r) {
     </div>
  
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
     <script>
         document.getElementById('detailModal').addEventListener('show.bs.modal', function(e) {
             const btn = e.relatedTarget;
@@ -790,6 +757,49 @@ foreach($counts_rows as $r) {
                 }
             });
         });
+
+        function confirmCancel(claimId) {
+            Swal.fire({
+                title: 'Cancel Claim #' + claimId + '?',
+                text: "This action cannot be undone. The claim will be permanently deleted.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444', 
+                cancelButtonColor: '#64748b',  
+                confirmButtonText: '<i class="fas fa-trash me-1"></i> Yes, cancel it!',
+                background: 'rgba(255, 255, 255, 0.95)',
+                backdrop: `rgba(15, 43, 77, 0.4)`
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    document.getElementById('cancel-form-' + claimId).submit();
+                }
+            });
+        }
+
+        <?php if($success): ?>
+            const Toast = Swal.mixin({
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true,
+                didOpen: (toast) => {
+                    toast.addEventListener('mouseenter', Swal.stopTimer)
+                    toast.addEventListener('mouseleave', Swal.resumeTimer)
+                }
+            });
+            Toast.fire({
+                icon: 'success',
+                title: '<?php echo addslashes($success); ?>'
+            });
+        <?php elseif($error): ?>
+            Swal.fire({
+                icon: 'error',
+                title: 'Action Failed',
+                text: '<?php echo addslashes($error); ?>',
+                confirmButtonColor: '#3b82f6'
+            });
+        <?php endif; ?>
     </script>
 </body>
 </html>

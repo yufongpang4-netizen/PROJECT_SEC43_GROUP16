@@ -8,7 +8,6 @@ if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'finance') {
 require_once '../db.php';
  
 $status_filter = $_GET['status'] ?? 'All';
-$search        = $_GET['search'] ?? '';
  
 $where_parts = [];
 $params      = [];
@@ -18,13 +17,6 @@ if($status_filter !== 'All') {
     $where_parts[] = "c.status = ?";
     $params[]      = $status_filter;
     $types        .= 's';
-}
- 
-if(!empty($search)) {
-    $where_parts[] = "(u.name LIKE ? OR u.staff_id LIKE ?)";
-    $params[]      = "%$search%";
-    $params[]      = "%$search%";
-    $types        .= 'ss';
 }
  
 $where_sql = $where_parts ? "WHERE " . implode(" AND ", $where_parts) : "";
@@ -60,6 +52,9 @@ $counts['All'] = array_sum($counts);
     <title>All Claims - Finance | UTMSPACE</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.5/css/dataTables.bootstrap5.min.css">
+    
     <style>
         /* FINANCE - DARK GREEN THEME WITH LIGHT BACKGROUND */
         :root {
@@ -151,48 +146,16 @@ $counts['All'] = array_sum($counts);
             margin-bottom: 8px;
         }
         
-        .form-control, .form-select {
+        .form-select {
             border-radius: 12px;
             border: 1px solid #e5e7eb;
             padding: 10px 15px;
             transition: all 0.3s ease;
         }
         
-        .form-control:focus, .form-select:focus {
+        .form-select:focus {
             border-color: #10b981;
             box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
-        }
-        
-        .btn-search {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            padding: 10px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-        
-        .btn-search:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.4);
-            color: white;
-        }
-        
-        .btn-reset {
-            background: #f1f5f9;
-            color: #064e3b;
-            border: none;
-            border-radius: 12px;
-            padding: 10px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-        
-        .btn-reset:hover {
-            background: #e2e8f0;
-            transform: translateY(-2px);
-            color: #064e3b;
         }
         
         /* Table Card */
@@ -202,6 +165,7 @@ $counts['All'] = array_sum($counts);
             border: none;
             box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
             overflow: hidden;
+            padding: 20px;
         }
         
         .table-custom {
@@ -217,6 +181,10 @@ $counts['All'] = array_sum($counts);
             font-weight: 600;
             padding: 15px;
             border: none;
+        }
+        
+        .table-custom th.sorting_asc, .table-custom th.sorting_desc {
+            color: #10b981 !important;
         }
         
         .table-custom td {
@@ -237,59 +205,31 @@ $counts['All'] = array_sum($counts);
         
         /* Review Button */
         .btn-review {
-            background: #10b981;
-            color: white;
-            border-radius: 8px;
-            padding: 6px 15px;
-            font-size: 12px;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            display: inline-block;
+            background: #10b981; color: white; border-radius: 8px;
+            padding: 6px 15px; font-size: 12px; font-weight: 500;
+            transition: all 0.3s ease; text-decoration: none; display: inline-block;
         }
         
-        .btn-review:hover {
-            background: #059669;
-            transform: translateY(-2px);
-            color: white;
-        }
+        .btn-review:hover { background: #059669; transform: translateY(-2px); color: white; }
         
-        /* Empty State */
-        .empty-state {
-            text-align: center;
-            padding: 60px;
-        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn 0.5s ease-out; }
         
-        .empty-icon {
-            font-size: 60px;
-            color: #d1d5db;
-            margin-bottom: 20px;
-        }
+        .record-badge { background: rgba(255,255,255,0.2); padding: 5px 12px; border-radius: 20px; font-size: 14px; }
         
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        tfoot { background: #f8fafc; }
+        tfoot td { font-weight: 700; color: #064e3b; }
         
-        .fade-in {
-            animation: fadeIn 0.5s ease-out;
+        .dataTables_filter input {
+            border-radius: 10px; border: 1px solid #e5e7eb; padding: 6px 12px; margin-left: 10px;
         }
-        
-        .record-badge {
-            background: rgba(255,255,255,0.2);
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 14px;
+        .dataTables_filter input:focus {
+            border-color: #10b981; outline: none; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
         }
-        
-        tfoot {
-            background: #f8fafc;
+        .page-item.active .page-link {
+            background-color: #10b981 !important; border-color: #10b981 !important; color: white !important;
         }
-        
-        tfoot td {
-            font-weight: 700;
-            color: #064e3b;
-        }
+        .page-link { color: #064e3b !important; border-radius: 6px; margin: 0 2px; }
         
         @media (max-width: 768px) {
             .sidebar { height: auto; position: relative; }
@@ -344,9 +284,9 @@ $counts['All'] = array_sum($counts);
                 <div class="filter-card fade-in">
                     <form method="GET" action="All_Claim_Finance.php">
                         <div class="row align-items-end g-3">
-                            <div class="col-md-3">
+                            <div class="col-md-4">
                                 <label class="form-label">
-                                    <i class="fas fa-filter me-1" style="color: #10b981;"></i>Filter by Status
+                                    <i class="fas fa-filter me-1" style="color: #10b981;"></i>Filter by Database Status
                                 </label>
                                 <select name="status" class="form-select" onchange="this.form.submit()">
                                     <option value="All"      <?php echo $status_filter == 'All'      ? 'selected' : ''; ?>>All Claims (<?php echo $counts['All'] ?? 0; ?>)</option>
@@ -356,21 +296,8 @@ $counts['All'] = array_sum($counts);
                                     <option value="Paid"     <?php echo $status_filter == 'Paid'     ? 'selected' : ''; ?>>Paid (<?php echo $counts['Paid'] ?? 0; ?>)</option>
                                 </select>
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label">
-                                    <i class="fas fa-search me-1" style="color: #10b981;"></i>Search Staff
-                                </label>
-                                <input type="text" name="search" class="form-control" placeholder="Name or Staff ID..." value="<?php echo htmlspecialchars($search); ?>">
-                            </div>
-                            <div class="col-md-2">
-                                <button type="submit" class="btn btn-search w-100">
-                                    <i class="fas fa-search me-1"></i>Search
-                                </button>
-                            </div>
-                            <div class="col-md-2">
-                                <a href="All_Claim_Finance.php" class="btn btn-reset w-100">
-                                    <i class="fas fa-sync-alt me-1"></i>Reset
-                                </a>
+                            <div class="col-md-8 text-end">
+                                <small class="text-muted"><i class="fas fa-magic me-1" style="color:#10b981;"></i> DataTables Instant Filter is active below.</small>
                             </div>
                         </div>
                     </form>
@@ -378,7 +305,7 @@ $counts['All'] = array_sum($counts);
  
                 <div class="table-card fade-in">
                     <div class="table-responsive">
-                        <table class="table table-custom">
+                        <table class="table table-custom" id="financeClaimsTable">
                             <thead>
                                 <tr>
                                     <th>#</th>
@@ -393,17 +320,7 @@ $counts['All'] = array_sum($counts);
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php if(empty($claims)): ?>
-                                <tr>
-                                    <td colspan="9" class="empty-state">
-                                        <div class="empty-icon">
-                                            <i class="fas fa-inbox"></i>
-                                        </div>
-                                        <h5 style="color: #064e3b;">No claims found</h5>
-                                        <p class="text-muted">Try adjusting your search or filter criteria</p>
-                                    </td>
-                                </tr>
-                                <?php else: ?>
+                                <?php if(!empty($claims)): ?>
                                 <?php foreach($claims as $i => $claim): ?>
                                 <tr>
                                     <td class="fw-bold"><?php echo $i + 1; ?></td>
@@ -427,16 +344,6 @@ $counts['All'] = array_sum($counts);
                                 <?php endforeach; ?>
                                 <?php endif; ?>
                             </tbody>
-                            <?php if(!empty($claims)): ?>
-                            <tfoot>
-                                <tr>
-                                    <td colspan="6" class="fw-bold text-end">Total Amount:</td>
-                                    <td colspan="3" class="fw-bold" style="color: #10b981; font-size: 18px;">
-                                        RM <?php echo number_format(array_sum(array_column($claims, 'amount')), 2); ?>
-                                    </td>
-                                </tr>
-                            </tfoot>
-                            <?php endif; ?>
                         </table>
                     </div>
                 </div>
@@ -444,6 +351,27 @@ $counts['All'] = array_sum($counts);
         </div>
     </div>
     
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.5/js/dataTables.bootstrap5.min.js"></script>
+    
+    <script>
+        $(document).ready(function() {
+            $('#financeClaimsTable').DataTable({
+                "pageLength": 10,       
+                "ordering": true,        
+                "searching": true,       
+                "info": true,           
+                "lengthChange": true,    
+                "language": {
+                    "search": "<i class='fas fa-search' style='color: #10b981;'></i> Global Smart Search:",
+                    "paginate": {
+                        "next": "<i class='fas fa-chevron-right'></i>",
+                        "previous": "<i class='fas fa-chevron-left'></i>"
+                    }
+                }
+            });
+        });
+    </script>
 </body>
 </html>
