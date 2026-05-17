@@ -87,6 +87,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             $success = "Profile updated successfully!";
             $_SESSION['email'] = $email;
             
+            logActivity($conn, $user_id, 'Edit Profile', 'Updated personal profile information.');
+            
             $stmt2 = $conn->prepare("SELECT staff_id, name, email, phone, department, created_at FROM users WHERE id=?");
             $stmt2->bind_param("i", $user_id);
             $stmt2->execute();
@@ -315,10 +317,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     </style>
 </head>
 <body>
-<div class="container-fluid">
+<div class="container-fluid p-0">
     <div class="row g-0">
         
-        <!-- Sidebar -->
         <div class="col-md-3 col-lg-2 sidebar">
             <div class="p-3">
                 <div class="text-center mb-4">
@@ -338,10 +339,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             </div>
         </div>
         
-        <!-- Main Content -->
         <div class="col-md-9 col-lg-10 main-content">
             
-            <!-- Page Header -->
             <div class="page-header fade-in">
                 <div class="d-flex justify-content-between align-items-center flex-wrap">
                     <div>
@@ -366,7 +365,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             <?php endif; ?>
             
             <div class="row g-4 fade-in">
-                <!-- Edit Form Column -->
                 <div class="col-md-8">
                     <div class="form-card">
                         <div class="card-body p-4">
@@ -428,7 +426,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                     </div>
                 </div>
                 
-                <!-- Profile Card Column -->
                 <div class="col-md-4">
                     <div class="profile-card">
                         <div class="card-body p-4">
@@ -454,7 +451,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                             </div>
                             <div class="info-item">
                                 <div class="info-label">Email</div>
-                                <div class="info-value" style="font-size: 12px; word-break: break-all;"><?php echo htmlspecialchars($user_data['email']); ?></div>
+                                <div class="info-value" style="word-break: break-all;"><?php echo htmlspecialchars($user_data['email']); ?></div>
                             </div>
                             <div class="info-item">
                                 <div class="info-label">Phone</div>

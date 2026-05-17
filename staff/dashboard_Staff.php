@@ -17,8 +17,8 @@ $totalAmount = 0.00;
 $stmt = $conn->prepare("
     SELECT 
         COUNT(*) AS total_claims,
-        SUM(CASE WHEN status = 'Pending' THEN 1 ELSE 0 END) AS pending_claims,
-        SUM(CASE WHEN status = 'Approved' THEN 1 ELSE 0 END) AS approved_claims,
+        COALESCE(SUM(CASE WHEN status = 'Pending' THEN 1 ELSE 0 END), 0) AS pending_claims,
+        COALESCE(SUM(CASE WHEN status = 'Approved' THEN 1 ELSE 0 END), 0) AS approved_claims,
         COALESCE(SUM(amount), 0) AS total_amount
     FROM claims
     WHERE user_id = ?
@@ -30,10 +30,10 @@ if ($stmt) {
     $result = $stmt->get_result();
 
     if ($row = $result->fetch_assoc()) {
-        $totalClaims = $row['total_claims'];
-        $pendingClaims = $row['pending_claims'];
-        $approvedClaims = $row['approved_claims'];
-        $totalAmount = $row['total_amount'];
+        $totalClaims = $row['total_claims'] ?? 0;
+        $pendingClaims = $row['pending_claims'] ?? 0;
+        $approvedClaims = $row['approved_claims'] ?? 0;
+        $totalAmount = $row['total_amount'] ?? 0.00;
     }
     $stmt->close();
 }
@@ -280,10 +280,9 @@ if ($stmt) {
     </style>
 </head>
 <body>
-<div class="container-fluid">
+<div class="container-fluid p-0">
     <div class="row g-0">
         
-        <!-- Sidebar -->
         <div class="col-md-3 col-lg-2 sidebar">
             <div class="p-3">
                 <div class="text-center mb-4">
@@ -303,7 +302,6 @@ if ($stmt) {
             </div>
         </div>
         
-        <!-- Main Content -->
         <div class="col-md-9 col-lg-10 main-content">
             
             <div class="page-header fade-in">
@@ -319,9 +317,7 @@ if ($stmt) {
                 </div>
             </div>
             
-            <!-- Stats Cards with Individual Hover Colors -->
             <div class="row g-4 mb-4 fade-in">
-                <!-- Total Claims - Blue -->
                 <div class="col-md-3 col-sm-6">
                     <div class="stat-card stat-card-total text-center">
                         <div class="stat-icon mx-auto"><i class="fas fa-file-invoice"></i></div>
@@ -330,7 +326,6 @@ if ($stmt) {
                     </div>
                 </div>
                 
-                <!-- Pending Claims - Yellow -->
                 <div class="col-md-3 col-sm-6">
                     <div class="stat-card stat-card-pending text-center">
                         <div class="stat-icon mx-auto"><i class="fas fa-clock"></i></div>
@@ -339,7 +334,6 @@ if ($stmt) {
                     </div>
                 </div>
                 
-                <!-- Approved Claims - Green -->
                 <div class="col-md-3 col-sm-6">
                     <div class="stat-card stat-card-approved text-center">
                         <div class="stat-icon mx-auto"><i class="fas fa-check-circle"></i></div>
@@ -348,7 +342,6 @@ if ($stmt) {
                     </div>
                 </div>
                 
-                <!-- Total Amount - Purple -->
                 <div class="col-md-3 col-sm-6">
                     <div class="stat-card stat-card-amount text-center">
                         <div class="stat-icon mx-auto"><i class="fas fa-dollar-sign"></i></div>

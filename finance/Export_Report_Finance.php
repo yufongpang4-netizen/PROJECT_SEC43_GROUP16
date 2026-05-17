@@ -10,7 +10,7 @@ require_once '../db.php';
 // ─── Date filter ────────────────────────────────────────────────────
 $date_from = $_GET['date_from'] ?? date('Y-m-01');          // 1st of current month
 $date_to   = $_GET['date_to']   ?? date('Y-m-t');           // last day of current month
-$status_f  = $_GET['status']    ?? 'All';                   
+$status_f  = $_GET['status']    ?? 'All';                  
  
 // ─── Build query ────────────────────────────────────────────────────
 $where = "WHERE c.submitted_at BETWEEN ? AND DATE_ADD(?, INTERVAL 1 DAY)";
@@ -175,18 +175,26 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
         
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
+        html, body { height: 100%; margin: 0; padding: 0; }
+        
         body {
             background: var(--finance-bg);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            min-height: 100vh;
+            overflow-x: hidden;
         }
+        
+        .container-fluid { height: 100%; overflow: hidden; }
+        .row.g-0 { height: 100%; }
         
         /* Sidebar */
         .sidebar {
             background: linear-gradient(180deg, #064e3b 0%, #047857 100%);
-            min-height: 100vh;
+            height: 100vh;
             color: white;
             transition: all 0.3s ease;
+            overflow-y: auto;
+            position: sticky;
+            top: 0;
         }
         
         .sidebar .nav-link {
@@ -208,6 +216,16 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
             color: #064e3b;
             font-weight: 600;
         }
+        
+        .main-content {
+            height: 100vh;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        .main-content::-webkit-scrollbar { width: 8px; }
+        .main-content::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 10px; }
+        .main-content::-webkit-scrollbar-thumb { background: #10b981; border-radius: 10px; }
         
         /* Page Header */
         .page-header {
@@ -379,39 +397,42 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
         tfoot {
             background: #f8fafc;
         }
+        
+        @media (max-width: 768px) {
+            .sidebar { height: auto; position: relative; }
+        }
     </style>
 </head>
 <body>
     <div class="container-fluid p-0">
         <div class="row g-0">
-            <!-- Sidebar -->
-            <div class="col-md-3 col-lg-2 sidebar p-3">
-                <div class="text-center mb-4">
-                    <i class="fas fa-chart-line fs-1" style="color: #10b981;"></i>
-                    <h5 class="mt-2">UTMSPACE</h5>
-                    <small>Finance Portal</small>
-                </div>
-                <hr style="border-color: rgba(255,255,255,0.2);">
-                <nav class="nav flex-column">
-                    <a class="nav-link" href="dashboard_Finance.php">
-                        <i class="fas fa-tachometer-alt me-2"></i> Dashboard
-                    </a>
-                    <a class="nav-link" href="All_Claim_Finance.php">
-                        <i class="fas fa-file-invoice me-2"></i> All Claims
-                    </a>
-                    <a class="nav-link active" href="Export_Report_Finance.php">
-                        <i class="fas fa-download me-2"></i> Export Report
-                    </a>
+            <div class="col-md-3 col-lg-2 sidebar">
+                <div class="p-3">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-chart-line fs-1" style="color: #10b981;"></i>
+                        <h5 class="mt-2">UTMSPACE</h5>
+                        <small>Finance Portal</small>
+                    </div>
                     <hr style="border-color: rgba(255,255,255,0.2);">
-                    <a class="nav-link" href="../logout.php">
-                        <i class="fas fa-sign-out-alt me-2"></i> Logout
-                    </a>
-                </nav>
+                    <nav class="nav flex-column">
+                        <a class="nav-link" href="dashboard_Finance.php">
+                            <i class="fas fa-tachometer-alt fa-fw me-2"></i> Dashboard
+                        </a>
+                        <a class="nav-link" href="All_Claim_Finance.php">
+                            <i class="fas fa-file-invoice fa-fw me-2"></i> All Claims
+                        </a>
+                        <a class="nav-link active" href="Export_Report_Finance.php">
+                            <i class="fas fa-download fa-fw me-2"></i> Export Report
+                        </a>
+                        <hr style="border-color: rgba(255,255,255,0.2);">
+                        <a class="nav-link" href="../logout.php">
+                            <i class="fas fa-sign-out-alt fa-fw me-2"></i> Logout
+                        </a>
+                    </nav>
+                </div>
             </div>
  
-            <!-- Main Content -->
-            <div class="col-md-9 col-lg-10 p-4">
-                <!-- Page Header -->
+            <div class="col-md-9 col-lg-10 main-content">
                 <div class="page-header fade-in">
                     <div class="d-flex justify-content-between align-items-center flex-wrap">
                         <div>
@@ -424,7 +445,6 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
                     </div>
                 </div>
  
-                <!-- Filter Bar -->
                 <div class="filter-card fade-in">
                     <form method="GET" action="Export_Report_Finance.php" id="filterForm">
                         <div class="row g-3 align-items-end">
@@ -461,7 +481,6 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
                     </form>
                 </div>
  
-                <!-- Export Options -->
                 <div class="row g-4 mb-4 fade-in">
                     <div class="col-md-6">
                         <div class="export-card">
@@ -495,7 +514,6 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
                     </div>
                 </div>
  
-                <!-- Report Preview -->
                 <div class="preview-card fade-in">
                     <div class="card-body p-4">
                         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">

@@ -178,18 +178,25 @@ foreach($counts_rows as $r) {
         
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
+        html, body { height: 100%; margin: 0; padding: 0; }
+        
         body {
             background: var(--staff-bg);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            min-height: 100vh;
+            overflow-x: hidden;
         }
         
-        /* Sidebar */
+        .container-fluid { height: 100%; overflow: hidden; }
+        .row.g-0 { height: 100%; }
+        
         .sidebar {
             background: linear-gradient(180deg, #0f2b4d 0%, #1e4d8c 100%);
-            min-height: 100vh;
+            height: 100vh;
             color: white;
             transition: all 0.3s ease;
+            overflow-y: auto;
+            position: sticky;
+            top: 0;
         }
         
         .sidebar .nav-link {
@@ -211,6 +218,16 @@ foreach($counts_rows as $r) {
             color: #0f2b4d;
             font-weight: 600;
         }
+        
+        .main-content {
+            height: 100vh;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        .main-content::-webkit-scrollbar { width: 8px; }
+        .main-content::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 10px; }
+        .main-content::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 10px; }
         
         /* Header */
         .page-header {
@@ -252,6 +269,7 @@ foreach($counts_rows as $r) {
             border-radius: 20px;
             overflow: hidden;
             box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+            margin-bottom: 25px;
         }
         
         .claims-table thead {
@@ -298,6 +316,7 @@ foreach($counts_rows as $r) {
             padding: 5px 12px;
             font-size: 12px;
             transition: all 0.3s ease;
+            border: none;
         }
         
         .btn-view:hover {
@@ -313,6 +332,7 @@ foreach($counts_rows as $r) {
             padding: 5px 12px;
             font-size: 12px;
             transition: all 0.3s ease;
+            border: none;
         }
         
         .btn-edit:hover {
@@ -328,6 +348,7 @@ foreach($counts_rows as $r) {
             padding: 5px 12px;
             font-size: 12px;
             transition: all 0.3s ease;
+            border: none;
         }
         
         .btn-cancel:hover {
@@ -382,42 +403,45 @@ foreach($counts_rows as $r) {
             background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
             color: white;
         }
+        
+        @media (max-width: 768px) {
+            .sidebar { min-height: auto; }
+        }
     </style>
 </head>
 <body>
     <div class="container-fluid p-0">
         <div class="row g-0">
-            <!-- Sidebar -->
-            <div class="col-md-3 col-lg-2 sidebar p-3">
-                <div class="text-center mb-4">
-                    <i class="fas fa-receipt fs-1" style="color: #3b82f6;"></i>
-                    <h5 class="mt-2">UTMSPACE</h5>
-                    <small>Staff Portal</small>
-                </div>
-                <hr style="border-color: rgba(255,255,255,0.2);">
-                <nav class="nav flex-column">
-                    <a class="nav-link" href="dashboard_Staff.php">
-                        <i class="fas fa-tachometer-alt me-2"></i> Dashboard
-                    </a>
-                    <a class="nav-link" href="New_Claim_Staff.php">
-                        <i class="fas fa-plus-circle me-2"></i> New Claim
-                    </a>
-                    <a class="nav-link active" href="Claim_History_Staff.php">
-                        <i class="fas fa-history me-2"></i> Claim History
-                    </a>
-                    <a class="nav-link" href="Edit_profile_Staff.php">
-                        <i class="fas fa-user-edit me-2"></i> Edit Profile
-                    </a>
+            <div class="col-md-3 col-lg-2 sidebar">
+                <div class="p-3">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-receipt fs-1" style="color: #3b82f6;"></i>
+                        <h5 class="mt-2">UTMSPACE</h5>
+                        <small>Staff Portal</small>
+                    </div>
                     <hr style="border-color: rgba(255,255,255,0.2);">
-                    <a class="nav-link" href="../logout.php">
-                        <i class="fas fa-sign-out-alt me-2"></i> Logout
-                    </a>
-                </nav>
+                    <nav class="nav flex-column">
+                        <a class="nav-link" href="dashboard_Staff.php">
+                            <i class="fas fa-tachometer-alt me-2"></i> Dashboard
+                        </a>
+                        <a class="nav-link" href="New_Claim_Staff.php">
+                            <i class="fas fa-plus-circle me-2"></i> New Claim
+                        </a>
+                        <a class="nav-link active" href="Claim_History_Staff.php">
+                            <i class="fas fa-history me-2"></i> Claim History
+                        </a>
+                        <a class="nav-link" href="Edit_profile_Staff.php">
+                            <i class="fas fa-user-edit me-2"></i> Edit Profile
+                        </a>
+                        <hr style="border-color: rgba(255,255,255,0.2);">
+                        <a class="nav-link" href="../logout.php">
+                            <i class="fas fa-sign-out-alt me-2"></i> Logout
+                        </a>
+                    </nav>
+                </div>
             </div>
  
-            <!-- Main Content -->
-            <div class="col-md-9 col-lg-10 p-4">
-                <!-- Page Header -->
+            <div class="col-md-9 col-lg-10 main-content">
                 <div class="page-header fade-in">
                     <div class="d-flex justify-content-between align-items-center flex-wrap">
                         <div>
@@ -446,7 +470,6 @@ foreach($counts_rows as $r) {
                     </div>
                 <?php endif; ?>
  
-                <!-- Filter Tabs -->
                 <div class="mb-4 fade-in">
                     <?php
                     $tab_statuses = [
@@ -468,7 +491,6 @@ foreach($counts_rows as $r) {
                     <?php endforeach; ?>
                 </div>
  
-                <!-- Claims Table -->
                 <div class="claims-table fade-in">
                     <div class="table-responsive">
                         <table class="table mb-0">
@@ -567,7 +589,6 @@ foreach($counts_rows as $r) {
         </div>
     </div>
  
-    <!-- View Detail Modal -->
     <div class="modal fade" id="detailModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -621,7 +642,6 @@ foreach($counts_rows as $r) {
         </div>
     </div>
     
-    <!-- Edit Claim Modal -->
     <div class="modal fade" id="editModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">

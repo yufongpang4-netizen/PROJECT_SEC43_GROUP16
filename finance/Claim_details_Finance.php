@@ -87,14 +87,21 @@ $status = strtolower($claim['status']);
             background: var(--finance-bg);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             min-height: 100vh;
+            overflow-x: hidden;
         }
+        
+        .container-fluid { height: 100%; overflow: hidden; }
+        .row.g-0 { height: 100%; }
         
         /* Sidebar */
         .sidebar {
             background: linear-gradient(180deg, #064e3b 0%, #047857 100%);
-            min-height: 100vh;
+            height: 100vh;
             color: white;
             transition: all 0.3s ease;
+            overflow-y: auto;
+            position: sticky;
+            top: 0;
         }
         
         .sidebar .nav-link {
@@ -116,6 +123,16 @@ $status = strtolower($claim['status']);
             color: #064e3b;
             font-weight: 600;
         }
+        
+        .main-content {
+            height: 100vh;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        .main-content::-webkit-scrollbar { width: 8px; }
+        .main-content::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 10px; }
+        .main-content::-webkit-scrollbar-thumb { background: #10b981; border-radius: 10px; }
         
         /* Page Header */
         .page-header {
@@ -323,39 +340,42 @@ $status = strtolower($claim['status']);
             border-radius: 12px;
             padding: 15px;
         }
+        
+        @media (max-width: 768px) {
+            .sidebar { height: auto; position: relative; }
+        }
     </style>
 </head>
 <body>
     <div class="container-fluid p-0">
         <div class="row g-0">
-            <!-- Sidebar -->
-            <div class="col-md-3 col-lg-2 sidebar p-3">
-                <div class="text-center mb-4">
-                    <i class="fas fa-chart-line fs-1" style="color: #10b981;"></i>
-                    <h5 class="mt-2">UTMSPACE</h5>
-                    <small>Finance Portal</small>
-                </div>
-                <hr style="border-color: rgba(255,255,255,0.2);">
-                <nav class="nav flex-column">
-                    <a class="nav-link" href="dashboard_Finance.php">
-                        <i class="fas fa-tachometer-alt me-2"></i> Dashboard
-                    </a>
-                    <a class="nav-link active" href="All_Claim_Finance.php">
-                        <i class="fas fa-file-invoice me-2"></i> All Claims
-                    </a>
-                    <a class="nav-link" href="Export_Report_Finance.php">
-                        <i class="fas fa-download me-2"></i> Export Report
-                    </a>
+            <div class="col-md-3 col-lg-2 sidebar">
+                <div class="p-3">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-chart-line fs-1" style="color: #10b981;"></i>
+                        <h5 class="mt-2">UTMSPACE</h5>
+                        <small>Finance Portal</small>
+                    </div>
                     <hr style="border-color: rgba(255,255,255,0.2);">
-                    <a class="nav-link" href="../logout.php">
-                        <i class="fas fa-sign-out-alt me-2"></i> Logout
-                    </a>
-                </nav>
+                    <nav class="nav flex-column">
+                        <a class="nav-link" href="dashboard_Finance.php">
+                            <i class="fas fa-tachometer-alt fa-fw me-2"></i> Dashboard
+                        </a>
+                        <a class="nav-link" href="All_Claim_Finance.php">
+                            <i class="fas fa-file-invoice fa-fw me-2"></i> All Claims
+                        </a>
+                        <a class="nav-link" href="Export_Report_Finance.php">
+                            <i class="fas fa-download fa-fw me-2"></i> Export Report
+                        </a>
+                        <hr style="border-color: rgba(255,255,255,0.2);">
+                        <a class="nav-link" href="../logout.php">
+                            <i class="fas fa-sign-out-alt fa-fw me-2"></i> Logout
+                        </a>
+                    </nav>
+                </div>
             </div>
  
-            <!-- Main Content -->
-            <div class="col-md-9 col-lg-10 p-4">
-                <!-- Page Header -->
+            <div class="col-md-9 col-lg-10 main-content">
                 <div class="page-header fade-in">
                     <div class="d-flex justify-content-between align-items-center flex-wrap">
                         <div>
@@ -372,18 +392,17 @@ $status = strtolower($claim['status']);
                 </div>
  
                 <?php if($success): ?>
-                    <div class="alert alert-success-custom fade-in">
+                    <div class="alert alert-success-custom p-3 rounded mb-4 fade-in">
                         <i class="fas fa-check-circle me-2"></i><?php echo $success; ?>
                     </div>
                 <?php endif; ?>
                 <?php if($error): ?>
-                    <div class="alert alert-danger-custom fade-in">
+                    <div class="alert alert-danger-custom p-3 rounded mb-4 fade-in">
                         <i class="fas fa-exclamation-circle me-2"></i><?php echo $error; ?>
                     </div>
                 <?php endif; ?>
  
                 <div class="row g-4 fade-in">
-                    <!-- Claim Information Column -->
                     <div class="col-md-7">
                         <div class="info-card">
                             <div class="card-body p-4">
@@ -452,9 +471,7 @@ $status = strtolower($claim['status']);
                         </div>
                     </div>
  
-                    <!-- Receipt & Actions Column -->
                     <div class="col-md-5">
-                        <!-- Receipt Card -->
                         <div class="receipt-card mb-4">
                             <div class="card-body text-center p-4">
                                 <i class="fas fa-paperclip" style="font-size: 45px; color: #10b981;"></i>
@@ -489,7 +506,6 @@ $status = strtolower($claim['status']);
                             </div>
                         </div>
  
-                        <!-- Actions Card -->
                         <div class="action-card">
                             <div class="card-body p-4">
                                 <h5 class="card-title">
@@ -521,7 +537,7 @@ $status = strtolower($claim['status']);
                                     </form>
  
                                 <?php elseif($status == 'approved'): ?>
-                                    <div class="alert-warning-custom p-3 mb-3">
+                                    <div class="alert-warning-custom p-3 mb-3 rounded">
                                         <i class="fas fa-info-circle me-2"></i>
                                         <strong>Claim Approved</strong><br>
                                         This claim has been approved. Mark as paid once payment is processed.
@@ -536,14 +552,14 @@ $status = strtolower($claim['status']);
                                     </form>
  
                                 <?php elseif($status == 'paid'): ?>
-                                    <div class="alert-success-custom p-3 text-center">
+                                    <div class="alert-success-custom p-3 text-center rounded">
                                         <i class="fas fa-check-circle me-2"></i>
                                         <strong>Claim Paid</strong><br>
                                         This claim has been paid. No further action required.
                                     </div>
  
                                 <?php elseif($status == 'rejected'): ?>
-                                    <div class="alert-danger-custom p-3 text-center">
+                                    <div class="alert-danger-custom p-3 text-center rounded">
                                         <i class="fas fa-times-circle me-2"></i>
                                         <strong>Claim Rejected</strong><br>
                                         This claim has been rejected.

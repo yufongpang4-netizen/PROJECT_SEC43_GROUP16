@@ -43,13 +43,13 @@ if (isset($_GET['toggle_status']) && is_numeric($_GET['toggle_status'])) {
  
 // ─── Add User with VALIDATION ──────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'add_user') {
-    $new_name     = trim($_POST['name']);
-    $new_staff_id = trim($_POST['staff_id']);
-    $new_email    = trim($_POST['email']);
-    $new_phone    = trim($_POST['phone']);
-    $new_role     = $_POST['role'];
-    $new_dept     = trim($_POST['department']);
-    $new_pass     = $_POST['password'];
+    $new_name     = trim($_POST['name'] ?? '');
+    $new_staff_id = trim($_POST['staff_id'] ?? '');
+    $new_email    = trim($_POST['email'] ?? '');
+    $new_phone    = trim($_POST['phone'] ?? '');
+    $new_role     = $_POST['role'] ?? '';
+    $new_dept     = trim($_POST['department'] ?? ''); 
+    $new_pass     = $_POST['password'] ?? '';
     
     // ========== VALIDATION RULES ==========
     $errors = [];
@@ -414,10 +414,9 @@ $stmt->close();
     </style>
 </head>
 <body>
-<div class="container-fluid">
+<div class="container-fluid p-0">
     <div class="row g-0">
  
-        <!-- Sidebar -->
         <div class="col-md-3 col-lg-2 sidebar">
             <div class="p-3">
                 <div class="text-center mb-4">
@@ -427,16 +426,15 @@ $stmt->close();
                 </div>
                 <hr style="border-color: rgba(255,255,255,0.2);">
                 <nav class="nav flex-column">
-                    <a class="nav-link" href="dashboard_Admin.php"><i class="fas fa-tachometer-alt me-2"></i> Dashboard</a>
-                    <a class="nav-link active" href="Manage_User_Admin.php"><i class="fas fa-users me-2"></i> Manage Accounts</a>
-                    <a class="nav-link" href="Generate_Report_Admin.php"><i class="fas fa-chart-bar me-2"></i> Generate Report</a>
+                    <a class="nav-link" href="dashboard_Admin.php"><i class="fas fa-tachometer-alt fa-fw me-2"></i> Dashboard</a>
+                    <a class="nav-link active" href="Manage_User_Admin.php"><i class="fas fa-users fa-fw me-2"></i> Manage Accounts</a>
+                    <a class="nav-link" href="Generate_Report_Admin.php"><i class="fas fa-chart-bar fa-fw me-2"></i> Generate Report</a>
                     <hr style="border-color: rgba(255,255,255,0.2);">
-                    <a class="nav-link" href="../logout.php"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
+                    <a class="nav-link" href="../logout.php"><i class="fas fa-sign-out-alt fa-fw me-2"></i> Logout</a>
                 </nav>
             </div>
         </div>
  
-        <!-- Main Content -->
         <div class="col-md-9 col-lg-10 main-content">
  
             <div class="page-header fade-in">
@@ -488,7 +486,6 @@ $stmt->close();
             </div>
             <?php endif; ?>
  
-            <!-- Search Card -->
             <div class="search-card fade-in">
                 <div class="card-body p-4">
                     <form method="GET" class="row g-3 align-items-end">
@@ -515,7 +512,6 @@ $stmt->close();
                 </div>
             </div>
  
-            <!-- Users Table -->
             <div class="table-card fade-in">
                 <div class="table-responsive">
                     <table class="table table-custom">
@@ -558,7 +554,6 @@ $stmt->close();
     </div>
 </div>
  
-<!-- Add User Modal -->
 <div class="modal fade" id="addUserModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">

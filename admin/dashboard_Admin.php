@@ -41,11 +41,21 @@ $recent_users = $conn->query("
     LIMIT 5
 ");
  
-// Claims by status
-$status_data = [];
+$status_data = [
+    'Pending'  => ['cnt' => 0, 'total' => 0.00],
+    'Approved' => ['cnt' => 0, 'total' => 0.00],
+    'Paid'     => ['cnt' => 0, 'total' => 0.00],
+    'Rejected' => ['cnt' => 0, 'total' => 0.00]
+];
+
 if ($claims_exist) {
     $sr = $conn->query("SELECT status, COUNT(*) AS cnt, IFNULL(SUM(amount),0) AS total FROM claims GROUP BY status");
-    while ($s = $sr->fetch_assoc()) $status_data[] = $s;
+    while ($s = $sr->fetch_assoc()) {
+        if(isset($status_data[$s['status']])) {
+            $status_data[$s['status']]['cnt'] = $s['cnt'];
+            $status_data[$s['status']]['total'] = $s['total'];
+        }
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -86,7 +96,6 @@ if ($claims_exist) {
             overflow-x: hidden;
         }
         
-        /* Fix: Remove extra scrolling */
         .container-fluid {
             height: 100%;
             overflow: hidden;
@@ -96,7 +105,7 @@ if ($claims_exist) {
             height: 100%;
         }
         
-        /* Sidebar - Fixed height, no extra scroll */
+        /* Sidebar */
         .sidebar {
             background: linear-gradient(180deg, #4c1d95 0%, #6d28d9 100%);
             height: 100vh;
@@ -107,7 +116,6 @@ if ($claims_exist) {
             top: 0;
         }
         
-        /* Hide scrollbar for sidebar but keep functionality */
         .sidebar::-webkit-scrollbar {
             width: 5px;
         }
@@ -141,14 +149,13 @@ if ($claims_exist) {
             font-weight: 600;
         }
         
-        /* Main Content - Scrollable only when needed */
+        /* Main Content */
         .main-content {
             height: 100vh;
             overflow-y: auto;
             padding: 20px;
         }
         
-        /* Custom scrollbar for main content */
         .main-content::-webkit-scrollbar {
             width: 8px;
         }
@@ -227,13 +234,11 @@ if ($claims_exist) {
             margin-left: 8px;
         }
         
-        /* Cards */
         .info-card {
             background: white;
             border-radius: 20px;
             border: none;
             box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
-            height: 100%;
         }
         
         .card-title {
@@ -358,10 +363,9 @@ if ($claims_exist) {
     </style>
 </head>
 <body>
-<div class="container-fluid">
+<div class="container-fluid p-0">
     <div class="row g-0">
  
-        <!-- Sidebar -->
         <div class="col-md-3 col-lg-2 sidebar">
             <div class="p-3">
                 <div class="text-center mb-4">
@@ -372,26 +376,24 @@ if ($claims_exist) {
                 <hr style="border-color: rgba(255,255,255,0.2);">
                 <nav class="nav flex-column">
                     <a class="nav-link active" href="dashboard_Admin.php">
-                        <i class="fas fa-tachometer-alt me-2"></i> Dashboard
+                        <i class="fas fa-tachometer-alt fa-fw me-2"></i> Dashboard
                     </a>
                     <a class="nav-link" href="Manage_User_Admin.php">
-                        <i class="fas fa-users me-2"></i> Manage Accounts
+                        <i class="fas fa-users fa-fw me-2"></i> Manage Accounts
                     </a>
                     <a class="nav-link" href="Generate_Report_Admin.php">
-                        <i class="fas fa-chart-bar me-2"></i> Generate Report
+                        <i class="fas fa-chart-bar fa-fw me-2"></i> Generate Report
                     </a>
                     <hr style="border-color: rgba(255,255,255,0.2);">
                     <a class="nav-link" href="../logout.php">
-                        <i class="fas fa-sign-out-alt me-2"></i> Logout
+                        <i class="fas fa-sign-out-alt fa-fw me-2"></i> Logout
                     </a>
                 </nav>
             </div>
         </div>
  
-        <!-- Main Content - Scrollable -->
         <div class="col-md-9 col-lg-10 main-content">
  
-            <!-- Page Header -->
             <div class="page-header fade-in">
                 <div class="d-flex justify-content-between align-items-center flex-wrap">
                     <div>
@@ -408,7 +410,6 @@ if ($claims_exist) {
                 </div>
             </div>
  
-            <!-- Stats Cards -->
             <div class="row g-4 mb-4 fade-in">
                 <div class="col-md-3 col-sm-6">
                     <div class="stat-card text-center">
@@ -454,9 +455,8 @@ if ($claims_exist) {
             </div>
  
             <div class="row g-4 mb-4 fade-in">
-                <!-- Users by Department -->
                 <div class="col-md-6">
-                    <div class="info-card">
+                    <div class="info-card h-100">
                         <div class="card-body p-4">
                             <h5 class="card-title">
                                 <i class="fas fa-building me-2" style="color: #8b5cf6;"></i>
@@ -483,9 +483,8 @@ if ($claims_exist) {
                     </div>
                 </div>
  
-                <!-- Recent Registrations -->
                 <div class="col-md-6">
-                    <div class="info-card">
+                    <div class="info-card h-100">
                         <div class="card-body p-4">
                             <h5 class="card-title">
                                 <i class="fas fa-user-plus me-2" style="color: #8b5cf6;"></i>
@@ -526,9 +525,8 @@ if ($claims_exist) {
                 </div>
             </div>
  
-            <!-- Claims Status Summary -->
-            <?php if ($claims_exist && !empty($status_data)): ?>
-            <div class="info-card fade-in">
+            <?php if ($claims_exist): ?>
+            <div class="info-card mb-4 fade-in">
                 <div class="card-body p-4">
                     <h5 class="card-title">
                         <i class="fas fa-chart-bar me-2" style="color: #8b5cf6;"></i>
@@ -536,15 +534,15 @@ if ($claims_exist) {
                     </h5>
                     <hr>
                     <div class="row g-3">
-                        <?php foreach ($status_data as $s):
-                            $color = match($s['status']) {
+                        <?php foreach ($status_data as $status_name => $s):
+                            $color = match($status_name) {
                                 'Pending'  => '#f59e0b',
                                 'Approved' => '#5BC0BE',
                                 'Rejected' => '#ef4444',
                                 'Paid'     => '#10b981',
                                 default    => '#6b7280'
                             };
-                            $bg_color = match($s['status']) {
+                            $bg_color = match($status_name) {
                                 'Pending'  => '#fef3c7',
                                 'Approved' => '#e8f0fe',
                                 'Rejected' => '#fee2e2',
@@ -555,7 +553,7 @@ if ($claims_exist) {
                         <div class="col-md-3 col-sm-6">
                             <div class="status-card" style="background: <?php echo $bg_color; ?>; border-left: 4px solid <?php echo $color; ?>;">
                                 <div class="status-count" style="color: <?php echo $color; ?>;"><?php echo $s['cnt']; ?></div>
-                                <div class="status-label" style="color: <?php echo $color; ?>;"><?php echo $s['status']; ?></div>
+                                <div class="status-label" style="color: <?php echo $color; ?>;"><?php echo $status_name; ?></div>
                                 <div class="status-amount">RM <?php echo number_format($s['total'], 2); ?></div>
                             </div>
                         </div>
@@ -563,14 +561,13 @@ if ($claims_exist) {
                     </div>
                 </div>
             </div>
-            <?php elseif (!$claims_exist): ?>
+            <?php else: ?>
             <div class="alert alert-info fade-in" style="border-radius: 15px;">
                 <i class="fas fa-info-circle me-2"></i>
                 Claims table not found in database. Create it to enable claims tracking.
             </div>
             <?php endif; ?>
             
-            <!-- Spacer at bottom for better scrolling experience -->
             <div style="height: 20px;"></div>
  
         </div>
