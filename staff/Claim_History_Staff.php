@@ -21,7 +21,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         $expense_date = $_POST['expense_date'];
         $description = trim($_POST['description']);
         
-        // Verify claim belongs to user and is still PENDING
         $check_sql = "SELECT id, status, receipt FROM claims WHERE id = ? AND user_id = ? AND status = 'Pending'";
         $check_stmt = $conn->prepare($check_sql);
         $check_stmt->bind_param("ii", $edit_id, $user_id);
@@ -34,7 +33,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             $claim_data = $check_result->fetch_assoc();
             $old_receipt = $claim_data['receipt'];
             
-            // Validate inputs
             if(empty($claim_type) || empty($amount) || empty($expense_date) || empty($description)) {
                 $error = "Please fill in all required fields.";
             } elseif(!is_numeric($amount) || $amount <= 0) {
@@ -42,13 +40,12 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             } elseif($amount > 200) {
                 $error = "Maximum claim amount per claim is RM 200.00";
             } else {
-                // Handle new receipt upload if provided
-                $receipt_filename = $old_receipt; // Keep old receipt by default
+                $receipt_filename = $old_receipt;
                 
                 if(isset($_FILES['receipt']) && $_FILES['receipt']['error'] == 0 && $_FILES['receipt']['size'] > 0) {
                     $allowed_types = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
                     $file_type = $_FILES['receipt']['type'];
-                    $max_file_size = 5 * 1024 * 1024; // 5MB
+                    $max_file_size = 5 * 1024 * 1024;
                     
                     if($_FILES['receipt']['size'] > $max_file_size) {
                         $error = "File size too large. Maximum size is 5MB.";
@@ -63,7 +60,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                         $target_file = $upload_dir . $receipt_filename;
                         
                         if(move_uploaded_file($_FILES['receipt']['tmp_name'], $target_file)) {
-                            // Delete old receipt if exists
                             if($old_receipt && file_exists($upload_dir . $old_receipt)) {
                                 unlink($upload_dir . $old_receipt);
                             }
@@ -76,7 +72,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                 }
                 
                 if(empty($error)) {
-                    // Update the claim
                     $update_sql = "UPDATE claims SET claim_type = ?, amount = ?, expense_date = ?, description = ?, receipt = ? WHERE id = ? AND user_id = ? AND status = 'Pending'";
                     $update_stmt = $conn->prepare($update_sql);
                     $update_stmt->bind_param("sdsssii", $claim_type, $amount, $expense_date, $description, $receipt_filename, $edit_id, $user_id);
@@ -94,11 +89,10 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         $check_stmt->close();
     }
     
-    // Handle Cancel (delete pending claim)
+    // Handle Cancel
     elseif(isset($_POST['cancel_id'])) {
         $cancel_id = intval($_POST['cancel_id']);
         
-        // First get the receipt filename to delete it
         $receipt_sql = "SELECT receipt FROM claims WHERE id = ? AND user_id = ? AND status = 'Pending'";
         $receipt_stmt = $conn->prepare($receipt_sql);
         $receipt_stmt->bind_param("ii", $cancel_id, $user_id);
@@ -108,12 +102,10 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         if($receipt_data = $receipt_result->fetch_assoc()) {
             $receipt_file = $receipt_data['receipt'];
             
-            // Delete the claim
             $stmt = $conn->prepare("DELETE FROM claims WHERE id = ? AND user_id = ? AND status = 'Pending'");
             $stmt->bind_param('ii', $cancel_id, $user_id);
             
             if($stmt->execute() && $stmt->affected_rows > 0) {
-                // Delete receipt file if exists
                 if($receipt_file && file_exists("../uploads/receipts/" . $receipt_file)) {
                     unlink("../uploads/receipts/" . $receipt_file);
                 }
@@ -173,26 +165,28 @@ foreach($counts_rows as $r) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Staff Dashboard - Soft Blue Theme */
+        /* STAFF - DARK BLUE THEME WITH LIGHT BACKGROUND */
         :root {
-            --staff-primary: #1e3a5f;
-            --staff-secondary: #3b82f6;
-            --staff-soft: #e8f0fe;
-            --staff-accent: #5BC0BE;
-            --staff-white: #ffffff;
+            --staff-primary: #0f2b4d;
+            --staff-secondary: #1e4d8c;
+            --staff-accent: #3b82f6;
+            --staff-bg: #f0f4f8;
+            --staff-card: #ffffff;
             --staff-text: #1e293b;
             --staff-gray: #64748b;
         }
         
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         body {
-            background: linear-gradient(135deg, #e8f0fe 0%, #d9e6f5 100%);
+            background: var(--staff-bg);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             min-height: 100vh;
         }
         
         /* Sidebar */
         .sidebar {
-            background: linear-gradient(180deg, #1e3a5f 0%, #2c5282 100%);
+            background: linear-gradient(180deg, #0f2b4d 0%, #1e4d8c 100%);
             min-height: 100vh;
             color: white;
             transition: all 0.3s ease;
@@ -207,20 +201,20 @@ foreach($counts_rows as $r) {
         }
         
         .sidebar .nav-link:hover {
-            background: rgba(91, 192, 190, 0.2);
-            color: #5BC0BE;
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
             transform: translateX(5px);
         }
         
         .sidebar .nav-link.active {
-            background: #5BC0BE;
-            color: #1e3a5f;
+            background: #3b82f6;
+            color: #0f2b4d;
             font-weight: 600;
         }
         
         /* Header */
         .page-header {
-            background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%);
+            background: linear-gradient(135deg, #0f2b4d 0%, #1e4d8c 100%);
             border-radius: 20px;
             padding: 20px 25px;
             color: white;
@@ -230,7 +224,7 @@ foreach($counts_rows as $r) {
         /* Filter Buttons */
         .filter-btn {
             background: white;
-            color: #1e3a5f;
+            color: #0f2b4d;
             border: 1px solid #e2e8f0;
             transition: all 0.3s ease;
         }
@@ -244,7 +238,7 @@ foreach($counts_rows as $r) {
         
         .filter-badge {
             background: #e2e8f0;
-            color: #1e3a5f;
+            color: #0f2b4d;
         }
         
         .filter-btn.active .filter-badge {
@@ -265,7 +259,7 @@ foreach($counts_rows as $r) {
         }
         
         .claims-table th {
-            color: #1e3a5f;
+            color: #0f2b4d;
             font-weight: 600;
             padding: 15px;
             border: none;
@@ -380,7 +374,7 @@ foreach($counts_rows as $r) {
         
         /* Modal Styling */
         .modal-custom-header {
-            background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%);
+            background: linear-gradient(135deg, #0f2b4d 0%, #1e4d8c 100%);
             color: white;
         }
         
@@ -396,7 +390,7 @@ foreach($counts_rows as $r) {
             <!-- Sidebar -->
             <div class="col-md-3 col-lg-2 sidebar p-3">
                 <div class="text-center mb-4">
-                    <i class="fas fa-receipt fs-1" style="color: #5BC0BE;"></i>
+                    <i class="fas fa-receipt fs-1" style="color: #3b82f6;"></i>
                     <h5 class="mt-2">UTMSPACE</h5>
                     <small>Staff Portal</small>
                 </div>
@@ -428,7 +422,7 @@ foreach($counts_rows as $r) {
                     <div class="d-flex justify-content-between align-items-center flex-wrap">
                         <div>
                             <h3 class="mb-1">
-                                <i class="fas fa-history me-2" style="color: #5BC0BE;"></i>
+                                <i class="fas fa-history me-2" style="color: #3b82f6;"></i>
                                 My Claim History
                             </h3>
                             <p class="mb-0 opacity-75">Track and manage all your submitted claims</p>
@@ -496,7 +490,7 @@ foreach($counts_rows as $r) {
                                             <div class="empty-icon">
                                                 <i class="fas fa-folder-open"></i>
                                             </div>
-                                            <h5 style="color: #1e3a5f;">No claims found</h5>
+                                            <h5 style="color: #0f2b4d;">No claims found</h5>
                                             <p class="text-muted">You haven't submitted any claims yet.</p>
                                             <a href="New_Claim_Staff.php" class="btn btn-new-claim">
                                                 <i class="fas fa-plus me-2"></i>Submit Your First Claim
@@ -509,7 +503,7 @@ foreach($counts_rows as $r) {
                                         <td class="fw-bold"><?php echo $i + 1; ?></td>
                                         <td><?php echo date('d M Y', strtotime($claim['submitted_at'])); ?></td>
                                         <td><?php echo htmlspecialchars($claim['claim_type']); ?></td>
-                                        <td class="fw-bold" style="color: #1e3a5f;">RM <?php echo number_format($claim['amount'], 2); ?></td>
+                                        <td class="fw-bold" style="color: #0f2b4d;">RM <?php echo number_format($claim['amount'], 2); ?></td>
                                         <td><?php echo $claim['expense_date'] ? date('d M Y', strtotime($claim['expense_date'])) : '-'; ?></td>
                                         <td>
                                             <span class="status-badge status-<?php echo $claim['status']; ?>">
@@ -699,7 +693,6 @@ foreach($counts_rows as $r) {
  
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Populate view modal with claim data
         document.getElementById('detailModal').addEventListener('show.bs.modal', function(e) {
             const btn = e.relatedTarget;
             const status = btn.dataset.status;
@@ -740,7 +733,6 @@ foreach($counts_rows as $r) {
             }
         });
         
-        // Populate edit modal with claim data
         document.getElementById('editModal').addEventListener('show.bs.modal', function(e) {
             const btn = e.relatedTarget;
             
@@ -766,7 +758,6 @@ foreach($counts_rows as $r) {
             }
         });
         
-        // Real-time amount validation
         document.getElementById('editModal').addEventListener('shown.bs.modal', function() {
             const amountInput = document.getElementById('edit-amount');
             amountInput.addEventListener('input', function() {

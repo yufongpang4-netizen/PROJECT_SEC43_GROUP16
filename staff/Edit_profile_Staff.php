@@ -39,7 +39,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $errors[] = "Please enter a valid email address (e.g., name@domain.com).";
     } else {
-        // Check if email already exists for another user
         $check_email = $conn->prepare("SELECT id FROM users WHERE email = ? AND id != ?");
         $check_email->bind_param("si", $email, $user_id);
         $check_email->execute();
@@ -50,12 +49,12 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         $check_email->close();
     }
     
-    // 2. Phone validation (optional but must be valid if provided)
+    // 2. Phone validation
     if (!empty($phone) && !preg_match('/^(\+?6?01)[0-9]{8,9}$/', $phone)) {
         $errors[] = "Please enter a valid phone number! Example: 0123456789 or +60123456789";
     }
     
-    // 3. Password validation (only if user wants to change password)
+    // 3. Password validation
     if (!empty($password)) {
         if (strlen($password) < 8) {
             $errors[] = "Password must be at least 8 characters long.";
@@ -74,7 +73,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
     }
     
-    // If no errors, proceed with update
     if (empty($errors)) {
         if (!empty($password)) {
             $hashed_password = password_hash($password, PASSWORD_DEFAULT);
@@ -89,7 +87,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             $success = "Profile updated successfully!";
             $_SESSION['email'] = $email;
             
-            // Refresh user data
             $stmt2 = $conn->prepare("SELECT staff_id, name, email, phone, department, created_at FROM users WHERE id=?");
             $stmt2->bind_param("i", $user_id);
             $stmt2->execute();
@@ -116,13 +113,13 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Staff Dashboard - Soft Blue Theme */
+        /* STAFF - DARK BLUE THEME WITH LIGHT BACKGROUND */
         :root {
-            --staff-primary: #1e3a5f;
-            --staff-secondary: #3b82f6;
-            --staff-soft: #e8f0fe;
-            --staff-accent: #5BC0BE;
-            --staff-white: #ffffff;
+            --staff-primary: #0f2b4d;
+            --staff-secondary: #1e4d8c;
+            --staff-accent: #3b82f6;
+            --staff-bg: #f0f4f8;
+            --staff-card: #ffffff;
             --staff-text: #1e293b;
             --staff-gray: #64748b;
         }
@@ -132,7 +129,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         html, body { height: 100%; margin: 0; padding: 0; }
         
         body {
-            background: linear-gradient(135deg, #e8f0fe 0%, #d9e6f5 100%);
+            background: var(--staff-bg);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             overflow-x: hidden;
         }
@@ -142,7 +139,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         /* Sidebar */
         .sidebar {
-            background: linear-gradient(180deg, #1e3a5f 0%, #2c5282 100%);
+            background: linear-gradient(180deg, #0f2b4d 0%, #1e4d8c 100%);
             height: 100vh;
             color: white;
             transition: all 0.3s ease;
@@ -164,14 +161,14 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
         
         .sidebar .nav-link:hover {
-            background: rgba(91, 192, 190, 0.2);
-            color: #5BC0BE;
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
             transform: translateX(5px);
         }
         
         .sidebar .nav-link.active {
-            background: #5BC0BE;
-            color: #1e3a5f;
+            background: #3b82f6;
+            color: #0f2b4d;
             font-weight: 600;
         }
         
@@ -188,7 +185,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         /* Page Header */
         .page-header {
-            background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%);
+            background: linear-gradient(135deg, #0f2b4d 0%, #1e4d8c 100%);
             border-radius: 20px;
             padding: 20px 25px;
             color: white;
@@ -205,7 +202,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         .form-label {
             font-weight: 600;
-            color: #1e3a5f;
+            color: #0f2b4d;
             margin-bottom: 8px;
         }
         
@@ -226,19 +223,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             color: #64748b;
         }
         
-        .is-invalid {
-            border-color: #dc3545 !important;
-        }
-        
         .invalid-feedback-custom {
             color: #dc3545;
-            font-size: 12px;
-            margin-top: 5px;
-            display: block;
-        }
-        
-        .valid-feedback-custom {
-            color: #28a745;
             font-size: 12px;
             margin-top: 5px;
             display: block;
@@ -278,7 +264,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             left: 0;
             right: 0;
             height: 100px;
-            background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%);
+            background: linear-gradient(135deg, #0f2b4d 0%, #1e4d8c 100%);
         }
         
         .profile-avatar {
@@ -288,7 +274,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         .profile-avatar i {
             font-size: 80px;
-            color: #5BC0BE;
+            color: #3b82f6;
             background: white;
             border-radius: 50%;
             padding: 15px;
@@ -297,7 +283,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         .profile-name {
             margin-top: 20px;
-            color: #1e3a5f;
+            color: #0f2b4d;
         }
         
         .profile-role {
@@ -312,7 +298,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         .info-item:last-child { border-bottom: none; }
         .info-label { font-size: 12px; color: #64748b; }
-        .info-value { font-weight: 600; color: #1e3a5f; }
+        .info-value { font-weight: 600; color: #0f2b4d; }
         
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
@@ -336,7 +322,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         <div class="col-md-3 col-lg-2 sidebar">
             <div class="p-3">
                 <div class="text-center mb-4">
-                    <i class="fas fa-receipt fs-1" style="color: #5BC0BE;"></i>
+                    <i class="fas fa-receipt fs-1" style="color: #3b82f6;"></i>
                     <h5 class="mt-2">UTMSPACE</h5>
                     <small>Staff Portal</small>
                 </div>
@@ -359,7 +345,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             <div class="page-header fade-in">
                 <div class="d-flex justify-content-between align-items-center flex-wrap">
                     <div>
-                        <h3 class="mb-1"><i class="fas fa-user-edit me-2" style="color: #5BC0BE;"></i>Edit Profile</h3>
+                        <h3 class="mb-1"><i class="fas fa-user-edit me-2" style="color: #3b82f6;"></i>Edit Profile</h3>
                         <p class="mb-0 opacity-75">Update your personal information and account settings</p>
                     </div>
                 </div>
@@ -384,7 +370,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <div class="col-md-8">
                     <div class="form-card">
                         <div class="card-body p-4">
-                            <h5 class="mb-4" style="color: #1e3a5f;"><i class="fas fa-pen me-2" style="color: #3b82f6;"></i>Personal Information</h5>
+                            <h5 class="mb-4" style="color: #0f2b4d;"><i class="fas fa-pen me-2" style="color: #3b82f6;"></i>Personal Information</h5>
                             
                             <form method="POST" id="editProfileForm">
                                 <div class="mb-3">
@@ -484,7 +470,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    // Real-time validation functions
     function validateEmail() {
         const email = document.getElementById('email').value;
         const feedback = document.getElementById('emailFeedback');
@@ -516,7 +501,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
     }
     
-    // Password validation with real-time requirements
     const passwordInput = document.getElementById('password');
     const reqContainer = document.getElementById('passwordRequirements');
     const reqLength = document.getElementById('req-length');
@@ -543,7 +527,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         const hasNumber = /[0-9]/.test(password);
         const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
         
-        // Update requirement display
         updateRequirement(reqLength, hasLength);
         updateRequirement(reqUpper, hasUpper);
         updateRequirement(reqLower, hasLower);
@@ -571,20 +554,14 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
     }
     
-    // Add event listeners
     document.getElementById('email').addEventListener('input', validateEmail);
     document.getElementById('phone').addEventListener('input', validatePhone);
     passwordInput.addEventListener('input', validatePassword);
     
     function validateForm() {
-        const isEmailValid = validateEmail();
-        const isPhoneValid = validatePhone();
-        const isPasswordValid = validatePassword();
-        
-        return isEmailValid && isPhoneValid && isPasswordValid;
+        return validateEmail() && validatePhone() && validatePassword();
     }
     
-    // Form submission validation
     document.getElementById('editProfileForm').addEventListener('submit', function(e) {
         if (!validateForm()) {
             e.preventDefault();

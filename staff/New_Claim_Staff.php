@@ -59,20 +59,16 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     elseif(!is_numeric($amount) || $amount <= 0) {
         $error = "Please enter a valid amount.";
     }
-    // Check if user has pending claims
     elseif($has_pending_claims) {
-        $error = "You have pending claims awaiting approval. Please wait for approval before submitting new claims.";
+        $error = "You have pending claims awaiting approval. Please wait before submitting new claims.";
     }
-    // Check maximum amount per claim
     elseif($amount > $MAX_AMOUNT_PER_CLAIM) {
         $error = "Maximum claim amount per claim is RM " . number_format($MAX_AMOUNT_PER_CLAIM, 2) . 
                  ". Your claim amount: RM " . number_format($amount, 2);
     }
-    // Check minimum amount
     elseif($amount < 1) {
         $error = "Minimum claim amount is RM 1.00";
     }
-    // Check monthly limit (total amount)
     elseif(($total_amount_this_month + $amount) > $MAX_CLAIM_AMOUNT_PER_MONTH) {
         $remaining = $MAX_CLAIM_AMOUNT_PER_MONTH - $total_amount_this_month;
         $error = "Monthly claim limit reached! You have claimed RM " . 
@@ -80,7 +76,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                  number_format($MAX_CLAIM_AMOUNT_PER_MONTH, 2) . 
                  ". Remaining: RM " . number_format($remaining, 2);
     }
-    // Check number of claims per month
     elseif($total_claims_this_month >= $MAX_NUMBER_OF_CLAIMS_PER_MONTH) {
         $error = "You have reached the maximum of " . $MAX_NUMBER_OF_CLAIMS_PER_MONTH . 
                  " claims for this month.";
@@ -88,12 +83,11 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     else {
         $status = 'Pending';
         
-        // Handle receipt upload
         $receipt_filename = null;
         if(isset($_FILES['receipt']) && $_FILES['receipt']['error'] == 0) {
             $allowed_types = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
             $file_type     = $_FILES['receipt']['type'];
-            $max_file_size = 5 * 1024 * 1024; // 5MB
+            $max_file_size = 5 * 1024 * 1024;
             
             if($_FILES['receipt']['size'] > $max_file_size) {
                 $error = "File size too large. Maximum size is 5MB.";
@@ -133,10 +127,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             
             if($stmt->execute()) {
                 $success = "Claim submitted successfully! Finance will review your claim.";
-                // Log the activity
                 logActivity($conn, $user_id, 'Submit Claim', "Submitted claim of RM " . number_format($amount, 2) . " for " . $claim_type);
-                
-                // Refresh monthly data
                 $total_amount_this_month += $amount;
                 $total_claims_this_month++;
             } else {
@@ -147,7 +138,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 
-// Calculate remaining amounts for display
 $remaining_amount = $MAX_CLAIM_AMOUNT_PER_MONTH - $total_amount_this_month;
 $remaining_claims = $MAX_NUMBER_OF_CLAIMS_PER_MONTH - $total_claims_this_month;
 $amount_percentage = ($total_amount_this_month / $MAX_CLAIM_AMOUNT_PER_MONTH) * 100;
@@ -162,26 +152,28 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Staff Dashboard - Soft Blue Theme */
+        /* STAFF - DARK BLUE THEME WITH LIGHT BACKGROUND */
         :root {
-            --staff-primary: #1e3a5f;
-            --staff-secondary: #3b82f6;
-            --staff-soft: #e8f0fe;
-            --staff-accent: #5BC0BE;
-            --staff-white: #ffffff;
+            --staff-primary: #0f2b4d;
+            --staff-secondary: #1e4d8c;
+            --staff-accent: #3b82f6;
+            --staff-bg: #f0f4f8;
+            --staff-card: #ffffff;
             --staff-text: #1e293b;
             --staff-gray: #64748b;
         }
         
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         body {
-            background: linear-gradient(135deg, #e8f0fe 0%, #d9e6f5 100%);
+            background: var(--staff-bg);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             min-height: 100vh;
         }
         
         /* Sidebar */
         .sidebar {
-            background: linear-gradient(180deg, #1e3a5f 0%, #2c5282 100%);
+            background: linear-gradient(180deg, #0f2b4d 0%, #1e4d8c 100%);
             min-height: 100vh;
             color: white;
             transition: all 0.3s ease;
@@ -196,27 +188,27 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
         }
         
         .sidebar .nav-link:hover {
-            background: rgba(91, 192, 190, 0.2);
-            color: #5BC0BE;
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
             transform: translateX(5px);
         }
         
         .sidebar .nav-link.active {
-            background: #5BC0BE;
-            color: #1e3a5f;
+            background: #3b82f6;
+            color: #0f2b4d;
             font-weight: 600;
         }
         
         /* Page Header */
         .page-header {
-            background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%);
+            background: linear-gradient(135deg, #0f2b4d 0%, #1e4d8c 100%);
             border-radius: 20px;
             padding: 20px 25px;
             color: white;
             margin-bottom: 25px;
         }
         
-        /* Limit Card */
+        /* Limit Cards with Hover Effects */
         .limit-card {
             background: white;
             border-radius: 20px;
@@ -224,12 +216,58 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
             margin-bottom: 25px;
             box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
             border: 1px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+        
+        .limit-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
         }
         
         .limit-card h5 {
-            color: #1e3a5f;
+            color: #0f2b4d;
             margin-bottom: 15px;
         }
+        
+        /* Stat Boxes inside Limit Card */
+        .stat-box {
+            background: #f8fafc;
+            border-radius: 15px;
+            padding: 15px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .stat-box:hover {
+            transform: translateY(-3px);
+        }
+        
+        /* Monthly Budget Box - Blue theme */
+        .stat-box-budget {
+            border-left: 4px solid #3b82f6;
+        }
+        .stat-box-budget:hover {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+        }
+        .stat-box-budget:hover .stat-value { color: #1e40af; }
+        
+        /* Claims Count Box - Yellow theme */
+        .stat-box-count {
+            border-left: 4px solid #f59e0b;
+        }
+        .stat-box-count:hover {
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+        }
+        .stat-box-count:hover .stat-value { color: #b45309; }
+        
+        /* Per Claim Limit Box - Green theme */
+        .stat-box-limit {
+            border-left: 4px solid #10b981;
+        }
+        .stat-box-limit:hover {
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+        }
+        .stat-box-limit:hover .stat-value { color: #065f46; }
         
         .progress {
             height: 8px;
@@ -237,7 +275,7 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
             background-color: #e2e8f0;
         }
         .progress-bar {
-            background: linear-gradient(90deg, #3b82f6 0%, #5BC0BE 100%);
+            background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
             border-radius: 10px;
         }
         
@@ -250,7 +288,8 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
         .stat-value {
             font-size: 24px;
             font-weight: 700;
-            color: #1e3a5f;
+            color: #0f2b4d;
+            transition: all 0.3s ease;
         }
         
         .limit-warning {
@@ -279,12 +318,12 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
         
         .form-label {
             font-weight: 600;
-            color: #1e3a5f;
+            color: #0f2b4d;
             margin-bottom: 8px;
         }
         
         .form-control, .form-select {
-            border-radius: 10px;
+            border-radius: 12px;
             border: 1px solid #e2e8f0;
             padding: 12px 15px;
             transition: all 0.3s ease;
@@ -312,8 +351,8 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
         }
         
         .btn-cancel {
-            background: #e2e8f0;
-            color: #1e3a5f;
+            background: #f1f5f9;
+            color: #0f2b4d;
             border: none;
             padding: 12px 30px;
             border-radius: 12px;
@@ -322,9 +361,9 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
         }
         
         .btn-cancel:hover {
-            background: #cbd5e1;
+            background: #e2e8f0;
             transform: translateY(-2px);
-            color: #1e3a5f;
+            color: #0f2b4d;
         }
         
         .btn-disabled {
@@ -352,7 +391,7 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
         .input-group-text {
             background: #f1f5f9;
             border: 1px solid #e2e8f0;
-            color: #1e3a5f;
+            color: #0f2b4d;
         }
         
         .claim-disabled {
@@ -371,6 +410,12 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
             color: #3b82f6;
             margin-right: 8px;
         }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                min-height: auto;
+            }
+        }
     </style>
 </head>
 <body>
@@ -379,28 +424,18 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
             <!-- Sidebar -->
             <div class="col-md-3 col-lg-2 sidebar p-3">
                 <div class="text-center mb-4">
-                    <i class="fas fa-receipt fs-1" style="color: #5BC0BE;"></i>
+                    <i class="fas fa-receipt fs-1" style="color: #3b82f6;"></i>
                     <h5 class="mt-2">UTMSPACE</h5>
                     <small>Staff Portal</small>
                 </div>
                 <hr style="border-color: rgba(255,255,255,0.2);">
                 <nav class="nav flex-column">
-                    <a class="nav-link" href="dashboard_Staff.php">
-                        <i class="fas fa-tachometer-alt me-2"></i> Dashboard
-                    </a>
-                    <a class="nav-link active" href="New_Claim_Staff.php">
-                        <i class="fas fa-plus-circle me-2"></i> New Claim
-                    </a>
-                    <a class="nav-link" href="Claim_History_Staff.php">
-                        <i class="fas fa-history me-2"></i> Claim History
-                    </a>
-                    <a class="nav-link" href="Edit_profile_Staff.php">
-                        <i class="fas fa-user-edit me-2"></i> Edit Profile
-                    </a>
+                    <a class="nav-link" href="dashboard_Staff.php"><i class="fas fa-tachometer-alt me-2"></i> Dashboard</a>
+                    <a class="nav-link active" href="New_Claim_Staff.php"><i class="fas fa-plus-circle me-2"></i> New Claim</a>
+                    <a class="nav-link" href="Claim_History_Staff.php"><i class="fas fa-history me-2"></i> Claim History</a>
+                    <a class="nav-link" href="Edit_profile_Staff.php"><i class="fas fa-user-edit me-2"></i> Edit Profile</a>
                     <hr style="border-color: rgba(255,255,255,0.2);">
-                    <a class="nav-link" href="../logout.php">
-                        <i class="fas fa-sign-out-alt me-2"></i> Logout
-                    </a>
+                    <a class="nav-link" href="../logout.php"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
                 </nav>
             </div>
  
@@ -410,41 +445,44 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
                 <div class="page-header fade-in">
                     <div class="d-flex justify-content-between align-items-center flex-wrap">
                         <div>
-                            <h3 class="mb-1">
-                                <i class="fas fa-plus-circle me-2" style="color: #5BC0BE;"></i>
-                                Submit New Claim
-                            </h3>
+                            <h3 class="mb-1"><i class="fas fa-plus-circle me-2" style="color: #3b82f6;"></i>Submit New Claim</h3>
                             <p class="mb-0 opacity-75">Fill in the details below to submit your expense claim</p>
                         </div>
                     </div>
                 </div>
  
-                <!-- Limits Summary Card -->
+                <!-- Limits Summary Card with Hover Effects -->
                 <div class="limit-card fade-in">
                     <h5><i class="fas fa-chart-line me-2" style="color: #3b82f6;"></i>Your Monthly Claim Limits</h5>
                     <div class="row mt-3">
                         <div class="col-md-4 mb-3">
-                            <div class="stat-label-small">Monthly Budget</div>
-                            <div class="stat-value">RM <?php echo number_format($total_amount_this_month, 2); ?> / RM <?php echo number_format($MAX_CLAIM_AMOUNT_PER_MONTH, 2); ?></div>
-                            <div class="progress mt-2">
-                                <div class="progress-bar" role="progressbar" style="width: <?php echo min($amount_percentage, 100); ?>%"></div>
+                            <div class="stat-box stat-box-budget">
+                                <div class="stat-label-small">Monthly Budget</div>
+                                <div class="stat-value">RM <?php echo number_format($total_amount_this_month, 2); ?> / RM <?php echo number_format($MAX_CLAIM_AMOUNT_PER_MONTH, 2); ?></div>
+                                <div class="progress mt-2">
+                                    <div class="progress-bar" role="progressbar" style="width: <?php echo min($amount_percentage, 100); ?>%"></div>
+                                </div>
+                                <div class="stat-label-small mt-1">Remaining: RM <?php echo number_format(max($remaining_amount, 0), 2); ?></div>
                             </div>
-                            <div class="stat-label-small mt-1">Remaining: RM <?php echo number_format(max($remaining_amount, 0), 2); ?></div>
                         </div>
                         <div class="col-md-4 mb-3">
-                            <div class="stat-label-small">Claims Count</div>
-                            <div class="stat-value"><?php echo $total_claims_this_month; ?> / <?php echo $MAX_NUMBER_OF_CLAIMS_PER_MONTH; ?></div>
-                            <div class="progress mt-2">
-                                <div class="progress-bar" role="progressbar" style="width: <?php echo min($claim_percentage, 100); ?>%"></div>
+                            <div class="stat-box stat-box-count">
+                                <div class="stat-label-small">Claims Count</div>
+                                <div class="stat-value"><?php echo $total_claims_this_month; ?> / <?php echo $MAX_NUMBER_OF_CLAIMS_PER_MONTH; ?></div>
+                                <div class="progress mt-2">
+                                    <div class="progress-bar" role="progressbar" style="width: <?php echo min($claim_percentage, 100); ?>%"></div>
+                                </div>
+                                <div class="stat-label-small mt-1">Remaining: <?php echo max($remaining_claims, 0); ?> claims</div>
                             </div>
-                            <div class="stat-label-small mt-1">Remaining: <?php echo max($remaining_claims, 0); ?> claims</div>
                         </div>
                         <div class="col-md-4 mb-3">
-                            <div class="stat-label-small">Per Claim Limit</div>
-                            <div class="stat-value">RM <?php echo number_format($MAX_AMOUNT_PER_CLAIM, 2); ?></div>
-                            <div class="info-box mt-2">
-                                <i class="fas fa-info-circle"></i>
-                                <small>Maximum amount per single claim</small>
+                            <div class="stat-box stat-box-limit">
+                                <div class="stat-label-small">Per Claim Limit</div>
+                                <div class="stat-value">RM <?php echo number_format($MAX_AMOUNT_PER_CLAIM, 2); ?></div>
+                                <div class="info-box mt-2">
+                                    <i class="fas fa-info-circle"></i>
+                                    <small>Maximum amount per single claim</small>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -494,9 +532,7 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
                               <?php echo ($has_pending_claims || $total_amount_this_month >= $MAX_CLAIM_AMOUNT_PER_MONTH || $total_claims_this_month >= $MAX_NUMBER_OF_CLAIMS_PER_MONTH) ? 'class="claim-disabled"' : ''; ?>>
                             <div class="row">
                                 <div class="col-md-6 mb-3">
-                                    <label class="form-label">
-                                        <i class="fas fa-tag me-1" style="color: #3b82f6;"></i>Claim Type *
-                                    </label>
+                                    <label class="form-label"><i class="fas fa-tag me-1" style="color: #3b82f6;"></i>Claim Type *</label>
                                     <select name="claim_type" class="form-select" required 
                                             <?php echo ($has_pending_claims || $total_amount_this_month >= $MAX_CLAIM_AMOUNT_PER_MONTH || $total_claims_this_month >= $MAX_NUMBER_OF_CLAIMS_PER_MONTH) ? 'disabled' : ''; ?>>
                                         <option value="">Select claim type</option>
@@ -511,9 +547,7 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
                                 </div>
  
                                 <div class="col-md-6 mb-3">
-                                    <label class="form-label">
-                                        <i class="fas fa-dollar-sign me-1" style="color: #3b82f6;"></i>Amount (RM) *
-                                    </label>
+                                    <label class="form-label"><i class="fas fa-dollar-sign me-1" style="color: #3b82f6;"></i>Amount (RM) *</label>
                                     <div class="input-group">
                                         <span class="input-group-text">RM</span>
                                         <input type="number" name="amount" step="0.01" min="0.01" 
@@ -526,9 +560,7 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
                                 </div>
  
                                 <div class="col-md-6 mb-3">
-                                    <label class="form-label">
-                                        <i class="fas fa-calendar me-1" style="color: #3b82f6;"></i>Expense Date *
-                                    </label>
+                                    <label class="form-label"><i class="fas fa-calendar me-1" style="color: #3b82f6;"></i>Expense Date *</label>
                                     <input type="date" name="date" class="form-control" required
                                         max="<?php echo date('Y-m-d'); ?>"
                                         value="<?php echo htmlspecialchars($_POST['date'] ?? ''); ?>"
@@ -536,9 +568,7 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
                                 </div>
  
                                 <div class="col-md-6 mb-3">
-                                    <label class="form-label">
-                                        <i class="fas fa-paperclip me-1" style="color: #3b82f6;"></i>Attach Receipt
-                                    </label>
+                                    <label class="form-label"><i class="fas fa-paperclip me-1" style="color: #3b82f6;"></i>Attach Receipt</label>
                                     <input type="file" name="receipt" class="form-control" accept=".pdf,.jpg,.jpeg,.png"
                                         id="receiptFile" onchange="previewFile(this)"
                                         <?php echo ($has_pending_claims || $total_amount_this_month >= $MAX_CLAIM_AMOUNT_PER_MONTH || $total_claims_this_month >= $MAX_NUMBER_OF_CLAIMS_PER_MONTH) ? 'disabled' : ''; ?>>
@@ -549,9 +579,7 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
                                 </div>
  
                                 <div class="col-12 mb-3">
-                                    <label class="form-label">
-                                        <i class="fas fa-align-left me-1" style="color: #3b82f6;"></i>Description *
-                                    </label>
+                                    <label class="form-label"><i class="fas fa-align-left me-1" style="color: #3b82f6;"></i>Description *</label>
                                     <textarea name="description" rows="4" class="form-control" required
                                         placeholder="Describe your expense in detail (e.g., purpose, date, location)..."
                                         <?php echo ($has_pending_claims || $total_amount_this_month >= $MAX_CLAIM_AMOUNT_PER_MONTH || $total_claims_this_month >= $MAX_NUMBER_OF_CLAIMS_PER_MONTH) ? 'disabled' : ''; ?>><?php echo htmlspecialchars($_POST['description'] ?? ''); ?></textarea>
@@ -562,17 +590,11 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
  
                             <div class="d-flex gap-3">
                                 <?php if($has_pending_claims || $total_amount_this_month >= $MAX_CLAIM_AMOUNT_PER_MONTH || $total_claims_this_month >= $MAX_NUMBER_OF_CLAIMS_PER_MONTH): ?>
-                                    <button type="button" class="btn-disabled">
-                                        <i class="fas fa-ban me-2"></i>Claim Submission Disabled
-                                    </button>
+                                    <button type="button" class="btn-disabled"><i class="fas fa-ban me-2"></i>Claim Submission Disabled</button>
                                 <?php else: ?>
-                                    <button type="submit" name="action" value="submit" class="btn btn-submit">
-                                        <i class="fas fa-paper-plane me-2"></i>Submit Claim
-                                    </button>
+                                    <button type="submit" name="action" value="submit" class="btn btn-submit"><i class="fas fa-paper-plane me-2"></i>Submit Claim</button>
                                 <?php endif; ?>
-                                <a href="dashboard_Staff.php" class="btn btn-cancel">
-                                    <i class="fas fa-times me-2"></i>Cancel
-                                </a>
+                                <a href="dashboard_Staff.php" class="btn btn-cancel"><i class="fas fa-times me-2"></i>Cancel</a>
                             </div>
                         </form>
                     </div>
@@ -595,7 +617,6 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
                 } else {
                     preview.style.display = 'none';
                 }
-                // Basic size check (5MB)
                 if(file.size > 5 * 1024 * 1024) {
                     alert('File is too large. Maximum size is 5MB.');
                     input.value = '';
@@ -604,7 +625,6 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
             }
         }
         
-        // Real-time amount validation
         const amountInput = document.querySelector('input[name="amount"]');
         if(amountInput) {
             amountInput.addEventListener('input', function() {
