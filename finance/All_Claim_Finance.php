@@ -209,9 +209,17 @@ $counts['All'] = array_sum($counts);
             padding: 6px 15px; font-size: 12px; font-weight: 500;
             transition: all 0.3s ease; text-decoration: none; display: inline-block;
         }
-        
         .btn-review:hover { background: #059669; transform: translateY(-2px); color: white; }
         
+        /* Pay Now Button */
+        .btn-pay-now {
+            background: #059669; color: white; border-radius: 8px;
+            padding: 6px 15px; font-size: 12px; font-weight: 600;
+            transition: all 0.3s ease; text-decoration: none; display: inline-block;
+            box-shadow: 0 2px 5px rgba(5, 150, 105, 0.3);
+        }
+        .btn-pay-now:hover { background: #047857; transform: translateY(-2px); color: white; box-shadow: 0 4px 8px rgba(5, 150, 105, 0.4); }
+
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .fade-in { animation: fadeIn 0.5s ease-out; }
         
@@ -339,6 +347,12 @@ $counts['All'] = array_sum($counts);
                                         <a href="Claim_details_Finance.php?id=<?php echo $claim['id']; ?>" class="btn-review">
                                             <i class="fas fa-eye me-1"></i> Review
                                         </a>
+                                        
+                                        <?php if($claim['status'] === 'Approved'): ?>
+                                        <a href="payment_gateway_Finance.php?id=<?php echo $claim['id']; ?>" class="btn-pay-now ms-1">
+                                            <i class="fas fa-money-check-alt me-1"></i> Pay Now
+                                        </a>
+                                        <?php endif; ?>
                                     </td>
                                 </tr>
                                 <?php endforeach; ?>

@@ -24,7 +24,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         $stmt = $conn->prepare("UPDATE claims SET status='Approved', finance_comment=? WHERE id=?");
         $stmt->bind_param('si', $remark, $claim_id);
         $stmt->execute();
-        $success = "Claim has been <strong>APPROVED</strong> successfully!";
+        $success = "Claim has been APPROVED successfully!";
  
     } elseif(isset($_POST['reject'])) {
         if(empty($remark)) {
@@ -33,15 +33,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             $stmt = $conn->prepare("UPDATE claims SET status='Rejected', finance_comment=? WHERE id=?");
             $stmt->bind_param('si', $remark, $claim_id);
             $stmt->execute();
-            $success = "Claim has been <strong>REJECTED</strong>.";
+            $success = "Claim has been REJECTED.";
         }
- 
-    } elseif(isset($_POST['mark_paid'])) {
-        $stmt = $conn->prepare("UPDATE claims SET status='Paid' WHERE id=?");
-        $stmt->bind_param('i', $claim_id);
-        $stmt->execute();
-        $success = "Claim has been marked as <strong>PAID</strong>!";
-    }
+    } 
 }
  
 $stmt = $conn->prepare("
@@ -69,6 +63,7 @@ $status = strtolower($claim['status']);
     <title>Claim Details - Finance | UTMSPACE</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bootstrap-4/bootstrap-4.css">
     <style>
         /* FINANCE - DARK GREEN THEME WITH LIGHT BACKGROUND */
         :root {
@@ -188,162 +183,51 @@ $status = strtolower($claim['status']);
         /* Buttons */
         .btn-approve {
             background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 12px;
-            font-weight: 600;
-            transition: all 0.3s ease;
+            color: white; border: none; padding: 12px; border-radius: 12px; font-weight: 600; transition: all 0.3s ease;
         }
-        
-        .btn-approve:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.4);
-            color: white;
-        }
+        .btn-approve:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.4); color: white; }
         
         .btn-reject {
             background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 12px;
-            font-weight: 600;
-            transition: all 0.3s ease;
+            color: white; border: none; padding: 12px; border-radius: 12px; font-weight: 600; transition: all 0.3s ease;
         }
-        
-        .btn-reject:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px -5px rgba(239, 68, 68, 0.4);
-            color: white;
-        }
+        .btn-reject:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -5px rgba(239, 68, 68, 0.4); color: white; }
         
         .btn-paid {
             background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 12px;
-            font-weight: 600;
-            transition: all 0.3s ease;
+            color: white; border: none; padding: 12px; border-radius: 12px; font-weight: 600; transition: all 0.3s ease;
         }
-        
-        .btn-paid:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px -5px rgba(139, 92, 246, 0.4);
-            color: white;
-        }
+        .btn-paid:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -5px rgba(139, 92, 246, 0.4); color: white; }
         
         .btn-back {
-            background: #f1f5f9;
-            color: #064e3b;
-            border: none;
-            border-radius: 10px;
-            padding: 10px 20px;
-            transition: all 0.3s ease;
+            background: #f1f5f9; color: #064e3b; border: none; border-radius: 10px; padding: 10px 20px; transition: all 0.3s ease;
         }
+        .btn-back:hover { background: #e2e8f0; transform: translateY(-2px); color: #064e3b; }
         
-        .btn-back:hover {
-            background: #e2e8f0;
-            transform: translateY(-2px);
-            color: #064e3b;
-        }
-        
-        .btn-preview, .btn-download {
-            border-radius: 10px;
-            padding: 10px;
-            font-weight: 500;
-            transition: all 0.3s ease;
-        }
-        
-        .btn-preview {
-            background: #10b981;
-            color: white;
-        }
-        
-        .btn-preview:hover {
-            background: #059669;
-            transform: translateY(-2px);
-            color: white;
-        }
-        
-        .btn-download {
-            background: #064e3b;
-            color: white;
-        }
-        
-        .btn-download:hover {
-            background: #047857;
-            transform: translateY(-2px);
-            color: white;
-        }
+        .btn-preview, .btn-download { border-radius: 10px; padding: 10px; font-weight: 500; transition: all 0.3s ease; }
+        .btn-preview { background: #10b981; color: white; }
+        .btn-preview:hover { background: #059669; transform: translateY(-2px); color: white; }
+        .btn-download { background: #064e3b; color: white; }
+        .btn-download:hover { background: #047857; transform: translateY(-2px); color: white; }
         
         /* Alert States */
-        .alert-info-custom {
-            background: #dbeafe;
-            border-left: 4px solid #2563eb;
-            color: #1e40af;
-        }
-        
-        .alert-success-custom {
-            background: #d1fae5;
-            border-left: 4px solid #059669;
-            color: #065f46;
-        }
-        
-        .alert-danger-custom {
-            background: #fee2e2;
-            border-left: 4px solid #dc2626;
-            color: #991b1b;
-        }
-        
-        .alert-warning-custom {
-            background: #fef3c7;
-            border-left: 4px solid #d97706;
-            color: #92400e;
-        }
+        .alert-info-custom { background: #dbeafe; border-left: 4px solid #2563eb; color: #1e40af; }
+        .alert-success-custom { background: #d1fae5; border-left: 4px solid #059669; color: #065f46; }
+        .alert-danger-custom { background: #fee2e2; border-left: 4px solid #dc2626; color: #991b1b; }
+        .alert-warning-custom { background: #fef3c7; border-left: 4px solid #d97706; color: #92400e; }
         
         /* Form Controls */
-        .form-control, .form-select {
-            border-radius: 12px;
-            border: 1px solid #e5e7eb;
-            padding: 12px 15px;
-            transition: all 0.3s ease;
-        }
+        .form-control, .form-select { border-radius: 12px; border: 1px solid #e5e7eb; padding: 12px 15px; transition: all 0.3s ease; }
+        .form-control:focus, .form-select:focus { border-color: #10b981; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1); }
         
-        .form-control:focus, .form-select:focus {
-            border-color: #10b981;
-            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
-        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn 0.5s ease-out; }
+        hr { border-color: #e5e7eb; }
         
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        .receipt-img { max-height: 180px; object-fit: contain; border-radius: 10px; }
+        .remark-box { background: #f0fdf4; border-radius: 12px; padding: 15px; }
         
-        .fade-in {
-            animation: fadeIn 0.5s ease-out;
-        }
-        
-        hr {
-            border-color: #e5e7eb;
-        }
-        
-        .receipt-img {
-            max-height: 180px;
-            object-fit: contain;
-            border-radius: 10px;
-        }
-        
-        .remark-box {
-            background: #f0fdf4;
-            border-radius: 12px;
-            padding: 15px;
-        }
-        
-        @media (max-width: 768px) {
-            .sidebar { height: auto; position: relative; }
-        }
+        @media (max-width: 768px) { .sidebar { height: auto; position: relative; } }
     </style>
 </head>
 <body>
@@ -361,7 +245,7 @@ $status = strtolower($claim['status']);
                         <a class="nav-link" href="dashboard_Finance.php">
                             <i class="fas fa-tachometer-alt fa-fw me-2"></i> Dashboard
                         </a>
-                        <a class="nav-link" href="All_Claim_Finance.php">
+                        <a class="nav-link active" href="All_Claim_Finance.php">
                             <i class="fas fa-file-invoice fa-fw me-2"></i> All Claims
                         </a>
                         <a class="nav-link" href="Export_Report_Finance.php">
@@ -390,17 +274,6 @@ $status = strtolower($claim['status']);
                         </a>
                     </div>
                 </div>
- 
-                <?php if($success): ?>
-                    <div class="alert alert-success-custom p-3 rounded mb-4 fade-in">
-                        <i class="fas fa-check-circle me-2"></i><?php echo $success; ?>
-                    </div>
-                <?php endif; ?>
-                <?php if($error): ?>
-                    <div class="alert alert-danger-custom p-3 rounded mb-4 fade-in">
-                        <i class="fas fa-exclamation-circle me-2"></i><?php echo $error; ?>
-                    </div>
-                <?php endif; ?>
  
                 <div class="row g-4 fade-in">
                     <div class="col-md-7">
@@ -515,24 +388,23 @@ $status = strtolower($claim['status']);
                                 <hr>
  
                                 <?php if($status == 'pending'): ?>
-                                    <form method="POST">
+                                    <form method="POST" id="actionForm">
                                         <div class="mb-3">
                                             <label class="form-label fw-bold">Comments / Remarks</label>
-                                            <textarea name="comments" class="form-control" rows="3"
+                                            <textarea name="comments" id="finance-remark" class="form-control" rows="3"
                                                 placeholder="Add your comments here... (required for rejection)"></textarea>
                                             <small class="text-muted mt-1 d-block">
                                                 <i class="fas fa-info-circle me-1"></i> Remarks will be visible to the staff member
                                             </small>
                                         </div>
                                         <div class="d-grid gap-2">
-                                            <button type="submit" name="approve" class="btn btn-approve"
-                                                onclick="return confirm('Approve this claim?')">
+                                            <button type="button" class="btn btn-approve" onclick="confirmAction('approve')">
                                                 <i class="fas fa-check-circle me-2"></i>Approve Claim
                                             </button>
-                                            <button type="submit" name="reject" class="btn btn-reject"
-                                                onclick="return confirm('Reject this claim? This action cannot be undone.')">
+                                            <button type="button" class="btn btn-reject" onclick="confirmAction('reject')">
                                                 <i class="fas fa-times-circle me-2"></i>Reject Claim
                                             </button>
+                                            <input type="hidden" name="" id="hidden-action">
                                         </div>
                                     </form>
  
@@ -540,16 +412,13 @@ $status = strtolower($claim['status']);
                                     <div class="alert-warning-custom p-3 mb-3 rounded">
                                         <i class="fas fa-info-circle me-2"></i>
                                         <strong>Claim Approved</strong><br>
-                                        This claim has been approved. Mark as paid once payment is processed.
+                                        This claim has been approved and is ready for payment transfer.
                                     </div>
-                                    <form method="POST">
-                                        <div class="d-grid">
-                                            <button type="submit" name="mark_paid" class="btn btn-paid"
-                                                onclick="return confirm('Confirm payment of RM <?php echo number_format($claim['amount'],2); ?>? This will mark the claim as PAID.')">
-                                                <i class="fas fa-dollar-sign me-2"></i>Mark as Paid
-                                            </button>
-                                        </div>
-                                    </form>
+                                    <div class="d-grid">
+                                        <a href="payment_gateway_Finance.php?id=<?php echo $claim['id']; ?>" class="btn btn-paid w-100 text-center text-decoration-none">
+                                            <i class="fas fa-money-check-alt me-2"></i>Proceed to Payment Gateway
+                                        </a>
+                                    </div>
  
                                 <?php elseif($status == 'paid'): ?>
                                     <div class="alert-success-custom p-3 text-center rounded">
@@ -574,5 +443,67 @@ $status = strtolower($claim['status']);
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <script>
+        function confirmAction(actionType) {
+            const remark = document.getElementById('finance-remark').value.trim();
+            
+            if (actionType === 'reject' && remark === '') {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Remark Required',
+                    text: 'You must provide a reason when rejecting a claim.',
+                    confirmButtonColor: '#10b981',
+                    showClass: { popup: 'animate__animated animate__shakeX' }
+                });
+                return;
+            }
+
+            const title = actionType === 'approve' ? 'Approve Claim?' : 'Reject Claim?';
+            const text = actionType === 'approve' ? 'Are you sure you want to approve this claim for payment?' : 'This will reject the claim and return it to the staff.';
+            const confirmColor = actionType === 'approve' ? '#10b981' : '#ef4444';
+            const confirmIcon = actionType === 'approve' ? '<i class="fas fa-check me-1"></i> Yes, Approve' : '<i class="fas fa-times me-1"></i> Yes, Reject';
+
+            Swal.fire({
+                title: title,
+                text: text,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: confirmColor,
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: confirmIcon
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const form = document.getElementById('actionForm');
+                    const hiddenAction = document.getElementById('hidden-action');
+                    hiddenAction.name = actionType;
+                    hiddenAction.value = '1';
+                    form.submit();
+                }
+            });
+        }
+
+        <?php if($success): ?>
+            const Toast = Swal.mixin({
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true,
+            });
+            Toast.fire({
+                icon: 'success',
+                title: '<?php echo addslashes(strip_tags($success)); ?>'
+            });
+        <?php elseif($error): ?>
+            Swal.fire({
+                icon: 'error',
+                title: 'Action Failed',
+                text: '<?php echo addslashes($error); ?>',
+                confirmButtonColor: '#10b981'
+            });
+        <?php endif; ?>
+    </script>
 </body>
 </html>
