@@ -139,6 +139,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             to { opacity: 1; transform: translateY(0); }
         }
         .fade-in-up { animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+        
+        .forgot-link {
+            color: var(--utm-red);
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        .forgot-link:hover {
+            color: var(--utm-navy);
+            text-decoration: underline !important;
+        }
     </style>
 </head>
 <body class="login-page">
@@ -161,11 +171,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <input type="email" name="email" class="form-control" placeholder="name@utmspace.edu.my" required>
                 </div>
                 <div class="mb-4">
-                    <label class="form-label text-navy ms-1"><i class="fas fa-lock me-2 opacity-75"></i>Password</label>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label class="form-label text-navy ms-1 mb-0"><i class="fas fa-lock me-2 opacity-75"></i>Password</label>
+                        <a href="forgot_password.php" class="text-decoration-none small forgot-link">Forgot Password?</a>
+                    </div>
                     <input type="password" name="password" class="form-control" placeholder="••••••••" required>
                 </div>
                 <button type="submit" class="btn btn-primary-custom w-100 mb-4">
-                    <i class="fas fa-sign-out-alt me-2"></i>Sign In
+                    <i class="fas fa-sign-in-alt me-2"></i>Sign In
                 </button>
             </form>
 
