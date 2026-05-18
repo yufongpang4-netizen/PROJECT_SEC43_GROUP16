@@ -87,7 +87,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             $success = "Profile updated successfully!";
             $_SESSION['email'] = $email;
             
-            logActivity($conn, $user_id, 'Edit Profile', 'Updated personal profile information.');
+            if (function_exists('logActivity')) {
+                logActivity($conn, $user_id, 'Edit Profile', 'Updated personal profile information.');
+            }
             
             $stmt2 = $conn->prepare("SELECT staff_id, name, email, phone, department, created_at FROM users WHERE id=?");
             $stmt2->bind_param("i", $user_id);
@@ -114,6 +116,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     <title>Edit Profile - UTMSPACE</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bootstrap-4/bootstrap-4.css">
     <style>
         /* STAFF - DARK BLUE THEME WITH LIGHT BACKGROUND */
         :root {
@@ -329,12 +332,12 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                 </div>
                 <hr style="border-color: rgba(255,255,255,0.2);">
                 <nav class="nav flex-column">
-                    <a class="nav-link" href="dashboard_Staff.php"><i class="fas fa-tachometer-alt me-2"></i> Dashboard</a>
-                    <a class="nav-link" href="New_Claim_Staff.php"><i class="fas fa-plus-circle me-2"></i> New Claim</a>
-                    <a class="nav-link" href="Claim_History_Staff.php"><i class="fas fa-history me-2"></i> Claim History</a>
-                    <a class="nav-link active" href="Edit_profile_Staff.php"><i class="fas fa-user-edit me-2"></i> Edit Profile</a>
+                    <a class="nav-link" href="dashboard_Staff.php"><i class="fas fa-tachometer-alt fa-fw me-2"></i> Dashboard</a>
+                    <a class="nav-link" href="New_Claim_Staff.php"><i class="fas fa-plus-circle fa-fw me-2"></i> New Claim</a>
+                    <a class="nav-link" href="Claim_History_Staff.php"><i class="fas fa-history fa-fw me-2"></i> Claim History</a>
+                    <a class="nav-link active" href="Edit_profile_Staff.php"><i class="fas fa-user-edit fa-fw me-2"></i> Edit Profile</a>
                     <hr style="border-color: rgba(255,255,255,0.2);">
-                    <a class="nav-link" href="../logout.php"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
+                    <a class="nav-link" href="../logout.php"><i class="fas fa-sign-out-alt fa-fw me-2"></i> Logout</a>
                 </nav>
             </div>
         </div>
@@ -349,20 +352,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                     </div>
                 </div>
             </div>
-            
-            <?php if($success): ?>
-                <div class="alert alert-success alert-dismissible fade show fade-in" role="alert">
-                    <i class="fas fa-check-circle me-2"></i><?php echo $success; ?>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            <?php endif; ?>
-
-            <?php if($error): ?>
-                <div class="alert alert-danger alert-dismissible fade show fade-in" role="alert">
-                    <i class="fas fa-exclamation-triangle me-2"></i><?php echo $error; ?>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            <?php endif; ?>
             
             <div class="row g-4 fade-in">
                 <div class="col-md-8">
@@ -466,6 +455,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <script>
     function validateEmail() {
         const email = document.getElementById('email').value;
@@ -484,6 +475,13 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
     }
     
+    const phoneInputField = document.getElementById('phone');
+    if (phoneInputField) {
+        phoneInputField.addEventListener('input', function() {
+            this.value = this.value.replace(/[^0-9+]/g, '');
+        });
+    }
+
     function validatePhone() {
         const phone = document.getElementById('phone').value;
         const feedback = document.getElementById('phoneFeedback');
@@ -562,9 +560,36 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     document.getElementById('editProfileForm').addEventListener('submit', function(e) {
         if (!validateForm()) {
             e.preventDefault();
-            alert('Please fix the errors before submitting.');
+            Swal.fire({
+                icon: 'error',
+                title: 'Validation Error',
+                text: 'Please fix the errors in the form before submitting.',
+                confirmButtonColor: '#3b82f6',
+                showClass: { popup: 'animate__animated animate__shakeX' }
+            });
         }
     });
+
+    <?php if($success): ?>
+        const Toast = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true,
+        });
+        Toast.fire({
+            icon: 'success',
+            title: '<?php echo addslashes($success); ?>'
+        });
+    <?php elseif($error): ?>
+        Swal.fire({
+            icon: 'error',
+            title: 'Update Failed',
+            html: '<?php echo addslashes($error); ?>',
+            confirmButtonColor: '#3b82f6'
+        });
+    <?php endif; ?>
 </script>
 </body>
 </html>
