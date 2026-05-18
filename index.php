@@ -82,25 +82,27 @@ if(isset($_SESSION['user_id'])) {
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
         }
         
-        /* Logo Styles */
+        /* Logo Styles - PROPER SIZE */
         .utm-logo {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
         
-        .utm-logo-img {
-            max-width: 220px;
+        /* Fixed logo size - NOT too big */
+        .utmspace-logo-img {
+            max-width: 150px;
+            width: 100%;
             height: auto;
-            margin-bottom: 15px;
-            filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.1));
+            margin-bottom: 10px;
+            background: transparent;
         }
         
         .logo-divider {
-            width: 80px;
-            height: 4px;
+            width: 60px;
+            height: 3px;
             background: linear-gradient(90deg, var(--utm-red), #ff4b52);
-            margin: 0 auto;
-            border-radius: 4px;
+            margin: 10px auto 0;
+            border-radius: 3px;
         }
         
         .main-title {
@@ -116,7 +118,7 @@ if(isset($_SESSION['user_id'])) {
             background: rgba(255, 255, 255, 0.6);
             border: 1px solid rgba(255, 255, 255, 0.9);
             border-radius: 20px;
-            padding: 25px 15px;
+            padding: 20px 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.02);
         }
         
@@ -133,7 +135,7 @@ if(isset($_SESSION['user_id'])) {
             color: white;
             border: 2px solid var(--utm-navy);
             border-radius: 50px;
-            padding: 12px 40px;
+            padding: 10px 30px;
             font-weight: 600;
             letter-spacing: 0.5px;
             transition: all 0.3s ease;
@@ -153,7 +155,7 @@ if(isset($_SESSION['user_id'])) {
             border: 2px solid var(--utm-navy);
             color: var(--utm-navy);
             border-radius: 50px;
-            padding: 12px 40px;
+            padding: 10px 30px;
             font-weight: 600;
             letter-spacing: 0.5px;
             transition: all 0.3s ease;
@@ -177,17 +179,16 @@ if(isset($_SESSION['user_id'])) {
             background: rgba(193, 39, 45, 0.08);
             border: 1px solid rgba(193, 39, 45, 0.2);
             border-radius: 30px;
-            padding: 8px 25px;
+            padding: 6px 20px;
             display: inline-block;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.02);
         }
         
         hr { border-color: rgba(11, 59, 94, 0.1); border-width: 2px; }
         
         .feature-icon {
             color: var(--utm-red);
-            font-size: 32px;
-            margin-bottom: 15px;
+            font-size: 28px;
+            margin-bottom: 12px;
             transition: transform 0.3s ease;
         }
         
@@ -198,7 +199,7 @@ if(isset($_SESSION['user_id'])) {
         .footer-icon {
             color: var(--utm-red);
             margin-right: 8px;
-            font-size: 1.1em;
+            font-size: 1em;
         }
     </style>
 </head>
@@ -208,23 +209,28 @@ if(isset($_SESSION['user_id'])) {
     <div class="content-wrapper">
         <div class="container w-100">
             <div class="row justify-content-center">
-                <div class="col-lg-10 col-xl-9"> <div class="glass-card p-4 p-md-5 fade-in-up"> <div class="utm-logo">
-                            <img src="css/images/utm-logo.png" alt="UTMSPACE Logo" class="utm-logo-img" 
+                <div class="col-lg-10 col-xl-9">
+                    <div class="glass-card p-4 p-md-5 fade-in-up">
+                        
+                        <!-- Logo Image - PROPER SIZE (150px max) -->
+                        <div class="utm-logo">
+                            <img src="css/images/utmspace logo.png" alt="UTMSPACE Logo" class="utmspace-logo-img" 
+                                 style="background: transparent;"
                                  onerror="this.src='css/images/utm_space1.jpg'">
                             <div class="logo-divider"></div>
                         </div>
                         
-                        <div class="text-center mb-4">
+                        <div class="text-center mb-3">
                             <div class="role-badge">
                                 <i class="fas fa-receipt me-1" style="color: var(--utm-red);"></i>
                                 <span style="color: var(--utm-navy); font-weight: 600;">Staff Pay and Claim System</span>
                             </div>
                         </div>
                         
-                        <h2 class="h2 text-center mb-3 main-title">Efficient Claim Management System</h2>
-                        <p class="text-center text-muted mb-5 fs-5">Submit, track, and manage your expense claims with ease and transparency</p>
+                        <h2 class="h3 text-center mb-3 main-title">Efficient Claim Management System</h2>
+                        <p class="text-center text-muted mb-4">Submit, track, and manage your expense claims with ease and transparency</p>
                         
-                        <div class="d-flex justify-content-center gap-3 mb-5 flex-wrap">
+                        <div class="d-flex justify-content-center gap-3 mb-4 flex-wrap">
                             <a href="login.php" class="btn btn-primary-custom">
                                 <i class="fas fa-sign-in-alt me-2"></i>Login Here
                             </a>
@@ -233,52 +239,52 @@ if(isset($_SESSION['user_id'])) {
                             </a>
                         </div>
                         
-                        <div class="row g-4 mt-2">
+                        <div class="row g-3 mt-2">
                             <div class="col-md-3 col-sm-6">
-                                <div class="feature-box text-center h-100 d-flex flex-column justify-content-center">
+                                <div class="feature-box text-center h-100">
                                     <i class="fas fa-file-invoice-dollar feature-icon"></i>
-                                    <p class="mb-1 fw-bold fs-6" style="color: var(--utm-navy);">Submit Claims</p>
+                                    <p class="mb-1 fw-bold" style="color: var(--utm-navy); font-size: 14px;">Submit Claims</p>
                                     <small class="text-muted">With receipt uploads</small>
                                 </div>
                             </div>
                             <div class="col-md-3 col-sm-6">
-                                <div class="feature-box text-center h-100 d-flex flex-column justify-content-center">
+                                <div class="feature-box text-center h-100">
                                     <i class="fas fa-chart-line feature-icon"></i>
-                                    <p class="mb-1 fw-bold fs-6" style="color: var(--utm-navy);">Track Status</p>
+                                    <p class="mb-1 fw-bold" style="color: var(--utm-navy); font-size: 14px;">Track Status</p>
                                     <small class="text-muted">Pending to Paid</small>
                                 </div>
                             </div>
                             <div class="col-md-3 col-sm-6">
-                                <div class="feature-box text-center h-100 d-flex flex-column justify-content-center">
+                                <div class="feature-box text-center h-100">
                                     <i class="fas fa-chart-pie feature-icon"></i>
-                                    <p class="mb-1 fw-bold fs-6" style="color: var(--utm-navy);">Dashboard</p>
+                                    <p class="mb-1 fw-bold" style="color: var(--utm-navy); font-size: 14px;">Dashboard</p>
                                     <small class="text-muted">Review & approve</small>
                                 </div>
                             </div>
                             <div class="col-md-3 col-sm-6">
-                                <div class="feature-box text-center h-100 d-flex flex-column justify-content-center">
+                                <div class="feature-box text-center h-100">
                                     <i class="fas fa-file-export feature-icon"></i>
-                                    <p class="mb-1 fw-bold fs-6" style="color: var(--utm-navy);">Export Reports</p>
+                                    <p class="mb-1 fw-bold" style="color: var(--utm-navy); font-size: 14px;">Export Reports</p>
                                     <small class="text-muted">PDF & CSV formats</small>
                                 </div>
                             </div>
                         </div>
                         
-                        <hr class="my-5">
+                        <hr class="my-4">
                         
                         <div class="row text-center">
-                            <div class="col-md-4 mb-3 mb-md-0">
-                                <span class="text-muted fw-medium">
+                            <div class="col-md-4 mb-2 mb-md-0">
+                                <span class="text-muted small">
                                     <i class="fas fa-bolt footer-icon"></i> Easy submission
                                 </span>
                             </div>
-                            <div class="col-md-4 mb-3 mb-md-0">
-                                <span class="text-muted fw-medium">
+                            <div class="col-md-4 mb-2 mb-md-0">
+                                <span class="text-muted small">
                                     <i class="fas fa-check-double footer-icon"></i> Fast approval
                                 </span>
                             </div>
                             <div class="col-md-4">
-                                <span class="text-muted fw-medium">
+                                <span class="text-muted small">
                                     <i class="fas fa-shield-alt footer-icon"></i> Secure system
                                 </span>
                             </div>

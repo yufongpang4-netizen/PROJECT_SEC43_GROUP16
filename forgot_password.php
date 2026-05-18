@@ -93,8 +93,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             width: 100%; max-width: 500px;
         }
 
-        .utm-logo-img { max-width: 160px; height: auto; margin-bottom: 15px; }
-        .logo-divider { width: 60px; height: 4px; background: var(--utm-red); margin: 0 auto; border-radius: 4px; }
+        /* Logo Styles - SAME AS INDEX */
+        .utm-logo {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .utmspace-logo-img {
+            max-width: 150px;
+            width: 100%;
+            height: auto;
+            margin-bottom: 10px;
+            background: transparent;
+        }
+        
+        .logo-divider {
+            width: 60px;
+            height: 3px;
+            background: linear-gradient(90deg, var(--utm-red), #ff4b52);
+            margin: 10px auto 0;
+            border-radius: 3px;
+        }
         
         .form-control {
             border-radius: 15px; padding: 12px 18px;
@@ -141,8 +160,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="content-wrapper">
         <div class="container w-100 d-flex justify-content-center">
             <div class="glass-card p-4 p-md-5 fade-in-up">
-                <div class="text-center mb-4">
-                    <img src="css/images/utm-logo.png" alt="UTMSPACE" class="utm-logo-img" onerror="this.src='css/images/utm_space1.jpg'">
+                
+                <!-- Logo - SAME AS INDEX -->
+                <div class="utm-logo">
+                    <img src="css/images/utmspace logo.png" alt="UTMSPACE Logo" class="utmspace-logo-img" 
+                         style="background: transparent;"
+                         onerror="this.src='css/images/utm_space1.jpg'">
                     <div class="logo-divider"></div>
                 </div>
 

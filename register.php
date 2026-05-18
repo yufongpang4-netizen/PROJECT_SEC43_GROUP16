@@ -102,8 +102,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             max-width: 700px;
         }
 
-        .utm-logo-img { max-width: 150px; height: auto; margin-bottom: 10px; }
-        .logo-divider { width: 50px; height: 4px; background: var(--utm-red); margin: 0 auto; border-radius: 4px; }
+        /* Logo Styles - SAME AS INDEX */
+        .utm-logo {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .utmspace-logo-img {
+            max-width: 150px;
+            width: 100%;
+            height: auto;
+            margin-bottom: 10px;
+            background: transparent;
+        }
+        
+        .logo-divider {
+            width: 60px;
+            height: 3px;
+            background: linear-gradient(90deg, var(--utm-red), #ff4b52);
+            margin: 10px auto 0;
+            border-radius: 3px;
+        }
         
         .form-control, .form-select {
             border-radius: 12px;
@@ -112,7 +131,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             background: rgba(255, 255, 255, 0.5);
         }
 
-        .form-control:focus { border-color: var(--utm-red); box-shadow: 0 0 0 4px rgba(193, 39, 45, 0.1); }
+        .form-control:focus, .form-select:focus { 
+            border-color: var(--utm-red); 
+            box-shadow: 0 0 0 4px rgba(193, 39, 45, 0.1); 
+        }
 
         .btn-primary-custom {
             background: var(--utm-navy); color: white; border-radius: 50px;
@@ -132,6 +154,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             color: var(--utm-navy); border-radius: 50px; padding: 6px 15px;
             font-size: 0.85rem; font-weight: 600; text-decoration: none; transition: all 0.3s;
         }
+        .role-switch-btn:hover { background: var(--utm-navy); color: white; }
         .role-switch-btn.active { background: var(--utm-navy); color: white; }
 
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
@@ -142,8 +165,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="blurry-bg"></div>
     <div class="content-wrapper">
         <div class="glass-card p-4 p-md-5 fade-in-up">
-            <div class="text-center mb-4">
-                <img src="css/images/utm-logo.png" class="utm-logo-img" onerror="this.src='css/images/utm_space1.jpg'">
+            
+            <!-- Logo - SAME AS INDEX -->
+            <div class="utm-logo">
+                <img src="css/images/utmspace logo.png" alt="UTMSPACE Logo" class="utmspace-logo-img" 
+                     style="background: transparent;"
+                     onerror="this.src='css/images/utm_space1.jpg'">
                 <div class="logo-divider"></div>
             </div>
 
@@ -210,7 +237,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <a href="?role=finance" class="role-switch-btn <?php echo $requested_role == 'finance' ? 'active' : ''; ?>">Finance</a>
                     <a href="?role=admin" class="role-switch-btn <?php echo $requested_role == 'admin' ? 'active' : ''; ?>">Admin</a>
                 </div>
-                <p class="mt-4 mb-0">Already a member? <a href="login.php" class="fw-bold text-navy">Log In</a></p>
+                <p class="mt-4 mb-0">Already a member? <a href="login.php" class="fw-bold" style="color: var(--utm-red);">Log In</a></p>
             </div>
         </div>
     </div>

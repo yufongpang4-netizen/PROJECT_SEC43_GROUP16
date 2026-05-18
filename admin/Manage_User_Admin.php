@@ -141,60 +141,67 @@ $stmt->close();
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bootstrap-4/bootstrap-4.css">
     
     <style>
-        /* Admin Dashboard - Soft Purple Theme */
+        /* ADMIN - DARK PURPLE THEME WITH LIGHT BACKGROUND */
         :root {
-            --admin-primary: #4c1d95;
-            --admin-secondary: #8b5cf6;
-            --admin-soft: #f5f3ff;
-            --admin-accent: #5BC0BE;
-            --admin-white: #ffffff;
-            --admin-text: #4c1d95;
+            --admin-primary: #2e1065;
+            --admin-secondary: #4c1d95;
+            --admin-accent: #8b5cf6;
+            --admin-bg: #faf5ff;
+            --admin-card: #ffffff;
+            --admin-text: #2e1065;
             --admin-gray: #6b7280;
         }
         
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; margin: 0; padding: 0; }
-        body { background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow-x: hidden; }
+        body { background: var(--admin-bg); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow-x: hidden; }
         
         .container-fluid { height: 100%; overflow: hidden; }
         .row.g-0 { height: 100%; }
         
-        .sidebar { background: linear-gradient(180deg, #4c1d95 0%, #6d28d9 100%); height: 100vh; color: white; transition: all 0.3s ease; overflow-y: auto; position: sticky; top: 0; }
+        /* Sidebar */
+        .sidebar { background: linear-gradient(180deg, #2e1065 0%, #4c1d95 100%); height: 100vh; color: white; transition: all 0.3s ease; overflow-y: auto; position: sticky; top: 0; }
         .sidebar::-webkit-scrollbar { width: 5px; }
         .sidebar::-webkit-scrollbar-track { background: rgba(255,255,255,0.1); }
         .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 5px; }
         
         .sidebar .nav-link { color: rgba(255, 255, 255, 0.85); padding: 12px 20px; margin: 5px 0; border-radius: 10px; transition: all 0.3s ease; }
-        .sidebar .nav-link:hover { background: rgba(91, 192, 190, 0.2); color: #5BC0BE; transform: translateX(5px); }
-        .sidebar .nav-link.active { background: #5BC0BE; color: #4c1d95; font-weight: 600; }
+        .sidebar .nav-link:hover { background: rgba(139, 92, 246, 0.2); color: #8b5cf6; transform: translateX(5px); }
+        .sidebar .nav-link.active { background: #8b5cf6; color: #2e1065; font-weight: 600; }
         
+        /* Main Content */
         .main-content { height: 100vh; overflow-y: auto; padding: 20px; }
         .main-content::-webkit-scrollbar { width: 8px; }
         .main-content::-webkit-scrollbar-track { background: #e5e7eb; border-radius: 10px; }
         .main-content::-webkit-scrollbar-thumb { background: #8b5cf6; border-radius: 10px; }
         
-        .page-header { background: linear-gradient(135deg, #4c1d95 0%, #6d28d9 100%); border-radius: 20px; padding: 20px 25px; color: white; margin-bottom: 25px; }
+        /* Page Header */
+        .page-header { background: linear-gradient(135deg, #2e1065 0%, #4c1d95 100%); border-radius: 20px; padding: 20px 25px; color: white; margin-bottom: 25px; }
         
+        /* Table Card */
         .table-card { background: white; border-radius: 20px; border: none; box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05); margin-bottom: 25px; padding: 20px;}
         
         .btn-add { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; border: none; border-radius: 12px; padding: 10px 20px; font-weight: 600; transition: all 0.3s ease; }
         .btn-add:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -5px rgba(139, 92, 246, 0.4); color: white; }
         
+        /* Table */
         .table-custom { margin-bottom: 0; }
         .table-custom thead { background: #f1f5f9; }
-        .table-custom th { color: #4c1d95; font-weight: 600; padding: 15px; border: none; }
-        .table-custom th.sorting_asc, .table-custom th.sorting_desc { color: #8b5cf6 !important; }
-        .table-custom td { padding: 12px 15px; vertical-align: middle; border-bottom: 1px solid #eef2ff; }
+        .table-custom th { color: #2e1065; font-weight: 600; padding: 15px; border: none; }
+        .table-custom td { padding: 12px 15px; vertical-align: middle; border-bottom: 1px solid #f3e8ff; }
         .table-custom tr:hover { background: #faf5ff; }
         
+        /* Role Badges */
         .role-badge { padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; }
         .role-staff { background: #3b82f6; color: white; }
         .role-finance { background: #10b981; color: white; }
         .role-admin { background: #ef4444; color: white; }
         
+        /* Status Badges */
         .status-active { background: #d1fae5; color: #059669; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; }
         .status-inactive { background: #fee2e2; color: #dc2626; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; }
         
+        /* Action Buttons */
         .action-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
         .btn-view { background: #8b5cf6; color: white; border: none; border-radius: 8px; padding: 6px 12px; font-size: 12px; transition: all 0.3s ease; text-decoration: none;}
         .btn-view:hover { background: #7c3aed; transform: translateY(-2px); color:white;}
@@ -203,28 +210,47 @@ $stmt->close();
         .btn-activate { background: #10b981; color: white; border: none; border-radius: 8px; padding: 6px 12px; font-size: 12px; text-decoration: none;}
         .btn-activate:hover { background: #059669; transform: translateY(-2px); color:white;}
         
-        .modal-custom-header { background: linear-gradient(135deg, #4c1d95 0%, #6d28d9 100%); color: white; }
+        /* Modal */
+        .modal-custom-header { background: linear-gradient(135deg, #2e1065 0%, #4c1d95 100%); color: white; }
         .btn-save { background: #8b5cf6; color: white; border: none; border-radius: 50px; padding: 10px 25px; font-weight: 600; transition: all 0.3s ease; }
         .btn-save:hover { background: #7c3aed; transform: translateY(-2px); }
+        
+        /* Form */
+        .form-control, .form-select {
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            padding: 10px 15px;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+        }
+        .form-label { font-weight: 600; color: #2e1065; margin-bottom: 8px; }
         
         .invalid-feedback-custom { color: #dc3545; font-size: 12px; margin-top: 5px; display: block; }
         .fade-in { animation: fadeIn 0.5s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         
+        /* DataTables */
         .dataTables_filter input { border-radius: 10px; border: 1px solid #e5e7eb; padding: 6px 12px; margin-left: 10px; }
         .dataTables_filter input:focus { border-color: #8b5cf6; outline: none; box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1); }
+        .dataTables_filter label { color: #2e1065; font-weight: 500; }
         .page-item.active .page-link { background-color: #8b5cf6 !important; border-color: #8b5cf6 !important; color: white !important; }
-        .page-link { color: #4c1d95 !important; border-radius: 6px; margin: 0 2px; }
+        .page-link { color: #2e1065 !important; border-radius: 6px; margin: 0 2px; }
+        .dataTables_length label { color: #2e1065; }
+        .dataTables_info { color: #6b7280; }
         
+        hr { border-color: #f3e8ff; }
     </style>
 </head>
 <body>
 <div class="container-fluid p-0">
     <div class="row g-0">
+        <!-- Sidebar -->
         <div class="col-md-3 col-lg-2 sidebar">
             <div class="p-3">
                 <div class="text-center mb-4">
-                    <i class="fas fa-user-shield fs-1" style="color:#5BC0BE;"></i>
+                    <i class="fas fa-user-shield fs-1" style="color:#8b5cf6;"></i>
                     <h5 class="mt-2">UTMSPACE</h5>
                     <small>Admin Portal</small>
                 </div>
@@ -239,11 +265,12 @@ $stmt->close();
             </div>
         </div>
  
+        <!-- Main Content -->
         <div class="col-md-9 col-lg-10 main-content">
             <div class="page-header fade-in">
                 <div class="d-flex justify-content-between align-items-center flex-wrap">
                     <div>
-                        <h3 class="mb-1"><i class="fas fa-users me-2" style="color: #5BC0BE;"></i>Manage User Accounts</h3>
+                        <h3 class="mb-1"><i class="fas fa-users me-2" style="color: #8b5cf6;"></i>Manage User Accounts</h3>
                         <p class="mb-0 opacity-75">View, add, and manage staff, finance, and admin accounts</p>
                     </div>
                     <button class="btn btn-add mt-2 mt-sm-0" data-bs-toggle="modal" data-bs-target="#addUserModal">
@@ -257,7 +284,7 @@ $stmt->close();
                 <div class="modal-dialog">
                     <div class="modal-content">
                         <div class="modal-header modal-custom-header">
-                            <h5 class="modal-title"><i class="fas fa-user me-2" style="color: #5BC0BE;"></i>User Details</h5>
+                            <h5 class="modal-title"><i class="fas fa-user me-2" style="color: #8b5cf6;"></i>User Details</h5>
                             <a href="Manage_User_Admin.php" class="btn-close btn-close-white"></a>
                         </div>
                         <div class="modal-body">
@@ -269,8 +296,10 @@ $stmt->close();
                                 <tr><th>Phone</th><td><?php echo htmlspecialchars($view_user['phone'] ?? '—'); ?></td></tr>
                                 <tr><th>Role</th><td><?php echo ucfirst($view_user['role']); ?></td></tr>
                                 <tr><th>Department</th><td><?php echo htmlspecialchars($view_user['department'] ?? '—'); ?></td></tr>
-                                <tr><th>Status</th><td><span class="<?php echo $view_user['status'] == 'Active' ? 'status-active' : 'status-inactive'; ?>"><?php echo $view_user['status']; ?></span></td></tr>
-                                <tr><th>Registered</th><td><?php echo date('d M Y, H:i', strtotime($view_user['created_at'])); ?></td></tr>
+                                <tr><th>Status</th><td><span class="<?php echo $view_user['status'] == 'Active' ? 'status-active' : 'status-inactive'; ?>"><?php echo $view_user['status']; ?></span></td>
+                                </tr>
+                                <tr><th>Registered</th><td><?php echo date('d M Y, H:i', strtotime($view_user['created_at'])); ?></td>
+                                </tr>
                             </table>
                         </div>
                         <div class="modal-footer">
@@ -281,6 +310,7 @@ $stmt->close();
             </div>
             <?php endif; ?>
  
+            <!-- Users Table -->
             <div class="table-card fade-in">
                 <div class="table-responsive">
                     <table class="table table-custom" id="adminUsersTable">
@@ -319,6 +349,7 @@ $stmt->close();
     </div>
 </div>
  
+<!-- Add User Modal -->
 <div class="modal fade" id="addUserModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -395,7 +426,7 @@ $stmt->close();
         $('#adminUsersTable').DataTable({
             "pageLength": 10,
             "language": {
-                "search": "<i class='fas fa-search' style='color: #8b5cf6;'></i> Global Smart Search:",
+                "search": "<i class='fas fa-search' style='color: #8b5cf6;'></i> Search:",
                 "paginate": { "next": "<i class='fas fa-chevron-right'></i>", "previous": "<i class='fas fa-chevron-left'></i>" }
             }
         });
@@ -448,8 +479,8 @@ $stmt->close();
         });
 
         Toast.fire({
-            icon: '<?php echo $message_type; ?>',
-            title: '<?php echo $message; ?>'
+            icon: '<?php echo $message_type === 'success' ? 'success' : 'error'; ?>',
+            title: '<?php echo addslashes($message); ?>'
         });
     <?php endif; ?>
 </script>
