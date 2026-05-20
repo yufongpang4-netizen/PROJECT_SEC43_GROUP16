@@ -112,6 +112,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             height: auto;
             margin-bottom: 10px;
             background: transparent;
+            transition: transform 0.2s ease;
+        }
+        
+        /* 🔥 Logo hover effect 🔥 */
+        .utmspace-logo-img:hover {
+            transform: scale(1.05);
         }
         
         .logo-divider {
@@ -176,9 +182,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="glass-card p-4 p-md-5 fade-in-up">
             
             <div class="utm-logo">
-                <img src="css/images/utmspace logo.png" alt="UTMSPACE Logo" class="utmspace-logo-img" 
-                     style="background: transparent;"
-                     onerror="this.src='css/images/utm_space1.jpg'">
+                <a href="index.php" class="d-inline-block">
+                    <img src="css/images/utmspace logo.png" alt="UTMSPACE Logo" class="utmspace-logo-img" 
+                         style="background: transparent;"
+                         onerror="this.src='css/images/utm_space1.jpg'">
+                </a>
                 <div class="logo-divider"></div>
             </div>
 
