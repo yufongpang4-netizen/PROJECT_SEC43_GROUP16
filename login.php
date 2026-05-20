@@ -175,7 +175,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="content-wrapper">
         <div class="glass-card p-4 p-md-5 fade-in-up">
             
-            <!-- Logo - SAME AS INDEX -->
             <div class="utm-logo">
                 <img src="css/images/utmspace logo.png" alt="UTMSPACE Logo" class="utmspace-logo-img" 
                      style="background: transparent;"
@@ -193,16 +192,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <label class="form-label text-navy ms-1"><i class="fas fa-envelope me-2 opacity-75"></i>Email Address</label>
                     <input type="email" name="email" class="form-control" placeholder="name@utmspace.edu.my" required>
                 </div>
+                
                 <div class="mb-4">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <label class="form-label text-navy ms-1 mb-0"><i class="fas fa-lock me-2 opacity-75"></i>Password</label>
-                        <a href="forgot_password.php" class="text-decoration-none small forgot-link">Forgot Password?</a>
-                    </div>
+                    <label class="form-label text-navy ms-1 mb-1"><i class="fas fa-lock me-2 opacity-75"></i>Password</label>
                     <input type="password" name="password" class="form-control" placeholder="••••••••" required>
                 </div>
-                <button type="submit" class="btn btn-primary-custom w-100 mb-4">
+                
+                <button type="submit" class="btn btn-primary-custom w-100 mb-3">
                     <i class="fas fa-sign-in-alt me-2"></i>Sign In
                 </button>
+                
+                <div class="text-center mb-4">
+                    <a href="forgot_password.php" class="text-decoration-none small forgot-link" style="font-size: 0.9rem;">Forgot Password?</a>
+                </div>
             </form>
 
             <div class="text-center">

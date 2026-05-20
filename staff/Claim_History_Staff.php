@@ -13,7 +13,8 @@ $error   = '';
 
 // ========== EDIT CLAIM FUNCTIONALITY ==========
 if($_SERVER['REQUEST_METHOD'] == 'POST') {
-    // Handle Edit Claim
+    
+    // Handle Edit Claim (Now supports both Pending and Rejected claims)
     if(isset($_POST['edit_id'])) {
         $edit_id = intval($_POST['edit_id']);
         $claim_type = $_POST['claim_type'];
@@ -21,17 +22,18 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         $expense_date = $_POST['expense_date'];
         $description = trim($_POST['description']);
         
-        $check_sql = "SELECT id, status, receipt FROM claims WHERE id = ? AND user_id = ? AND status = 'Pending'";
+        $check_sql = "SELECT id, status, receipt FROM claims WHERE id = ? AND user_id = ? AND status IN ('Pending', 'Rejected')";
         $check_stmt = $conn->prepare($check_sql);
         $check_stmt->bind_param("ii", $edit_id, $user_id);
         $check_stmt->execute();
         $check_result = $check_stmt->get_result();
         
         if($check_result->num_rows == 0) {
-            $error = "Claim cannot be edited. Either it doesn't exist, doesn't belong to you, or has already been processed.";
+            $error = "Claim cannot be edited. Either it doesn't exist, doesn't belong to you, or has already been approved/paid.";
         } else {
             $claim_data = $check_result->fetch_assoc();
             $old_receipt = $claim_data['receipt'];
+            $current_status = $claim_data['status'];
             
             if(empty($claim_type) || empty($amount) || empty($expense_date) || empty($description)) {
                 $error = "Please fill in all required fields.";
@@ -72,13 +74,18 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                 }
                 
                 if(empty($error)) {
-                    $update_sql = "UPDATE claims SET claim_type = ?, amount = ?, expense_date = ?, description = ?, receipt = ? WHERE id = ? AND user_id = ? AND status = 'Pending'";
+                    $update_sql = "UPDATE claims SET claim_type = ?, amount = ?, expense_date = ?, description = ?, receipt = ?, status = 'Pending', finance_comment = NULL WHERE id = ? AND user_id = ?";
                     $update_stmt = $conn->prepare($update_sql);
                     $update_stmt->bind_param("sdsssii", $claim_type, $amount, $expense_date, $description, $receipt_filename, $edit_id, $user_id);
                     
                     if($update_stmt->execute()) {
-                        $success = "Claim #$edit_id has been updated successfully!";
-                        logActivity($conn, $user_id, 'Edit Claim', "Edited claim #$edit_id");
+                        if ($current_status === 'Rejected') {
+                            $success = "Rejected claim #$edit_id has been updated and resubmitted successfully!";
+                            if (function_exists('logActivity')) logActivity($conn, $user_id, 'Resubmit Claim', "Resubmitted rejected claim #$edit_id");
+                        } else {
+                            $success = "Claim #$edit_id has been updated successfully!";
+                            if (function_exists('logActivity')) logActivity($conn, $user_id, 'Edit Claim', "Edited pending claim #$edit_id");
+                        }
                     } else {
                         $error = "Failed to update claim. Please try again.";
                     }
@@ -110,7 +117,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                     unlink("../uploads/receipts/" . $receipt_file);
                 }
                 $success = "Claim #$cancel_id has been cancelled and removed.";
-                logActivity($conn, $user_id, 'Cancel Claim', "Cancelled claim #$cancel_id");
+                if (function_exists('logActivity')) logActivity($conn, $user_id, 'Cancel Claim', "Cancelled claim #$cancel_id");
             } else {
                 $error = "Could not cancel the claim. It may have already been processed.";
             }
@@ -178,194 +185,57 @@ foreach($counts_rows as $r) {
         }
         
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
         html, body { height: 100%; margin: 0; padding: 0; }
         
-        body {
-            background: var(--staff-bg);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            overflow-x: hidden;
-        }
-        
+        body { background: var(--staff-bg); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow-x: hidden; }
         .container-fluid { height: 100%; overflow: hidden; }
         .row.g-0 { height: 100%; }
         
-        .sidebar {
-            background: linear-gradient(180deg, #0f2b4d 0%, #1e4d8c 100%);
-            height: 100vh;
-            color: white;
-            transition: all 0.3s ease;
-            overflow-y: auto;
-            position: sticky;
-            top: 0;
-        }
+        .sidebar { background: linear-gradient(180deg, #0f2b4d 0%, #1e4d8c 100%); height: 100vh; color: white; transition: all 0.3s ease; overflow-y: auto; position: sticky; top: 0; }
+        .sidebar .nav-link { color: rgba(255, 255, 255, 0.85); padding: 12px 20px; margin: 5px 0; border-radius: 10px; transition: all 0.3s ease; }
+        .sidebar .nav-link:hover { background: rgba(59, 130, 246, 0.2); color: #3b82f6; transform: translateX(5px); }
+        .sidebar .nav-link.active { background: #3b82f6; color: #0f2b4d; font-weight: 600; }
         
-        .sidebar .nav-link {
-            color: rgba(255, 255, 255, 0.85);
-            padding: 12px 20px;
-            margin: 5px 0;
-            border-radius: 10px;
-            transition: all 0.3s ease;
-        }
-        
-        .sidebar .nav-link:hover {
-            background: rgba(59, 130, 246, 0.2);
-            color: #3b82f6;
-            transform: translateX(5px);
-        }
-        
-        .sidebar .nav-link.active {
-            background: #3b82f6;
-            color: #0f2b4d;
-            font-weight: 600;
-        }
-        
-        .main-content {
-            height: 100vh;
-            overflow-y: auto;
-            padding: 20px;
-        }
-        
+        .main-content { height: 100vh; overflow-y: auto; padding: 20px; }
         .main-content::-webkit-scrollbar { width: 8px; }
         .main-content::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 10px; }
         .main-content::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 10px; }
         
         /* Header */
-        .page-header {
-            background: linear-gradient(135deg, #0f2b4d 0%, #1e4d8c 100%);
-            border-radius: 20px;
-            padding: 20px 25px;
-            color: white;
-            margin-bottom: 25px;
-        }
+        .page-header { background: linear-gradient(135deg, #0f2b4d 0%, #1e4d8c 100%); border-radius: 20px; padding: 20px 25px; color: white; margin-bottom: 25px; }
         
         /* Filter Buttons */
-        .filter-btn {
-            background: white;
-            color: #0f2b4d;
-            border: 1px solid #e2e8f0;
-            transition: all 0.3s ease;
-        }
-        
-        .filter-btn:hover, .filter-btn.active {
-            background: #3b82f6;
-            color: white;
-            border-color: #3b82f6;
-            transform: translateY(-2px);
-        }
-        
-        .filter-badge {
-            background: #e2e8f0;
-            color: #0f2b4d;
-        }
-        
-        .filter-btn.active .filter-badge {
-            background: white;
-            color: #3b82f6;
-        }
+        .filter-btn { background: white; color: #0f2b4d; border: 1px solid #e2e8f0; transition: all 0.3s ease; }
+        .filter-btn:hover, .filter-btn.active { background: #3b82f6; color: white; border-color: #3b82f6; transform: translateY(-2px); }
+        .filter-badge { background: #e2e8f0; color: #0f2b4d; }
+        .filter-btn.active .filter-badge { background: white; color: #3b82f6; }
         
         /* Table */
-        .claims-table {
-            background: white;
-            border-radius: 20px;
-            overflow: hidden;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
-            margin-bottom: 25px;
-        }
-        
-        .claims-table thead {
-            background: #f1f5f9;
-        }
-        
-        .claims-table th {
-            color: #0f2b4d;
-            font-weight: 600;
-            padding: 15px;
-            border: none;
-        }
-        
-        .claims-table td {
-            padding: 12px 15px;
-            vertical-align: middle;
-            border-bottom: 1px solid #eef2ff;
-        }
-        
-        .claims-table tr:hover {
-            background: #f8fafc;
-        }
+        .claims-table { background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05); margin-bottom: 25px; }
+        .claims-table thead { background: #f1f5f9; }
+        .claims-table th { color: #0f2b4d; font-weight: 600; padding: 15px; border: none; }
+        .claims-table td { padding: 12px 15px; vertical-align: middle; border-bottom: 1px solid #eef2ff; }
+        .claims-table tr:hover { background: #f8fafc; }
         
         /* Status Badges */
-        .status-badge {
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-        }
+        .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; }
         .status-Pending { background: #fef3c7; color: #d97706; }
         .status-Approved { background: #d1fae5; color: #059669; }
         .status-Paid { background: #dbeafe; color: #2563eb; }
         .status-Rejected { background: #fee2e2; color: #dc2626; }
         
         /* Buttons */
-        .btn-view {
-            background: #3b82f6;
-            color: white;
-            border-radius: 8px;
-            padding: 5px 12px;
-            font-size: 12px;
-            transition: all 0.3s ease;
-            border: none;
-        }
-        
+        .btn-view { background: #3b82f6; color: white; border-radius: 8px; padding: 5px 12px; font-size: 12px; transition: all 0.3s ease; border: none; }
         .btn-view:hover { background: #2563eb; transform: translateY(-2px); color: white; }
-        
-        .btn-edit {
-            background: #f59e0b;
-            color: white;
-            border-radius: 8px;
-            padding: 5px 12px;
-            font-size: 12px;
-            transition: all 0.3s ease;
-            border: none;
-        }
-        
+        .btn-edit { background: #f59e0b; color: white; border-radius: 8px; padding: 5px 12px; font-size: 12px; transition: all 0.3s ease; border: none; }
         .btn-edit:hover { background: #d97706; transform: translateY(-2px); color: white; }
-        
-        .btn-cancel {
-            background: #ef4444;
-            color: white;
-            border-radius: 8px;
-            padding: 5px 12px;
-            font-size: 12px;
-            transition: all 0.3s ease;
-            border: none;
-        }
-        
+        .btn-cancel { background: #ef4444; color: white; border-radius: 8px; padding: 5px 12px; font-size: 12px; transition: all 0.3s ease; border: none; }
         .btn-cancel:hover { background: #dc2626; transform: translateY(-2px); color: white; }
         
-        .btn-new-claim {
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            padding: 10px 20px;
-            transition: all 0.3s ease;
-        }
+        .btn-new-claim { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none; border-radius: 12px; padding: 10px 20px; transition: all 0.3s ease; }
+        .btn-new-claim:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.4); color: white; }
         
-        .btn-new-claim:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.4);
-            color: white;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .fade-in { animation: fadeIn 0.5s ease-out; }
         
         /* Empty State */
@@ -391,22 +261,12 @@ foreach($counts_rows as $r) {
                     </div>
                     <hr style="border-color: rgba(255,255,255,0.2);">
                     <nav class="nav flex-column">
-                        <a class="nav-link" href="dashboard_Staff.php">
-                            <i class="fas fa-tachometer-alt fa-fw me-2"></i> Dashboard
-                        </a>
-                        <a class="nav-link" href="New_Claim_Staff.php">
-                            <i class="fas fa-plus-circle fa-fw me-2"></i> New Claim
-                        </a>
-                        <a class="nav-link active" href="Claim_History_Staff.php">
-                            <i class="fas fa-history fa-fw me-2"></i> Claim History
-                        </a>
-                        <a class="nav-link" href="Edit_profile_Staff.php">
-                            <i class="fas fa-user-edit fa-fw me-2"></i> Edit Profile
-                        </a>
+                        <a class="nav-link" href="dashboard_Staff.php"><i class="fas fa-tachometer-alt fa-fw me-2"></i> Dashboard</a>
+                        <a class="nav-link" href="New_Claim_Staff.php"><i class="fas fa-plus-circle fa-fw me-2"></i> New Claim</a>
+                        <a class="nav-link active" href="Claim_History_Staff.php"><i class="fas fa-history fa-fw me-2"></i> Claim History</a>
+                        <a class="nav-link" href="Edit_profile_Staff.php"><i class="fas fa-user-edit fa-fw me-2"></i> Edit Profile</a>
                         <hr style="border-color: rgba(255,255,255,0.2);">
-                        <a class="nav-link" href="../logout.php">
-                            <i class="fas fa-sign-out-alt fa-fw me-2"></i> Logout
-                        </a>
+                        <a class="nav-link" href="../logout.php"><i class="fas fa-sign-out-alt fa-fw me-2"></i> Logout</a>
                     </nav>
                 </div>
             </div>
@@ -512,7 +372,7 @@ foreach($counts_rows as $r) {
                                                 <i class="fas fa-eye"></i> View
                                             </button>
                                             
-                                            <?php if(strtolower($claim['status']) === 'pending'): ?>
+                                            <?php if(strtolower($claim['status']) === 'pending' || strtolower($claim['status']) === 'rejected'): ?>
                                             <button class="btn btn-edit btn-sm me-1"
                                                 data-bs-toggle="modal" data-bs-target="#editModal"
                                                 data-id="<?php echo $claim['id']; ?>"
@@ -520,10 +380,13 @@ foreach($counts_rows as $r) {
                                                 data-amount="<?php echo $claim['amount']; ?>"
                                                 data-expense-date="<?php echo $claim['expense_date']; ?>"
                                                 data-desc="<?php echo htmlspecialchars($claim['description']); ?>"
-                                                data-receipt="<?php echo htmlspecialchars($claim['receipt'] ?? ''); ?>">
+                                                data-receipt="<?php echo htmlspecialchars($claim['receipt'] ?? ''); ?>"
+                                                data-current-status="<?php echo $claim['status']; ?>">
                                                 <i class="fas fa-edit"></i> Edit
                                             </button>
+                                            <?php endif; ?>
                                             
+                                            <?php if(strtolower($claim['status']) === 'pending'): ?>
                                             <form method="POST" class="d-inline" id="cancel-form-<?php echo $claim['id']; ?>">
                                                 <input type="hidden" name="cancel_id" value="<?php echo $claim['id']; ?>">
                                                 <button type="button" class="btn btn-cancel btn-sm" onclick="confirmCancel(<?php echo $claim['id']; ?>)">
@@ -612,7 +475,7 @@ foreach($counts_rows as $r) {
                 <div class="modal-header modal-edit-header">
                     <h5 class="modal-title">
                         <i class="fas fa-edit me-2"></i>
-                        Edit Pending Claim
+                        Edit Claim
                     </h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
@@ -620,10 +483,8 @@ foreach($counts_rows as $r) {
                     <div class="modal-body p-4">
                         <input type="hidden" name="edit_id" id="edit-id">
                         
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle me-2"></i>
-                            You can only edit claims while they are in <strong>Pending</strong> status.
-                        </div>
+                        <div class="alert alert-info" id="edit-alert-msg">
+                            </div>
                         
                         <div class="row">
                             <div class="col-md-6 mb-3">
@@ -667,7 +528,7 @@ foreach($counts_rows as $r) {
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn" style="background: #f59e0b; color: white;">
-                            <i class="fas fa-save me-2"></i>Save Changes
+                            <i class="fas fa-paper-plane me-2"></i>Save & Resubmit
                         </button>
                     </div>
                 </form>
@@ -676,7 +537,6 @@ foreach($counts_rows as $r) {
     </div>
  
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
     <script>
@@ -722,12 +582,22 @@ foreach($counts_rows as $r) {
         
         document.getElementById('editModal').addEventListener('show.bs.modal', function(e) {
             const btn = e.relatedTarget;
+            const currentStatus = btn.dataset.currentStatus;
             
             document.getElementById('edit-id').value = btn.dataset.id;
             document.getElementById('edit-type').value = btn.dataset.type;
             document.getElementById('edit-amount').value = btn.dataset.amount;
             document.getElementById('edit-expense-date').value = btn.dataset.expenseDate;
             document.getElementById('edit-description').value = btn.dataset.desc;
+            
+            const alertMsg = document.getElementById('edit-alert-msg');
+            if (currentStatus === 'Rejected') {
+                alertMsg.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i> You are editing a <strong>Rejected</strong> claim. Upon saving, it will be resubmitted for approval.';
+                alertMsg.className = 'alert alert-warning';
+            } else {
+                alertMsg.innerHTML = '<i class="fas fa-info-circle me-2"></i> You can edit this claim while it is still in <strong>Pending</strong> status.';
+                alertMsg.className = 'alert alert-info';
+            }
             
             const receipt = btn.dataset.receipt;
             const receiptContainer = document.getElementById('current-receipt');

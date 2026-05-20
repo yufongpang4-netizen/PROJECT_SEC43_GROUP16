@@ -219,7 +219,6 @@ while ($d = $depts_res->fetch_assoc()) $departments[] = $d['department'];
 <div class="container-fluid p-0">
     <div class="row g-0">
  
-        <!-- Sidebar -->
         <div class="col-md-3 col-lg-2 sidebar">
             <div class="p-3">
                 <div class="text-center mb-4">
@@ -231,6 +230,7 @@ while ($d = $depts_res->fetch_assoc()) $departments[] = $d['department'];
                 <nav class="nav flex-column">
                     <a class="nav-link" href="dashboard_Admin.php"><i class="fas fa-tachometer-alt fa-fw me-2"></i> Dashboard</a>
                     <a class="nav-link" href="Manage_User_Admin.php"><i class="fas fa-users fa-fw me-2"></i> Manage Accounts</a>
+                    <a class="nav-link" href="Manage_Claims_Admin.php"><i class="fas fa-file-invoice-dollar fa-fw me-2"></i> Manage Claims</a>
                     <a class="nav-link active" href="Generate_Report_Admin.php"><i class="fas fa-chart-bar fa-fw me-2"></i> Generate Report</a>
                     <hr style="border-color: rgba(255,255,255,0.2);">
                     <a class="nav-link" href="../logout.php"><i class="fas fa-sign-out-alt fa-fw me-2"></i> Logout</a>
@@ -238,7 +238,6 @@ while ($d = $depts_res->fetch_assoc()) $departments[] = $d['department'];
             </div>
         </div>
  
-        <!-- Main Content -->
         <div class="col-md-9 col-lg-10 main-content">
             <div class="page-header fade-in">
                 <div class="d-flex justify-content-between align-items-center flex-wrap">
@@ -249,7 +248,6 @@ while ($d = $depts_res->fetch_assoc()) $departments[] = $d['department'];
                 </div>
             </div>
  
-            <!-- Filter Card -->
             <div class="filter-card fade-in">
                 <div class="card-body p-4">
                     <h5 class="card-title mb-3">
@@ -303,7 +301,6 @@ while ($d = $depts_res->fetch_assoc()) $departments[] = $d['department'];
                 </div>
             </div>
  
-            <!-- Report Results -->
             <?php if ($generated): ?>
             <div class="report-card fade-in mb-5">
                 <div class="card-body p-0">

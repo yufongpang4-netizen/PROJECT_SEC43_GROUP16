@@ -9,7 +9,7 @@ require_once '../db.php';
  
 // ---------- Live Stats ----------
 $total_staff   = $conn->query("SELECT COUNT(*) AS c FROM users WHERE role='staff'")->fetch_assoc()['c'];
-$total_finance = $conn->query("SELECT COUNT(*) AS c FROM users WHERE role='finance'")->fetch_assoc()['c'];
+// Finance stat is hidden based on requirements
 $total_admin   = $conn->query("SELECT COUNT(*) AS c FROM users WHERE role='admin'")->fetch_assoc()['c'];
 $total_users   = $conn->query("SELECT COUNT(*) AS c FROM users")->fetch_assoc()['c'];
  
@@ -41,27 +41,12 @@ $recent_users = $conn->query("
     LIMIT 5
 ");
  
-$status_data = [
-    'Pending'   => ['cnt' => 0, 'total' => 0.00],
-    'Approved'  => ['cnt' => 0, 'total' => 0.00],
-    'Paid'      => ['cnt' => 0, 'total' => 0.00],
-    'Rejected'  => ['cnt' => 0, 'total' => 0.00]
-];
-
 $trend_labels = [];
 $trend_data = [];
 $dept_pie_labels = [];
 $dept_pie_data = [];
 
 if ($claims_exist) {
-    $sr = $conn->query("SELECT status, COUNT(*) AS cnt, IFNULL(SUM(amount),0) AS total FROM claims GROUP BY status");
-    while ($s = $sr->fetch_assoc()) {
-        if(isset($status_data[$s['status']])) {
-            $status_data[$s['status']]['cnt'] = $s['cnt'];
-            $status_data[$s['status']]['total'] = $s['total'];
-        }
-    }
-
     $trend_sql = "SELECT DATE_FORMAT(submitted_at, '%b %Y') as month_name, SUM(amount) as total
                   FROM claims
                   WHERE status != 'Cancelled' AND status != 'Rejected'
@@ -107,183 +92,62 @@ if ($claims_exist) {
         }
         
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
         html, body { height: 100%; margin: 0; padding: 0; }
-        
-        body {
-            background: var(--admin-bg);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            overflow-x: hidden;
-        }
-        
+        body { background: var(--admin-bg); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow-x: hidden; }
         .container-fluid { height: 100%; overflow: hidden; }
         .row.g-0 { height: 100%; }
         
         /* Sidebar */
-        .sidebar {
-            background: linear-gradient(180deg, #2e1065 0%, #4c1d95 100%);
-            height: 100vh;
-            color: white;
-            transition: all 0.3s ease;
-            overflow-y: auto;
-            position: sticky;
-            top: 0;
-        }
-        
+        .sidebar { background: linear-gradient(180deg, #2e1065 0%, #4c1d95 100%); height: 100vh; color: white; transition: all 0.3s ease; overflow-y: auto; position: sticky; top: 0; }
         .sidebar::-webkit-scrollbar { width: 5px; }
         .sidebar::-webkit-scrollbar-track { background: rgba(255,255,255,0.1); }
         .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 5px; }
-        
-        .sidebar .nav-link {
-            color: rgba(255, 255, 255, 0.85);
-            padding: 12px 20px;
-            margin: 5px 0;
-            border-radius: 10px;
-            transition: all 0.3s ease;
-        }
-        
-        .sidebar .nav-link:hover {
-            background: rgba(139, 92, 246, 0.2);
-            color: #8b5cf6;
-            transform: translateX(5px);
-        }
-        
-        .sidebar .nav-link.active {
-            background: #8b5cf6;
-            color: #2e1065;
-            font-weight: 600;
-        }
+        .sidebar .nav-link { color: rgba(255, 255, 255, 0.85); padding: 12px 20px; margin: 5px 0; border-radius: 10px; transition: all 0.3s ease; }
+        .sidebar .nav-link:hover { background: rgba(139, 92, 246, 0.2); color: #8b5cf6; transform: translateX(5px); }
+        .sidebar .nav-link.active { background: #8b5cf6; color: #2e1065; font-weight: 600; }
         
         /* Main Content */
-        .main-content {
-            height: 100vh;
-            overflow-y: auto;
-            padding: 20px;
-        }
-        
+        .main-content { height: 100vh; overflow-y: auto; padding: 20px; }
         .main-content::-webkit-scrollbar { width: 8px; }
         .main-content::-webkit-scrollbar-track { background: #e5e7eb; border-radius: 10px; }
         .main-content::-webkit-scrollbar-thumb { background: #8b5cf6; border-radius: 10px; }
         .main-content::-webkit-scrollbar-thumb:hover { background: #4c1d95; }
         
         /* Page Header */
-        .page-header {
-            background: linear-gradient(135deg, #2e1065 0%, #4c1d95 100%);
-            border-radius: 20px;
-            padding: 20px 25px;
-            color: white;
-            margin-bottom: 25px;
-        }
+        .page-header { background: linear-gradient(135deg, #2e1065 0%, #4c1d95 100%); border-radius: 20px; padding: 20px 25px; color: white; margin-bottom: 25px; }
         
         /* Stats Cards with Hover Colors */
-        .stat-card {
-            background: white;
-            border-radius: 20px;
-            padding: 20px;
-            transition: all 0.3s ease;
-            border: 1px solid #f3e8ff;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
-            cursor: pointer;
-        }
-        
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-        }
+        .stat-card { background: white; border-radius: 20px; padding: 20px; transition: all 0.3s ease; border: 1px solid #f3e8ff; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03); cursor: pointer; }
+        .stat-card:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); }
         
         /* Total Staff - Purple theme */
-        .stat-card-staff:hover {
-            background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
-            border-color: #8b5cf6;
-        }
+        .stat-card-staff:hover { background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%); border-color: #8b5cf6; }
         .stat-card-staff:hover .stat-icon { background: #8b5cf6; color: white; }
         
-        /* Finance Staff - Blue theme */
-        .stat-card-finance:hover {
-            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-            border-color: #3b82f6;
-        }
-        .stat-card-finance:hover .stat-icon { background: #3b82f6; color: white; }
-        
         /* Total Claims - Yellow theme */
-        .stat-card-claims:hover {
-            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
-            border-color: #f59e0b;
-        }
+        .stat-card-claims:hover { background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-color: #f59e0b; }
         .stat-card-claims:hover .stat-icon { background: #f59e0b; color: white; }
         
         /* Total Paid - Green theme */
-        .stat-card-paid:hover {
-            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
-            border-color: #10b981;
-        }
+        .stat-card-paid:hover { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border-color: #10b981; }
         .stat-card-paid:hover .stat-icon { background: #10b981; color: white; }
         
-        .stat-icon {
-            width: 55px;
-            height: 55px;
-            background: rgba(139, 92, 246, 0.1);
-            border-radius: 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            color: #8b5cf6;
-            margin: 0 auto 15px;
-            transition: all 0.3s ease;
-        }
-        
-        .stat-number {
-            font-size: 28px;
-            font-weight: 700;
-            color: #2e1065;
-            margin-bottom: 5px;
-            transition: all 0.3s ease;
-        }
-        
-        .stat-label {
-            color: #6b7280;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.3s ease;
-        }
-        
-        .badge-pending {
-            background: #fef3c7;
-            color: #d97706;
-            font-size: 10px;
-            padding: 2px 8px;
-            border-radius: 20px;
-            margin-left: 8px;
-        }
+        .stat-icon { width: 55px; height: 55px; background: rgba(139, 92, 246, 0.1); border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #8b5cf6; margin: 0 auto 15px; transition: all 0.3s ease; }
+        .stat-number { font-size: 28px; font-weight: 700; color: #2e1065; margin-bottom: 5px; transition: all 0.3s ease; }
+        .stat-label { color: #6b7280; font-size: 14px; font-weight: 500; transition: all 0.3s ease; }
+        .badge-pending { background: #fef3c7; color: #d97706; font-size: 10px; padding: 2px 8px; border-radius: 20px; margin-left: 8px; }
         
         /* Cards */
-        .info-card {
-            background: white;
-            border-radius: 20px;
-            border: none;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
-            transition: all 0.3s ease;
-        }
+        .info-card { background: white; border-radius: 20px; border: none; box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05); transition: all 0.3s ease; }
+        .info-card:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); }
+        .card-title { color: #2e1065; font-size: 18px; font-weight: 600; }
         
-        .info-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-        }
-        
-        .card-title {
-            color: #2e1065;
-            font-size: 18px;
-            font-weight: 600;
-        }
-        
-        /* Department Table */
+        /* Department Table & User List */
         .dept-table { margin-bottom: 0; }
         .dept-table td { padding: 10px 0; border-bottom: 1px solid #f3e8ff; }
         .dept-table tr:last-child td { border-bottom: none; }
         .dept-badge { background: #8b5cf6; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; }
         
-        /* User List */
         .user-list { list-style: none; padding: 0; margin: 0; }
         .user-list li { padding: 12px 0; border-bottom: 1px solid #f3e8ff; }
         .user-list li:last-child { border-bottom: none; }
@@ -294,68 +158,19 @@ if ($claims_exist) {
         .role-admin { background: #ef4444; color: white; }
         .user-meta { font-size: 11px; color: #6b7280; }
         
-        /* Claims Status */
-        .status-card {
-            padding: 15px;
-            border-radius: 15px;
-            text-align: center;
-            transition: all 0.3s ease;
-        }
-        
-        .status-card:hover {
-            transform: translateY(-3px);
-        }
-        
-        .status-count {
-            font-size: 28px;
-            font-weight: 700;
-        }
-        
-        .status-label {
-            font-size: 13px;
-            font-weight: 500;
-        }
-        
-        .status-amount {
-            font-size: 11px;
-            color: #6b7280;
-        }
-        
         /* Chart Container */
-        .chart-container {
-            position: relative;
-            height: 300px;
-            width: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
+        .chart-container { position: relative; height: 300px; width: 100%; display: flex; justify-content: center; align-items: center; }
         
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .fade-in {
-            animation: fadeIn 0.5s ease-out;
-        }
-        
-        hr {
-            border-color: #f3e8ff;
-        }
-        
-        @media (max-width: 768px) {
-            .sidebar { height: auto; position: relative; }
-            .main-content { height: auto; overflow-y: visible; }
-            .stat-number { font-size: 22px; }
-        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn 0.5s ease-out; }
+        hr { border-color: #f3e8ff; }
+        @media (max-width: 768px) { .sidebar { height: auto; position: relative; } .main-content { height: auto; overflow-y: visible; } .stat-number { font-size: 22px; } }
     </style>
 </head>
 <body>
 <div class="container-fluid p-0">
     <div class="row g-0">
  
-        <!-- Sidebar -->
         <div class="col-md-3 col-lg-2 sidebar">
             <div class="p-3">
                 <div class="text-center mb-4">
@@ -367,6 +182,7 @@ if ($claims_exist) {
                 <nav class="nav flex-column">
                     <a class="nav-link active" href="dashboard_Admin.php"><i class="fas fa-tachometer-alt fa-fw me-2"></i> Dashboard</a>
                     <a class="nav-link" href="Manage_User_Admin.php"><i class="fas fa-users fa-fw me-2"></i> Manage Accounts</a>
+                    <a class="nav-link" href="Manage_Claims_Admin.php"><i class="fas fa-file-invoice-dollar fa-fw me-2"></i> Manage Claims</a>
                     <a class="nav-link" href="Generate_Report_Admin.php"><i class="fas fa-chart-bar fa-fw me-2"></i> Generate Report</a>
                     <hr style="border-color: rgba(255,255,255,0.2);">
                     <a class="nav-link" href="../logout.php"><i class="fas fa-sign-out-alt fa-fw me-2"></i> Logout</a>
@@ -374,10 +190,8 @@ if ($claims_exist) {
             </div>
         </div>
  
-        <!-- Main Content -->
         <div class="col-md-9 col-lg-10 main-content">
  
-            <!-- Page Header -->
             <div class="page-header fade-in">
                 <div class="d-flex justify-content-between align-items-center flex-wrap">
                     <div>
@@ -390,35 +204,29 @@ if ($claims_exist) {
                 </div>
             </div>
  
-            <!-- Stats Cards with Individual Hover Colors -->
             <div class="row g-4 mb-4 fade-in">
-                <div class="col-md-3 col-sm-6">
+                <div class="col-md-4 col-sm-12">
                     <div class="stat-card stat-card-staff text-center">
                         <div class="stat-icon mx-auto"><i class="fas fa-users"></i></div>
                         <div class="stat-number"><?php echo $total_staff; ?></div>
                         <div class="stat-label">Total Staff</div>
                     </div>
                 </div>
-                <div class="col-md-3 col-sm-6">
-                    <div class="stat-card stat-card-finance text-center">
-                        <div class="stat-icon mx-auto"><i class="fas fa-user-tie"></i></div>
-                        <div class="stat-number"><?php echo $total_finance; ?></div>
-                        <div class="stat-label">Finance Staff</div>
-                    </div>
-                </div>
-                <div class="col-md-3 col-sm-6">
-                    <div class="stat-card stat-card-claims text-center">
-                        <div class="stat-icon mx-auto"><i class="fas fa-file-invoice"></i></div>
-                        <div class="stat-number">
-                            <?php echo $total_claims; ?>
-                            <?php if ($pending_count > 0): ?>
-                                <span class="badge-pending"><?php echo $pending_count; ?> pending</span>
-                            <?php endif; ?>
+                <div class="col-md-4 col-sm-12">
+                    <a href="Manage_Claims_Admin.php" class="text-decoration-none">
+                        <div class="stat-card stat-card-claims text-center">
+                            <div class="stat-icon mx-auto"><i class="fas fa-file-invoice"></i></div>
+                            <div class="stat-number">
+                                <?php echo $total_claims; ?>
+                                <?php if ($pending_count > 0): ?>
+                                    <span class="badge-pending"><?php echo $pending_count; ?> pending</span>
+                                <?php endif; ?>
+                            </div>
+                            <div class="stat-label">Total Claims <i class="fas fa-external-link-alt ms-1 small"></i></div>
                         </div>
-                        <div class="stat-label">Total Claims</div>
-                    </div>
+                    </a>
                 </div>
-                <div class="col-md-3 col-sm-6">
+                <div class="col-md-4 col-sm-12">
                     <div class="stat-card stat-card-paid text-center">
                         <div class="stat-icon mx-auto"><i class="fas fa-dollar-sign"></i></div>
                         <div class="stat-number">RM <?php echo number_format($total_paid, 2); ?></div>
@@ -427,7 +235,6 @@ if ($claims_exist) {
                 </div>
             </div>
 
-            <!-- Charts Row -->
             <?php if ($claims_exist && !empty($trend_labels)): ?>
             <div class="row g-4 mb-4 fade-in">
                 <div class="col-md-7">
@@ -455,7 +262,6 @@ if ($claims_exist) {
             </div>
             <?php endif; ?>
  
-            <!-- Users by Department & Recent Registrations -->
             <div class="row g-4 mb-4 fade-in">
                 <div class="col-md-6">
                     <div class="info-card h-100">
@@ -512,36 +318,6 @@ if ($claims_exist) {
                     </div>
                 </div>
             </div>
- 
-            <!-- Database Status Summary -->
-            <?php if ($claims_exist): ?>
-            <div class="info-card mb-4 fade-in">
-                <div class="card-body p-4">
-                    <h5 class="card-title"><i class="fas fa-server me-2" style="color: #8b5cf6;"></i>Database Status Summary</h5>
-                    <hr>
-                    <div class="row g-3">
-                        <?php foreach ($status_data as $status_name => $s):
-                            $color = match($status_name) {
-                                'Pending'  => '#f59e0b', 'Approved' => '#8b5cf6', 'Rejected' => '#ef4444', 'Paid' => '#10b981', 'Cancelled' => '#6b7280', default => '#6b7280'
-                            };
-                            $bg_color = match($status_name) {
-                                'Pending'  => '#fef3c7', 'Approved' => '#faf5ff', 'Rejected' => '#fee2e2', 'Paid' => '#d1fae5', 'Cancelled' => '#f3f4f6', default => '#f3f4f6'
-                            };
-                        ?>
-                        <div class="col-md">
-                            <div class="status-card" style="background: <?php echo $bg_color; ?>; border-left: 4px solid <?php echo $color; ?>;">
-                                <div class="status-count" style="color: <?php echo $color; ?>;"><?php echo $s['cnt']; ?></div>
-                                <div class="status-label" style="color: <?php echo $color; ?>;"><?php echo $status_name; ?></div>
-                                <div class="status-amount">RM <?php echo number_format($s['total'], 2); ?></div>
-                            </div>
-                        </div>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-            </div>
-            <?php else: ?>
-            <div class="alert alert-info fade-in" style="border-radius: 15px;"><i class="fas fa-info-circle me-2"></i>Claims table not found.</div>
-            <?php endif; ?>
             
             <div style="height: 20px;"></div>
         </div>

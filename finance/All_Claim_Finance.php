@@ -149,7 +149,7 @@ $counts['All'] = array_sum($counts);
         .form-select {
             border-radius: 12px;
             border: 1px solid #e5e7eb;
-            padding: 10px 15px;
+            padding: 10px 35px 10px 15px !important;
             transition: all 0.3s ease;
         }
         
@@ -228,6 +228,7 @@ $counts['All'] = array_sum($counts);
         tfoot { background: #f8fafc; }
         tfoot td { font-weight: 700; color: #064e3b; }
         
+        /* DataTables Styling */
         .dataTables_filter input {
             border-radius: 10px; border: 1px solid #e5e7eb; padding: 6px 12px; margin-left: 10px;
         }
@@ -238,6 +239,13 @@ $counts['All'] = array_sum($counts);
             background-color: #10b981 !important; border-color: #10b981 !important; color: white !important;
         }
         .page-link { color: #064e3b !important; border-radius: 6px; margin: 0 2px; }
+        
+        .dataTables_length select { 
+            border-radius: 8px; 
+            border: 1px solid #e5e7eb; 
+            padding: 5px 30px 5px 12px !important; 
+            margin: 0 5px; 
+        }
         
         @media (max-width: 768px) {
             .sidebar { height: auto; position: relative; }
@@ -292,20 +300,17 @@ $counts['All'] = array_sum($counts);
                 <div class="filter-card fade-in">
                     <form method="GET" action="All_Claim_Finance.php">
                         <div class="row align-items-end g-3">
-                            <div class="col-md-4">
+                            <div class="col-12">
                                 <label class="form-label">
                                     <i class="fas fa-filter me-1" style="color: #10b981;"></i>Filter by Database Status
                                 </label>
-                                <select name="status" class="form-select" onchange="this.form.submit()">
+                                <select name="status" class="form-select w-auto" onchange="this.form.submit()">
                                     <option value="All"      <?php echo $status_filter == 'All'      ? 'selected' : ''; ?>>All Claims (<?php echo $counts['All'] ?? 0; ?>)</option>
                                     <option value="Pending"  <?php echo $status_filter == 'Pending'  ? 'selected' : ''; ?>>Pending (<?php echo $counts['Pending'] ?? 0; ?>)</option>
                                     <option value="Approved" <?php echo $status_filter == 'Approved' ? 'selected' : ''; ?>>Approved (<?php echo $counts['Approved'] ?? 0; ?>)</option>
                                     <option value="Rejected" <?php echo $status_filter == 'Rejected' ? 'selected' : ''; ?>>Rejected (<?php echo $counts['Rejected'] ?? 0; ?>)</option>
                                     <option value="Paid"     <?php echo $status_filter == 'Paid'     ? 'selected' : ''; ?>>Paid (<?php echo $counts['Paid'] ?? 0; ?>)</option>
                                 </select>
-                            </div>
-                            <div class="col-md-8 text-end">
-                                <small class="text-muted"><i class="fas fa-magic me-1" style="color:#10b981;"></i> DataTables Instant Filter is active below.</small>
                             </div>
                         </div>
                     </form>
@@ -344,15 +349,19 @@ $counts['All'] = array_sum($counts);
                                         </span>
                                     </td>
                                     <td>
-                                        <a href="Claim_details_Finance.php?id=<?php echo $claim['id']; ?>" class="btn-review">
-                                            <i class="fas fa-eye me-1"></i> Review
-                                        </a>
-                                        
-                                        <?php if($claim['status'] === 'Approved'): ?>
-                                        <a href="payment_gateway_Finance.php?id=<?php echo $claim['id']; ?>" class="btn-pay-now ms-1">
-                                            <i class="fas fa-money-check-alt me-1"></i> Pay Now
-                                        </a>
-                                        <?php endif; ?>
+                                        <div class="d-flex align-items-center gap-2" style="min-width: 170px; flex-wrap: nowrap;">
+                                            <a href="Claim_details_Finance.php?id=<?php echo $claim['id']; ?>" class="btn-review" style="margin: 0; padding: 6px 12px; height: 32px; display: inline-flex; align-items: center; white-space: nowrap;">
+                                                <i class="fas fa-eye me-1"></i> Review
+                                            </a>
+                                            
+                                            <?php if($claim['status'] === 'Approved'): ?>
+                                            <a href="payment_gateway_Finance.php?id=<?php echo $claim['id']; ?>" class="btn-pay-now" style="margin: 0; padding: 6px 12px; height: 32px; display: inline-flex; align-items: center; white-space: nowrap;">
+                                                <i class="fas fa-money-check-alt me-1"></i> Pay Now
+                                            </a>
+                                            <?php else: ?>
+                                                <div style="width: 85px; height: 32px;"></div>
+                                            <?php endif; ?>
+                                        </div>
                                     </td>
                                 </tr>
                                 <?php endforeach; ?>
@@ -378,7 +387,7 @@ $counts['All'] = array_sum($counts);
                 "info": true,           
                 "lengthChange": true,    
                 "language": {
-                    "search": "<i class='fas fa-search' style='color: #10b981;'></i> Global Smart Search:",
+                    "search": "<i class='fas fa-search' style='color: #10b981;'></i> Search:",
                     "paginate": {
                         "next": "<i class='fas fa-chevron-right'></i>",
                         "previous": "<i class='fas fa-chevron-left'></i>"
