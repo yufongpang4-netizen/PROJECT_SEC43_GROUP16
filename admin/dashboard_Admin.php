@@ -4,14 +4,13 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
     header("Location: ../login.php");
     exit();
 }
- 
 require_once '../db.php';
- 
+
 // ---------- Live Stats ----------
 $total_staff   = $conn->query("SELECT COUNT(*) AS c FROM users WHERE role='staff'")->fetch_assoc()['c'];
 $total_admin   = $conn->query("SELECT COUNT(*) AS c FROM users WHERE role='admin'")->fetch_assoc()['c'];
 $total_users   = $conn->query("SELECT COUNT(*) AS c FROM users")->fetch_assoc()['c'];
- 
+
 // Claims stats
 $total_claims = 0;
 $total_paid   = 0;
@@ -22,7 +21,7 @@ if ($claims_exist) {
     $total_paid    = $conn->query("SELECT IFNULL(SUM(amount),0) AS s FROM claims WHERE status='Paid'")->fetch_assoc()['s'];
     $pending_count = $conn->query("SELECT COUNT(*) AS c FROM claims WHERE status='Pending'")->fetch_assoc()['c'];
 }
- 
+
 // Users by Department
 $dept_res = $conn->query("
     SELECT department, COUNT(*) AS cnt
@@ -31,7 +30,7 @@ $dept_res = $conn->query("
     GROUP BY department
     ORDER BY cnt DESC
 ");
- 
+
 // Recent registrations
 $recent_users = $conn->query("
     SELECT name, role, department, created_at
@@ -39,7 +38,7 @@ $recent_users = $conn->query("
     ORDER BY created_at DESC
     LIMIT 5
 ");
- 
+
 $trend_labels = [];
 $trend_data = [];
 $dept_pie_labels = [];
@@ -48,19 +47,26 @@ $dept_pie_data = [];
 if ($claims_exist) {
     $trend_sql = "SELECT DATE_FORMAT(submitted_at, '%b %Y') as month_name, SUM(amount) as total
                   FROM claims
-                  WHERE status != 'Cancelled' AND status != 'Rejected'
+                  WHERE status = 'Paid'
                   GROUP BY DATE_FORMAT(submitted_at, '%Y-%m'), month_name
-                  ORDER BY DATE_FORMAT(submitted_at, '%Y-%m') ASC LIMIT 6";
+                  ORDER BY DATE_FORMAT(submitted_at, '%Y-%m') DESC LIMIT 6";
     $trend_res = $conn->query($trend_sql);
+    
+    $temp_labels = [];
+    $temp_data = [];
     while($row = $trend_res->fetch_assoc()) {
-        $trend_labels[] = $row['month_name'];
-        $trend_data[] = floatval($row['total']);
+        $temp_labels[] = $row['month_name'];
+        $temp_data[] = floatval($row['total']);
     }
+    
+    $trend_labels = array_reverse($temp_labels);
+    $trend_data = array_reverse($temp_data);
 
     $pie_sql = "SELECT u.department, SUM(c.amount) as total_cost
                 FROM claims c
                 JOIN users u ON c.user_id = u.id
-                WHERE u.department IS NOT NULL AND u.department != '' AND c.status != 'Cancelled'
+                WHERE u.department IS NOT NULL AND u.department != '' 
+                AND c.status = 'Paid'
                 GROUP BY u.department";
     $pie_res = $conn->query($pie_sql);
     while($row = $pie_res->fetch_assoc()) {
@@ -79,23 +85,13 @@ if ($claims_exist) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root {
-            --admin-primary: #2e1065;
-            --admin-secondary: #4c1d95;
-            --admin-accent: #8b5cf6;
-            --admin-bg: #faf5ff;
-            --admin-card: #ffffff;
-            --admin-text: #2e1065;
-            --admin-gray: #6b7280;
-        }
-        
+        :root { --admin-primary: #2e1065; --admin-secondary: #4c1d95; --admin-accent: #8b5cf6; --admin-bg: #faf5ff; --admin-card: #ffffff; --admin-text: #2e1065; --admin-gray: #6b7280; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; margin: 0; padding: 0; }
         body { background: var(--admin-bg); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow-x: hidden; }
         .container-fluid { height: 100%; overflow: hidden; }
         .row.g-0 { height: 100%; }
         
-        /* Sidebar */
         .sidebar { background: linear-gradient(180deg, #2e1065 0%, #4c1d95 100%); height: 100vh; color: white; transition: all 0.3s ease; overflow-y: auto; position: sticky; top: 0; }
         .sidebar::-webkit-scrollbar { width: 5px; }
         .sidebar::-webkit-scrollbar-track { background: rgba(255,255,255,0.1); }
@@ -104,16 +100,13 @@ if ($claims_exist) {
         .sidebar .nav-link:hover { background: rgba(139, 92, 246, 0.2); color: #8b5cf6; transform: translateX(5px); }
         .sidebar .nav-link.active { background: #8b5cf6; color: #2e1065; font-weight: 600; }
         
-        /* Main Content */
         .main-content { height: 100vh; overflow-y: auto; padding: 20px; }
         .main-content::-webkit-scrollbar { width: 8px; }
         .main-content::-webkit-scrollbar-track { background: #e5e7eb; border-radius: 10px; }
         .main-content::-webkit-scrollbar-thumb { background: #8b5cf6; border-radius: 10px; }
         
-        /* Page Header */
         .page-header { background: linear-gradient(135deg, #2e1065 0%, #4c1d95 100%); border-radius: 20px; padding: 20px 25px; color: white; margin-bottom: 25px; }
         
-        /* Stats Cards */
         .stat-card { background: white; border-radius: 20px; padding: 20px; transition: all 0.3s ease; border: 1px solid #f3e8ff; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03); cursor: pointer; }
         .stat-card:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); }
         .stat-card-staff:hover { background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%); border-color: #8b5cf6; }
@@ -128,7 +121,6 @@ if ($claims_exist) {
         .stat-label { color: #6b7280; font-size: 14px; font-weight: 500; }
         .badge-pending { background: #fef3c7; color: #d97706; font-size: 10px; padding: 2px 8px; border-radius: 20px; margin-left: 8px; }
         
-        /* Cards & Tables */
         .info-card { background: white; border-radius: 20px; border: none; box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05); transition: all 0.3s ease; }
         .info-card:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); }
         .card-title { color: #2e1065; font-size: 18px; font-weight: 600; }
@@ -145,11 +137,14 @@ if ($claims_exist) {
         .chart-container { position: relative; height: 300px; width: 100%; display: flex; justify-content: center; align-items: center; }
         .fade-in { animation: fadeIn 0.5s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        hr { border-color: #f3e8ff; }
+        @media (max-width: 768px) { .sidebar { height: auto; position: relative; } .main-content { height: auto; overflow-y: visible; } .stat-number { font-size: 22px; } }
     </style>
 </head>
 <body>
 <div class="container-fluid p-0">
     <div class="row g-0">
+ 
         <div class="col-md-3 col-lg-2 sidebar">
             <div class="p-3">
                 <div class="text-center mb-4">
@@ -220,7 +215,7 @@ if ($claims_exist) {
                 <div class="col-md-7">
                     <div class="info-card h-100">
                         <div class="card-body p-4">
-                            <h5 class="card-title"><i class="fas fa-chart-line me-2" style="color: #8b5cf6;"></i>Monthly Expense Trend</h5>
+                            <h5 class="card-title"><i class="fas fa-chart-line me-2" style="color: #8b5cf6;"></i>Monthly Paid Trend</h5>
                             <hr>
                             <div class="chart-container">
                                 <canvas id="trendChart"></canvas>
@@ -231,12 +226,22 @@ if ($claims_exist) {
                 <div class="col-md-5">
                     <div class="info-card h-100">
                         <div class="card-body p-4">
-                            <h5 class="card-title"><i class="fas fa-chart-pie me-2" style="color: #8b5cf6;"></i>Cost by Department</h5>
+                            <h5 class="card-title"><i class="fas fa-chart-pie me-2" style="color: #8b5cf6;"></i>Paid Cost by Department</h5>
                             <hr>
                             <div class="chart-container">
                                 <canvas id="deptChart"></canvas>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+            <?php else: ?>
+            <div class="row g-4 mb-4 fade-in">
+                <div class="col-12">
+                    <div class="info-card text-center p-5">
+                        <i class="fas fa-chart-bar fa-3x mb-3" style="color: #e5e7eb;"></i>
+                        <h5 class="text-muted">Not enough Paid claims to generate charts</h5>
+                        <p class="text-muted small">Approve and pay some claims in the Finance portal to see the trends here.</p>
                     </div>
                 </div>
             </div>
@@ -304,6 +309,7 @@ if ($claims_exist) {
     </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
 <?php if ($claims_exist && !empty($trend_labels)): ?>
 <script>
 document.addEventListener("DOMContentLoaded", function() {
@@ -313,7 +319,7 @@ document.addEventListener("DOMContentLoaded", function() {
         data: {
             labels: <?php echo json_encode($trend_labels); ?>,
             datasets: [{
-                label: 'Total Claimed (RM)',
+                label: 'Total Paid (RM)',
                 data: <?php echo json_encode($trend_data); ?>,
                 borderColor: '#8b5cf6',
                 backgroundColor: 'rgba(139, 92, 246, 0.1)',
@@ -329,7 +335,7 @@ document.addEventListener("DOMContentLoaded", function() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { return 'RM ' + context.parsed.y; } } } },
             scales: {
                 y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
                 x: { grid: { display: false } }
@@ -353,7 +359,8 @@ document.addEventListener("DOMContentLoaded", function() {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { position: 'right', labels: { usePointStyle: true, padding: 15, boxWidth: 10 } }
+                legend: { position: 'right', labels: { usePointStyle: true, padding: 15, boxWidth: 10 } },
+                tooltip: { callbacks: { label: function(context) { return ' RM ' + context.parsed; } } }
             },
             cutout: '70%'
         }

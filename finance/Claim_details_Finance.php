@@ -174,11 +174,11 @@ $status = strtolower($claim['status']);
             color: #10b981;
         }
         
-        /* Status Badges */
         .status-pending { background: #fef3c7; color: #d97706; padding: 5px 15px; border-radius: 20px; font-size: 13px; font-weight: 600; display: inline-block; }
         .status-approved { background: #d1fae5; color: #059669; padding: 5px 15px; border-radius: 20px; font-size: 13px; font-weight: 600; display: inline-block; }
         .status-paid { background: #dbeafe; color: #2563eb; padding: 5px 15px; border-radius: 20px; font-size: 13px; font-weight: 600; display: inline-block; }
         .status-rejected { background: #fee2e2; color: #dc2626; padding: 5px 15px; border-radius: 20px; font-size: 13px; font-weight: 600; display: inline-block; }
+        .status-cancelled { background: #e5e7eb; color: #4b5563; padding: 5px 15px; border-radius: 20px; font-size: 13px; font-weight: 600; display: inline-block; }
         
         /* Buttons */
         .btn-approve {
@@ -215,6 +215,7 @@ $status = strtolower($claim['status']);
         .alert-success-custom { background: #d1fae5; border-left: 4px solid #059669; color: #065f46; }
         .alert-danger-custom { background: #fee2e2; border-left: 4px solid #dc2626; color: #991b1b; }
         .alert-warning-custom { background: #fef3c7; border-left: 4px solid #d97706; color: #92400e; }
+        .alert-secondary-custom { background: #f3f4f6; border-left: 4px solid #6b7280; color: #374151; }
         
         /* Form Controls */
         .form-control, .form-select { border-radius: 12px; border: 1px solid #e5e7eb; padding: 12px 15px; transition: all 0.3s ease; }
@@ -284,7 +285,10 @@ $status = strtolower($claim['status']);
                                         <i class="fas fa-receipt me-2" style="color: #10b981;"></i>
                                         Claim Information
                                     </h5>
-                                    <span class="status-<?php echo $status; ?>"><?php echo ucfirst($status); ?></span>
+                                    <span class="status-<?php echo $status; ?>">
+                                        <i class="fas <?php echo match($status) { 'pending' => 'fa-clock', 'approved' => 'fa-hourglass-half', 'paid' => 'fa-check-circle', 'cancelled' => 'fa-ban', default => 'fa-times-circle' }; ?> me-1"></i>
+                                        <?php echo ucfirst($status); ?>
+                                    </span>
                                 </div>
                                 <hr>
                                 
@@ -432,6 +436,13 @@ $status = strtolower($claim['status']);
                                         <i class="fas fa-times-circle me-2"></i>
                                         <strong>Claim Rejected</strong><br>
                                         This claim has been rejected.
+                                    </div>
+                                    
+                                <?php elseif($status == 'cancelled'): ?>
+                                    <div class="alert-secondary-custom p-3 text-center rounded">
+                                        <i class="fas fa-ban me-2"></i>
+                                        <strong>Claim Cancelled</strong><br>
+                                        This claim was cancelled and is no longer valid.
                                     </div>
                                 <?php endif; ?>
                             </div>

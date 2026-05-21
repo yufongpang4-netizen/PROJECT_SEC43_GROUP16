@@ -18,7 +18,6 @@ $MAX_AMOUNT_PER_CLAIM = 200;          // Maximum RM 200 per single claim
 $user_id = $_SESSION['user_id'];
 $current_month = date('Y-m');
 
-// Check current month's claims
 $check_sql = "
     SELECT 
         COUNT(*) as total_claims,
@@ -26,6 +25,7 @@ $check_sql = "
     FROM claims 
     WHERE user_id = ? 
     AND DATE_FORMAT(submitted_at, '%Y-%m') = ?
+    AND status NOT IN ('Cancelled', 'Rejected')
 ";
 
 $check_stmt = $conn->prepare($check_sql);

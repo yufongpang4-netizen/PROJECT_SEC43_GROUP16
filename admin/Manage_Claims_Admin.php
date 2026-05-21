@@ -6,7 +6,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
 }
 require_once '../db.php';
 
-// Handle Delete Action
+// Handle Delete Action (Force Cancel)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['void_id'])) {
     $vid = intval($_POST['void_id']);
     
@@ -127,12 +127,12 @@ $claims = $conn->query($sql);
         
         <div class="col-md-9 col-lg-10 main-content">
             <div class="page-header fade-in">
-                <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
                     <div>
                         <h3 class="mb-1"><i class="fas fa-file-invoice-dollar me-2"></i>Manage All Claims</h3>
                         <p class="mb-0 opacity-75">Click on the status cards below to quickly filter the table</p>
                     </div>
-                    <div id="filterBadge" style="display: none;">
+                    <div id="filterBadge" style="display: none;" class="mt-2 mt-sm-0">
                         <span class="badge bg-light text-dark fs-6 px-3 py-2 rounded-pill shadow-sm">
                             <i class="fas fa-filter" style="color: #8b5cf6;"></i> Filtering: <span id="filterText" class="fw-bold"></span>
                             <i class="fas fa-times ms-2 text-muted" style="cursor:pointer;" onclick="clearFilter()" title="Clear Filter"></i>
@@ -141,14 +141,26 @@ $claims = $conn->query($sql);
                 </div>
             </div>
             
-            <div class="row g-4 mb-4 fade-in">
+            <div class="row g-3 mb-4 fade-in">
                 <?php 
-                $display_stats = ['Pending' => $status_data['Pending'], 'Approved' => $status_data['Approved'], 'Paid' => $status_data['Paid'], 'Cancelled' => $status_data['Cancelled']];
+                $display_stats = [
+                    'Pending'   => $status_data['Pending'], 
+                    'Approved'  => $status_data['Approved'], 
+                    'Paid'      => $status_data['Paid'], 
+                    'Rejected'  => $status_data['Rejected'], 
+                    'Cancelled' => $status_data['Cancelled']
+                ];
                 foreach($display_stats as $s => $cnt): 
-                    $color = match($s){ 'Pending'=>'#f59e0b', 'Approved'=>'#10b981', 'Paid'=>'#3b82f6', 'Cancelled'=>'#6b7280' };
+                    $color = match($s){ 
+                        'Pending'   => '#f59e0b', 
+                        'Approved'  => '#10b981', 
+                        'Paid'      => '#3b82f6', 
+                        'Rejected'  => '#ef4444', 
+                        'Cancelled' => '#6b7280' 
+                    };
                 ?>
-                <div class="col-md-3">
-                    <div class="status-card filter-btn" data-status="<?php echo $s; ?>" style="border-top: 4px solid <?php echo $color; ?>;" title="Click to filter by <?php echo $s; ?>">
+                <div class="col-sm-6 col-lg">
+                    <div class="status-card filter-btn h-100" data-status="<?php echo $s; ?>" style="border-top: 4px solid <?php echo $color; ?>;" title="Click to filter by <?php echo $s; ?>">
                         <div class="fs-3 fw-bold" style="color: <?php echo $color; ?>;"><?php echo $cnt; ?></div>
                         <div class="small fw-semibold mt-1 text-muted"><?php echo strtoupper($s); ?></div>
                     </div>
@@ -186,7 +198,7 @@ $claims = $conn->query($sql);
                                         <input type="hidden" name="void_id" value="<?php echo $c['id']; ?>">
                                         <button type="button" class="btn btn-void" 
                                                 onclick="confirmVoid(<?php echo $c['id']; ?>)"
-                                                <?php echo ($c['status'] == 'Cancelled' || $c['status'] == 'Paid') ? 'disabled' : ''; ?>>
+                                                <?php echo (in_array($c['status'], ['Cancelled', 'Paid', 'Rejected'])) ? 'disabled' : ''; ?>>
                                             <i class="fas fa-ban"></i> Force Cancel
                                         </button>
                                     </form>

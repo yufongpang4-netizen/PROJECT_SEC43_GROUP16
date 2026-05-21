@@ -88,6 +88,7 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
         .status-Approved { background: #d1fae5; color: #059669; }
         .status-Paid { background: #dbeafe; color: #2563eb; }
         .status-Rejected { background: #fee2e2; color: #dc2626; }
+        .status-Cancelled { background: #e5e7eb; color: #4b5563; }
         @media print {
             .no-print { display: none; }
             body { margin: 0; }
@@ -372,6 +373,7 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
         .status-approved { background: #d1fae5; color: #059669; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; }
         .status-paid { background: #dbeafe; color: #2563eb; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; }
         .status-rejected { background: #fee2e2; color: #dc2626; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; }
+        .status-cancelled { background: #e5e7eb; color: #4b5563; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; }
         
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
@@ -465,11 +467,12 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
                                     <i class="fas fa-filter me-1" style="color: #10b981;"></i>Status
                                 </label>
                                 <select name="status" class="form-select">
-                                    <option value="All"      <?php echo $status_f=='All'      ?'selected':''; ?>>All Claims</option>
-                                    <option value="Pending"  <?php echo $status_f=='Pending'  ?'selected':''; ?>>Pending</option>
-                                    <option value="Approved" <?php echo $status_f=='Approved' ?'selected':''; ?>>Approved</option>
-                                    <option value="Paid"     <?php echo $status_f=='Paid'     ?'selected':''; ?>>Paid</option>
-                                    <option value="Rejected" <?php echo $status_f=='Rejected' ?'selected':''; ?>>Rejected</option>
+                                    <option value="All"       <?php echo $status_f=='All'       ?'selected':''; ?>>All Claims</option>
+                                    <option value="Pending"   <?php echo $status_f=='Pending'   ?'selected':''; ?>>Pending</option>
+                                    <option value="Approved"  <?php echo $status_f=='Approved'  ?'selected':''; ?>>Approved</option>
+                                    <option value="Paid"      <?php echo $status_f=='Paid'      ?'selected':''; ?>>Paid</option>
+                                    <option value="Rejected"  <?php echo $status_f=='Rejected'  ?'selected':''; ?>>Rejected</option>
+                                    <option value="Cancelled" <?php echo $status_f=='Cancelled' ?'selected':''; ?>>Cancelled</option>
                                 </select>
                             </div>
                             <div class="col-md-3">

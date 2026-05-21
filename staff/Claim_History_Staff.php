@@ -14,7 +14,7 @@ $error   = '';
 // ========== EDIT & CANCEL CLAIM FUNCTIONALITY ==========
 if($_SERVER['REQUEST_METHOD'] == 'POST') {
     
-    // Handle Edit Claim (Now supports both Pending and Rejected claims)
+    // Handle Edit Claim
     if(isset($_POST['edit_id'])) {
         $edit_id = intval($_POST['edit_id']);
         $claim_type = $_POST['claim_type'];
@@ -22,7 +22,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         $expense_date = $_POST['expense_date'];
         $description = trim($_POST['description']);
         
-        $check_sql = "SELECT id, status, receipt FROM claims WHERE id = ? AND user_id = ? AND status IN ('Pending', 'Rejected')";
+        $check_sql = "SELECT id, status, receipt, submitted_at FROM claims WHERE id = ? AND user_id = ? AND status IN ('Pending', 'Rejected')";
         $check_stmt = $conn->prepare($check_sql);
         $check_stmt->bind_param("ii", $edit_id, $user_id);
         $check_stmt->execute();
@@ -35,6 +35,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             $old_receipt = $claim_data['receipt'];
             $current_status = $claim_data['status'];
             
+            $submitted_month = date('Y-m', strtotime($claim_data['submitted_at']));
+            
             if(empty($claim_type) || empty($amount) || empty($expense_date) || empty($description)) {
                 $error = "Please fill in all required fields.";
             } elseif(!is_numeric($amount) || $amount <= 0) {
@@ -42,61 +44,76 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             } elseif($amount > 200) {
                 $error = "Maximum claim amount per claim is RM 200.00";
             } else {
-                $receipt_filename = $old_receipt;
-                
-                if(isset($_FILES['receipt']) && $_FILES['receipt']['error'] == 0 && $_FILES['receipt']['size'] > 0) {
-                    $allowed_types = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
-                    $file_type = $_FILES['receipt']['type'];
-                    $max_file_size = 5 * 1024 * 1024;
+                $check_limit_sql = "SELECT SUM(amount) as other_claims_total FROM claims 
+                                    WHERE user_id = ? AND DATE_FORMAT(submitted_at, '%Y-%m') = ? 
+                                    AND id != ? AND status NOT IN ('Cancelled', 'Rejected')";
+                $limit_stmt = $conn->prepare($check_limit_sql);
+                $limit_stmt->bind_param("isi", $user_id, $submitted_month, $edit_id);
+                $limit_stmt->execute();
+                $limit_data = $limit_stmt->get_result()->fetch_assoc();
+                $other_claims_total = $limit_data['other_claims_total'] ?? 0;
+                $limit_stmt->close();
+
+                if (($other_claims_total + $amount) > 500) {
+                    $remaining = 500 - $other_claims_total;
+                    $error = "Edit failed! This amount exceeds your limit of RM 500.00 for the month of " . date('F Y', strtotime($claim_data['submitted_at'])) . ". You can only claim up to RM " . number_format(max($remaining, 0), 2) . " more for that month.";
+                } else {
+                    $receipt_filename = $old_receipt;
                     
-                    if($_FILES['receipt']['size'] > $max_file_size) {
-                        $error = "File size too large. Maximum size is 5MB.";
-                    } elseif(in_array($file_type, $allowed_types)) {
-                        $upload_dir = '../uploads/receipts/';
-                        if(!file_exists($upload_dir)) {
-                            mkdir($upload_dir, 0777, true);
-                        }
+                    if(isset($_FILES['receipt']) && $_FILES['receipt']['error'] == 0 && $_FILES['receipt']['size'] > 0) {
+                        $allowed_types = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+                        $file_type = $_FILES['receipt']['type'];
+                        $max_file_size = 5 * 1024 * 1024;
                         
-                        $file_ext = pathinfo($_FILES['receipt']['name'], PATHINFO_EXTENSION);
-                        $receipt_filename = 'receipt_' . time() . '_' . $user_id . '.' . $file_ext;
-                        $target_file = $upload_dir . $receipt_filename;
-                        
-                        if(move_uploaded_file($_FILES['receipt']['tmp_name'], $target_file)) {
-                            if($old_receipt && file_exists($upload_dir . $old_receipt)) {
-                                unlink($upload_dir . $old_receipt);
+                        if($_FILES['receipt']['size'] > $max_file_size) {
+                            $error = "File size too large. Maximum size is 5MB.";
+                        } elseif(in_array($file_type, $allowed_types)) {
+                            $upload_dir = '../uploads/receipts/';
+                            if(!file_exists($upload_dir)) {
+                                mkdir($upload_dir, 0777, true);
+                            }
+                            
+                            $file_ext = pathinfo($_FILES['receipt']['name'], PATHINFO_EXTENSION);
+                            $receipt_filename = 'receipt_' . time() . '_' . $user_id . '.' . $file_ext;
+                            $target_file = $upload_dir . $receipt_filename;
+                            
+                            if(move_uploaded_file($_FILES['receipt']['tmp_name'], $target_file)) {
+                                if($old_receipt && file_exists($upload_dir . $old_receipt)) {
+                                    unlink($upload_dir . $old_receipt);
+                                }
+                            } else {
+                                $error = "Failed to save the uploaded receipt.";
                             }
                         } else {
-                            $error = "Failed to save the uploaded receipt.";
+                            $error = "Invalid file format. Only PDF, JPG, and PNG are allowed.";
                         }
-                    } else {
-                        $error = "Invalid file format. Only PDF, JPG, and PNG are allowed.";
                     }
-                }
-                
-                if(empty($error)) {
-                    $update_sql = "UPDATE claims SET claim_type = ?, amount = ?, expense_date = ?, description = ?, receipt = ?, status = 'Pending', finance_comment = NULL WHERE id = ? AND user_id = ?";
-                    $update_stmt = $conn->prepare($update_sql);
-                    $update_stmt->bind_param("sdsssii", $claim_type, $amount, $expense_date, $description, $receipt_filename, $edit_id, $user_id);
                     
-                    if($update_stmt->execute()) {
-                        if ($current_status === 'Rejected') {
-                            $success = "Rejected claim #$edit_id has been updated and resubmitted successfully!";
-                            if (function_exists('logActivity')) logActivity($conn, $user_id, 'Resubmit Claim', "Resubmitted rejected claim #$edit_id");
+                    if(empty($error)) {
+                        $update_sql = "UPDATE claims SET claim_type = ?, amount = ?, expense_date = ?, description = ?, receipt = ?, status = 'Pending', finance_comment = NULL WHERE id = ? AND user_id = ?";
+                        $update_stmt = $conn->prepare($update_sql);
+                        $update_stmt->bind_param("sdsssii", $claim_type, $amount, $expense_date, $description, $receipt_filename, $edit_id, $user_id);
+                        
+                        if($update_stmt->execute()) {
+                            if ($current_status === 'Rejected') {
+                                $success = "Rejected claim #$edit_id has been updated and resubmitted successfully!";
+                                if (function_exists('logActivity')) logActivity($conn, $user_id, 'Resubmit Claim', "Resubmitted rejected claim #$edit_id");
+                            } else {
+                                $success = "Claim #$edit_id has been updated successfully!";
+                                if (function_exists('logActivity')) logActivity($conn, $user_id, 'Edit Claim', "Edited pending claim #$edit_id");
+                            }
                         } else {
-                            $success = "Claim #$edit_id has been updated successfully!";
-                            if (function_exists('logActivity')) logActivity($conn, $user_id, 'Edit Claim', "Edited pending claim #$edit_id");
+                            $error = "Failed to update claim. Please try again.";
                         }
-                    } else {
-                        $error = "Failed to update claim. Please try again.";
+                        $update_stmt->close();
                     }
-                    $update_stmt->close();
                 }
             }
         }
         $check_stmt->close();
     }
     
-    // Handle Cancel
+    // Handle Cancel (Soft Delete)
     elseif(isset($_POST['cancel_id'])) {
         $cancel_id = intval($_POST['cancel_id']);
         
@@ -137,6 +154,14 @@ $stmt->bind_param($types, ...$params);
 $stmt->execute();
 $claims = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
+
+$display_total = 0;
+foreach($claims as $c) {
+    if ($status_filter === 'All' && in_array($c['status'], ['Cancelled', 'Rejected'])) {
+        continue; 
+    }
+    $display_total += $c['amount'];
+}
  
 // Counts for filter badges
 $counts_result = $conn->prepare("SELECT status, COUNT(*) as c FROM claims WHERE user_id = ? GROUP BY status");
@@ -209,7 +234,7 @@ foreach($counts_rows as $r) {
         .status-Approved { background: #d1fae5; color: #059669; }
         .status-Paid { background: #dbeafe; color: #2563eb; }
         .status-Rejected { background: #fee2e2; color: #dc2626; }
-        .status-Cancelled { background: #e5e7eb; color: #4b5563; } /* Added Cancelled style */
+        .status-Cancelled { background: #e5e7eb; color: #4b5563; }
         
         /* Buttons */
         .btn-view { background: #3b82f6; color: white; border-radius: 8px; padding: 5px 12px; font-size: 12px; transition: all 0.3s ease; border: none; }
@@ -276,7 +301,6 @@ foreach($counts_rows as $r) {
  
                 <div class="mb-4 fade-in">
                     <?php
-                    // Added Cancelled to tab filter
                     $tab_statuses = [
                         'All'      => 'All',
                         'Pending'  => 'Pending',
@@ -391,9 +415,11 @@ foreach($counts_rows as $r) {
                             <?php if(!empty($claims)): ?>
                             <tfoot style="background: #f1f5f9;">
                                 <tr>
-                                    <td colspan="3" class="fw-bold text-end">Total Amount:</td>
+                                    <td colspan="3" class="fw-bold text-end">
+                                        <?php echo ($status_filter === 'All') ? 'Total Valid Amount:' : 'Total Amount:'; ?>
+                                    </td>
                                     <td colspan="4" class="fw-bold" style="color: #3b82f6; font-size: 18px;">
-                                        RM <?php echo number_format(array_sum(array_column($claims, 'amount')), 2); ?>
+                                        RM <?php echo number_format($display_total, 2); ?>
                                     </td>
                                 </tr>
                             </tfoot>
