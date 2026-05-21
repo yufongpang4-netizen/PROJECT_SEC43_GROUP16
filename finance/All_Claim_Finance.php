@@ -202,6 +202,7 @@ $counts['All'] = array_sum($counts);
         .status-approved { background: #d1fae5; color: #059669; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block; }
         .status-paid { background: #dbeafe; color: #2563eb; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block; }
         .status-rejected { background: #fee2e2; color: #dc2626; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block; }
+        .status-cancelled { background: #e5e7eb; color: #4b5563; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block; }
         
         /* Review Button */
         .btn-review {
@@ -305,11 +306,12 @@ $counts['All'] = array_sum($counts);
                                     <i class="fas fa-filter me-1" style="color: #10b981;"></i>Filter by Database Status
                                 </label>
                                 <select name="status" class="form-select w-auto" onchange="this.form.submit()">
-                                    <option value="All"      <?php echo $status_filter == 'All'      ? 'selected' : ''; ?>>All Claims (<?php echo $counts['All'] ?? 0; ?>)</option>
-                                    <option value="Pending"  <?php echo $status_filter == 'Pending'  ? 'selected' : ''; ?>>Pending (<?php echo $counts['Pending'] ?? 0; ?>)</option>
-                                    <option value="Approved" <?php echo $status_filter == 'Approved' ? 'selected' : ''; ?>>Approved (<?php echo $counts['Approved'] ?? 0; ?>)</option>
-                                    <option value="Rejected" <?php echo $status_filter == 'Rejected' ? 'selected' : ''; ?>>Rejected (<?php echo $counts['Rejected'] ?? 0; ?>)</option>
-                                    <option value="Paid"     <?php echo $status_filter == 'Paid'     ? 'selected' : ''; ?>>Paid (<?php echo $counts['Paid'] ?? 0; ?>)</option>
+                                    <option value="All"       <?php echo $status_filter == 'All'       ? 'selected' : ''; ?>>All Claims (<?php echo $counts['All'] ?? 0; ?>)</option>
+                                    <option value="Pending"   <?php echo $status_filter == 'Pending'   ? 'selected' : ''; ?>>Pending (<?php echo $counts['Pending'] ?? 0; ?>)</option>
+                                    <option value="Approved"  <?php echo $status_filter == 'Approved'  ? 'selected' : ''; ?>>Approved (<?php echo $counts['Approved'] ?? 0; ?>)</option>
+                                    <option value="Rejected"  <?php echo $status_filter == 'Rejected'  ? 'selected' : ''; ?>>Rejected (<?php echo $counts['Rejected'] ?? 0; ?>)</option>
+                                    <option value="Paid"      <?php echo $status_filter == 'Paid'      ? 'selected' : ''; ?>>Paid (<?php echo $counts['Paid'] ?? 0; ?>)</option>
+                                    <option value="Cancelled" <?php echo $status_filter == 'Cancelled' ? 'selected' : ''; ?>>Cancelled (<?php echo $counts['Cancelled'] ?? 0; ?>)</option>
                                 </select>
                             </div>
                         </div>

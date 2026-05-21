@@ -11,7 +11,7 @@ $user_id = $_SESSION['user_id'];
 $success = '';
 $error   = '';
 
-// ========== EDIT CLAIM FUNCTIONALITY ==========
+// ========== EDIT & CANCEL CLAIM FUNCTIONALITY ==========
 if($_SERVER['REQUEST_METHOD'] == 'POST') {
     
     // Handle Edit Claim (Now supports both Pending and Rejected claims)
@@ -100,30 +100,16 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     elseif(isset($_POST['cancel_id'])) {
         $cancel_id = intval($_POST['cancel_id']);
         
-        $receipt_sql = "SELECT receipt FROM claims WHERE id = ? AND user_id = ? AND status = 'Pending'";
-        $receipt_stmt = $conn->prepare($receipt_sql);
-        $receipt_stmt->bind_param("ii", $cancel_id, $user_id);
-        $receipt_stmt->execute();
-        $receipt_result = $receipt_stmt->get_result();
+        $stmt = $conn->prepare("UPDATE claims SET status = 'Cancelled' WHERE id = ? AND user_id = ? AND status = 'Pending'");
+        $stmt->bind_param('ii', $cancel_id, $user_id);
         
-        if($receipt_data = $receipt_result->fetch_assoc()) {
-            $receipt_file = $receipt_data['receipt'];
-            
-            $stmt = $conn->prepare("DELETE FROM claims WHERE id = ? AND user_id = ? AND status = 'Pending'");
-            $stmt->bind_param('ii', $cancel_id, $user_id);
-            
-            if($stmt->execute() && $stmt->affected_rows > 0) {
-                if($receipt_file && file_exists("../uploads/receipts/" . $receipt_file)) {
-                    unlink("../uploads/receipts/" . $receipt_file);
-                }
-                $success = "Claim #$cancel_id has been cancelled and removed.";
-                if (function_exists('logActivity')) logActivity($conn, $user_id, 'Cancel Claim', "Cancelled claim #$cancel_id");
-            } else {
-                $error = "Could not cancel the claim. It may have already been processed.";
-            }
-            $stmt->close();
+        if($stmt->execute() && $stmt->affected_rows > 0) {
+            $success = "Claim #$cancel_id has been successfully cancelled.";
+            if (function_exists('logActivity')) logActivity($conn, $user_id, 'Cancel Claim', "Staff cancelled claim #$cancel_id");
+        } else {
+            $error = "Could not cancel the claim. It may have already been processed.";
         }
-        $receipt_stmt->close();
+        $stmt->close();
     }
 }
  
@@ -223,6 +209,7 @@ foreach($counts_rows as $r) {
         .status-Approved { background: #d1fae5; color: #059669; }
         .status-Paid { background: #dbeafe; color: #2563eb; }
         .status-Rejected { background: #fee2e2; color: #dc2626; }
+        .status-Cancelled { background: #e5e7eb; color: #4b5563; } /* Added Cancelled style */
         
         /* Buttons */
         .btn-view { background: #3b82f6; color: white; border-radius: 8px; padding: 5px 12px; font-size: 12px; transition: all 0.3s ease; border: none; }
@@ -289,12 +276,14 @@ foreach($counts_rows as $r) {
  
                 <div class="mb-4 fade-in">
                     <?php
+                    // Added Cancelled to tab filter
                     $tab_statuses = [
                         'All'      => 'All',
                         'Pending'  => 'Pending',
                         'Approved' => 'Approved',
                         'Paid'     => 'Paid',
                         'Rejected' => 'Rejected',
+                        'Cancelled'=> 'Cancelled'
                     ];
                     foreach($tab_statuses as $val => $label):
                         $active = ($status_filter === $val);
@@ -354,7 +343,7 @@ foreach($counts_rows as $r) {
                                         <td><?php echo $claim['expense_date'] ? date('d M Y', strtotime($claim['expense_date'])) : '-'; ?></td>
                                         <td>
                                             <span class="status-badge status-<?php echo $claim['status']; ?>">
-                                                <i class="fas <?php echo $claim['status'] == 'Pending' ? 'fa-clock' : ($claim['status'] == 'Approved' ? 'fa-check' : ($claim['status'] == 'Paid' ? 'fa-dollar-sign' : 'fa-times')); ?> me-1"></i>
+                                                <i class="fas <?php echo $claim['status'] == 'Pending' ? 'fa-clock' : ($claim['status'] == 'Approved' ? 'fa-check' : ($claim['status'] == 'Paid' ? 'fa-dollar-sign' : ($claim['status'] == 'Cancelled' ? 'fa-ban' : 'fa-times'))); ?> me-1"></i>
                                                 <?php echo $claim['status']; ?>
                                             </span>
                                         </td>
@@ -390,7 +379,7 @@ foreach($counts_rows as $r) {
                                             <form method="POST" class="d-inline" id="cancel-form-<?php echo $claim['id']; ?>">
                                                 <input type="hidden" name="cancel_id" value="<?php echo $claim['id']; ?>">
                                                 <button type="button" class="btn btn-cancel btn-sm" onclick="confirmCancel(<?php echo $claim['id']; ?>)">
-                                                    <i class="fas fa-trash"></i> Cancel
+                                                    <i class="fas fa-ban"></i> Cancel
                                                 </button>
                                             </form>
                                             <?php endif; ?>
@@ -483,8 +472,7 @@ foreach($counts_rows as $r) {
                     <div class="modal-body p-4">
                         <input type="hidden" name="edit_id" id="edit-id">
                         
-                        <div class="alert alert-info" id="edit-alert-msg">
-                            </div>
+                        <div class="alert alert-info" id="edit-alert-msg"></div>
                         
                         <div class="row">
                             <div class="col-md-6 mb-3">
@@ -631,12 +619,12 @@ foreach($counts_rows as $r) {
         function confirmCancel(claimId) {
             Swal.fire({
                 title: 'Cancel Claim #' + claimId + '?',
-                text: "This action cannot be undone. The claim will be permanently deleted.",
+                text: "This claim will be marked as cancelled and cannot be processed further.",
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#ef4444', 
                 cancelButtonColor: '#64748b',  
-                confirmButtonText: '<i class="fas fa-trash me-1"></i> Yes, cancel it!',
+                confirmButtonText: '<i class="fas fa-ban me-1"></i> Yes, cancel it!',
                 background: 'rgba(255, 255, 255, 0.95)',
                 backdrop: `rgba(15, 43, 77, 0.4)`
             }).then((result) => {

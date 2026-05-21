@@ -9,7 +9,6 @@ require_once '../db.php';
  
 // ---------- Live Stats ----------
 $total_staff   = $conn->query("SELECT COUNT(*) AS c FROM users WHERE role='staff'")->fetch_assoc()['c'];
-// Finance stat is hidden based on requirements
 $total_admin   = $conn->query("SELECT COUNT(*) AS c FROM users WHERE role='admin'")->fetch_assoc()['c'];
 $total_users   = $conn->query("SELECT COUNT(*) AS c FROM users")->fetch_assoc()['c'];
  
@@ -80,7 +79,6 @@ if ($claims_exist) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* ADMIN - DARK PURPLE THEME WITH LIGHT BACKGROUND */
         :root {
             --admin-primary: #2e1065;
             --admin-secondary: #4c1d95;
@@ -111,66 +109,47 @@ if ($claims_exist) {
         .main-content::-webkit-scrollbar { width: 8px; }
         .main-content::-webkit-scrollbar-track { background: #e5e7eb; border-radius: 10px; }
         .main-content::-webkit-scrollbar-thumb { background: #8b5cf6; border-radius: 10px; }
-        .main-content::-webkit-scrollbar-thumb:hover { background: #4c1d95; }
         
         /* Page Header */
         .page-header { background: linear-gradient(135deg, #2e1065 0%, #4c1d95 100%); border-radius: 20px; padding: 20px 25px; color: white; margin-bottom: 25px; }
         
-        /* Stats Cards with Hover Colors */
+        /* Stats Cards */
         .stat-card { background: white; border-radius: 20px; padding: 20px; transition: all 0.3s ease; border: 1px solid #f3e8ff; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03); cursor: pointer; }
         .stat-card:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); }
-        
-        /* Total Staff - Purple theme */
         .stat-card-staff:hover { background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%); border-color: #8b5cf6; }
         .stat-card-staff:hover .stat-icon { background: #8b5cf6; color: white; }
-        
-        /* Total Claims - Yellow theme */
         .stat-card-claims:hover { background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-color: #f59e0b; }
         .stat-card-claims:hover .stat-icon { background: #f59e0b; color: white; }
-        
-        /* Total Paid - Green theme */
         .stat-card-paid:hover { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border-color: #10b981; }
         .stat-card-paid:hover .stat-icon { background: #10b981; color: white; }
         
         .stat-icon { width: 55px; height: 55px; background: rgba(139, 92, 246, 0.1); border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #8b5cf6; margin: 0 auto 15px; transition: all 0.3s ease; }
-        .stat-number { font-size: 28px; font-weight: 700; color: #2e1065; margin-bottom: 5px; transition: all 0.3s ease; }
-        .stat-label { color: #6b7280; font-size: 14px; font-weight: 500; transition: all 0.3s ease; }
+        .stat-number { font-size: 28px; font-weight: 700; color: #2e1065; margin-bottom: 5px; }
+        .stat-label { color: #6b7280; font-size: 14px; font-weight: 500; }
         .badge-pending { background: #fef3c7; color: #d97706; font-size: 10px; padding: 2px 8px; border-radius: 20px; margin-left: 8px; }
         
-        /* Cards */
+        /* Cards & Tables */
         .info-card { background: white; border-radius: 20px; border: none; box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05); transition: all 0.3s ease; }
         .info-card:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); }
         .card-title { color: #2e1065; font-size: 18px; font-weight: 600; }
-        
-        /* Department Table & User List */
         .dept-table { margin-bottom: 0; }
         .dept-table td { padding: 10px 0; border-bottom: 1px solid #f3e8ff; }
-        .dept-table tr:last-child td { border-bottom: none; }
         .dept-badge { background: #8b5cf6; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; }
-        
         .user-list { list-style: none; padding: 0; margin: 0; }
         .user-list li { padding: 12px 0; border-bottom: 1px solid #f3e8ff; }
-        .user-list li:last-child { border-bottom: none; }
-        .user-name { font-weight: 600; color: #2e1065; }
         .role-badge { padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 600; }
         .role-staff { background: #10b981; color: white; }
         .role-finance { background: #3b82f6; color: white; }
         .role-admin { background: #ef4444; color: white; }
         .user-meta { font-size: 11px; color: #6b7280; }
-        
-        /* Chart Container */
         .chart-container { position: relative; height: 300px; width: 100%; display: flex; justify-content: center; align-items: center; }
-        
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .fade-in { animation: fadeIn 0.5s ease-out; }
-        hr { border-color: #f3e8ff; }
-        @media (max-width: 768px) { .sidebar { height: auto; position: relative; } .main-content { height: auto; overflow-y: visible; } .stat-number { font-size: 22px; } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 <div class="container-fluid p-0">
     <div class="row g-0">
- 
         <div class="col-md-3 col-lg-2 sidebar">
             <div class="p-3">
                 <div class="text-center mb-4">
@@ -191,7 +170,6 @@ if ($claims_exist) {
         </div>
  
         <div class="col-md-9 col-lg-10 main-content">
- 
             <div class="page-header fade-in">
                 <div class="d-flex justify-content-between align-items-center flex-wrap">
                     <div>
@@ -206,11 +184,13 @@ if ($claims_exist) {
  
             <div class="row g-4 mb-4 fade-in">
                 <div class="col-md-4 col-sm-12">
-                    <div class="stat-card stat-card-staff text-center">
-                        <div class="stat-icon mx-auto"><i class="fas fa-users"></i></div>
-                        <div class="stat-number"><?php echo $total_staff; ?></div>
-                        <div class="stat-label">Total Staff</div>
-                    </div>
+                    <a href="Manage_User_Admin.php" class="text-decoration-none">
+                        <div class="stat-card stat-card-staff text-center">
+                            <div class="stat-icon mx-auto"><i class="fas fa-users"></i></div>
+                            <div class="stat-number"><?php echo $total_staff; ?></div>
+                            <div class="stat-label">Total Staff <i class="fas fa-external-link-alt ms-1 small"></i></div>
+                        </div>
+                    </a>
                 </div>
                 <div class="col-md-4 col-sm-12">
                     <a href="Manage_Claims_Admin.php" class="text-decoration-none">
@@ -324,11 +304,9 @@ if ($claims_exist) {
     </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
 <?php if ($claims_exist && !empty($trend_labels)): ?>
 <script>
 document.addEventListener("DOMContentLoaded", function() {
-    // Monthly Trend Chart
     const trendCtx = document.getElementById('trendChart').getContext('2d');
     new Chart(trendCtx, {
         type: 'line',
@@ -359,7 +337,6 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     });
 
-    // Department Pie Chart
     const deptCtx = document.getElementById('deptChart').getContext('2d');
     new Chart(deptCtx, {
         type: 'doughnut',

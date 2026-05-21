@@ -127,7 +127,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             
             if($stmt->execute()) {
                 $success = "Claim submitted successfully! Finance will review your claim.";
-                logActivity($conn, $user_id, 'Submit Claim', "Submitted claim of RM " . number_format($amount, 2) . " for " . $claim_type);
+                if(function_exists('logActivity')) {
+                    logActivity($conn, $user_id, 'Submit Claim', "Submitted claim of RM " . number_format($amount, 2) . " for " . $claim_type);
+                }
                 $total_amount_this_month += $amount;
                 $total_claims_this_month++;
             } else {
@@ -410,6 +412,23 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
             margin-right: 8px;
         }
         
+        .swal2-backdrop-show {
+            background: rgba(15, 43, 77, 0.6) !important;
+            backdrop-filter: blur(8px) !important;
+            -webkit-backdrop-filter: blur(8px) !important;
+        }
+        .premium-swal-popup {
+            border-radius: 24px !important;
+            padding: 2.5em 2em !important;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+            border: 1px solid rgba(255,255,255,0.2) !important;
+        }
+        .premium-swal-progress {
+            background: linear-gradient(90deg, #3b82f6 0%, #10b981 100%) !important;
+            height: 6px !important;
+            border-radius: 10px;
+        }
+        
         @media (max-width: 768px) {
             .sidebar { min-height: auto; }
         }
@@ -620,22 +639,38 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
         }
 
         <?php if($success): ?>
-            const Toast = Swal.mixin({
-                toast: true,
-                position: 'top-end',
-                showConfirmButton: false,
+            let timerInterval;
+            Swal.fire({
+                title: 'Submission Successful!',
+                html: '<div class="mt-2 text-muted" style="font-size: 1.05rem;">Your expense claim has been successfully sent to Finance and is awaiting review.</div>' +
+                      '<div class="mt-4 p-3 rounded-3" style="background: #f8fafc; border: 1px dashed #cbd5e1;">' +
+                      '<i class="fas fa-rocket me-2" style="color: #3b82f6;"></i> Redirecting to Claim History in <b><span id="swal-timer" style="color: #0f2b4d; font-size: 1.2rem;">3</span></b> seconds...' +
+                      '</div>',
+                icon: 'success',
                 timer: 3000,
                 timerProgressBar: true,
-                didOpen: (toast) => {
-                    toast.addEventListener('mouseenter', Swal.stopTimer)
-                    toast.addEventListener('mouseleave', Swal.resumeTimer)
+                showConfirmButton: false,
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                color: '#0f2b4d',
+                iconColor: '#10b981',
+                customClass: {
+                    popup: 'premium-swal-popup',
+                    timerProgressBar: 'premium-swal-progress'
+                },
+                didOpen: () => {
+                    const b = Swal.getHtmlContainer().querySelector('#swal-timer');
+                    timerInterval = setInterval(() => {
+                        b.textContent = Math.ceil(Swal.getTimerLeft() / 1000);
+                    }, 100);
+                },
+                willClose: () => {
+                    clearInterval(timerInterval);
                 }
-            });
-            Toast.fire({
-                icon: 'success',
-                title: '<?php echo addslashes($success); ?>'
-            }).then(() => {
-                window.location.href = 'Claim_History_Staff.php';
+            }).then((result) => {
+                if (result.dismiss === Swal.DismissReason.timer) {
+                    window.location.href = 'Claim_History_Staff.php';
+                }
             });
         <?php elseif($error): ?>
             Swal.fire({
