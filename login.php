@@ -8,6 +8,7 @@ if (isset($_SESSION['user_id'])) {
 }
 
 $error = '';
+$success_redirect = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email']);
@@ -33,13 +34,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['email'] = $user['email'];
 
                     if ($user['role'] === 'staff') {
-                        header("Location: staff/dashboard_Staff.php");
+                        $success_redirect = "staff/dashboard_Staff.php";
                     } elseif ($user['role'] === 'finance') {
-                        header("Location: finance/dashboard_Finance.php");
+                        $success_redirect = "finance/dashboard_Finance.php";
                     } elseif ($user['role'] === 'admin') {
-                        header("Location: admin/dashboard_Admin.php");
+                        $success_redirect = "admin/dashboard_Admin.php";
                     }
-                    exit();
                 }
             } else {
                 $error = "Invalid email or password!";
@@ -59,6 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bootstrap-4/bootstrap-4.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
     <style>
         :root {
             --utm-navy: #0B3B5E;
@@ -100,7 +101,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             width: 100%; max-width: 450px;
         }
 
-        /* Logo Styles - SAME AS INDEX */
         .utm-logo {
             text-align: center;
             margin-bottom: 20px;
@@ -115,7 +115,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             transition: transform 0.2s ease;
         }
         
-        /* 🔥 Logo hover effect 🔥 */
         .utmspace-logo-img:hover {
             transform: scale(1.05);
         }
@@ -195,10 +194,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <p class="text-muted">Enter your credentials to access your account</p>
             </div>
 
-            <form method="POST">
+            <form method="POST" id="loginForm">
                 <div class="mb-3">
                     <label class="form-label text-navy ms-1"><i class="fas fa-envelope me-2 opacity-75"></i>Email Address</label>
-                    <input type="email" name="email" class="form-control" placeholder="name@utmspace.edu.my" required>
+                    <input type="email" name="email" class="form-control" placeholder="name@utmspace.edu.my" required value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>">
                 </div>
                 
                 <div class="mb-4">
@@ -206,7 +205,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <input type="password" name="password" class="form-control" placeholder="••••••••" required>
                 </div>
                 
-                <button type="submit" class="btn btn-primary-custom w-100 mb-3">
+                <button type="submit" class="btn btn-primary-custom w-100 mb-3" id="loginBtn">
                     <i class="fas fa-sign-in-alt me-2"></i>Sign In
                 </button>
                 
@@ -226,20 +225,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-    <?php if($error): ?>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            Swal.fire({
-                icon: 'error',
-                title: 'Login Failed',
-                html: '<?php echo addslashes($error); ?>',
-                confirmButtonColor: '#0B3B5E',
-                background: 'rgba(255, 255, 255, 0.95)',
-                backdrop: `rgba(11, 59, 94, 0.3)`,
-                showClass: { popup: 'animate__animated animate__shakeX' }
-            });
+            <?php if ($success_redirect): ?>
+                document.getElementById('loginBtn').innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Authenticating...';
+                document.getElementById('loginBtn').disabled = true;
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Welcome, <?php echo addslashes($_SESSION['user_name']); ?>!',
+                    text: 'Authenticating your account...',
+                    showConfirmButton: false,
+                    timer: 1500,
+                    timerProgressBar: true,
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    backdrop: `rgba(11, 59, 94, 0.6)`,
+                    showClass: {
+                        popup: 'animate__animated animate__zoomIn'
+                    },
+                    hideClass: {
+                        popup: 'animate__animated animate__zoomOut'
+                    }
+                }).then(() => {
+                    window.location.href = '<?php echo $success_redirect; ?>';
+                });
+            <?php endif; ?>
+
+            <?php if ($error): ?>
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Login Failed',
+                    html: '<?php echo addslashes($error); ?>',
+                    confirmButtonColor: '#0B3B5E',
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    backdrop: `rgba(11, 59, 94, 0.3)`,
+                    showClass: { popup: 'animate__animated animate__shakeX' }
+                });
+            <?php endif; ?>
         });
     </script>
-    <?php endif; ?>
 </body>
 </html>
