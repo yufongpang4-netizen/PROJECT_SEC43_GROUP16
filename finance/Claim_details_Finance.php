@@ -1,15 +1,34 @@
 <?php
+// ============================================================================
+// SECTION 0: DEFENSE-READY COMMENTING CONTEXT
+// Purpose: Claim_details_Finance.php is part of the UTMSPACE Staff Pay and Claim System.
+// The following comments intentionally explain both what each block does and why
+// it supports authentication, claim governance, reporting accuracy, security, or
+// examiner-readable user interaction during the final-year project defense.
+// ============================================================================
+// SECTION: SESSION INITIALIZATION - Starts or resumes the browser session so the application can identify the current authenticated user.
 session_start();
+// SECURITY: This session condition prevents unauthenticated users from reaching protected business pages.
+// SECURITY: Role-based branching separates Staff, Finance, and Admin privileges so users can only access their permitted workflow.
+// CONDITION: Evaluates `if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'finance') ` so the application can choose the correct business rule branch for the current user action.
 if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'finance') {
+    // SECURITY: Redirecting immediately protects restricted pages after a failed authorization or invalid-record check.
     header("Location: ../login.php");
+    // BEST PRACTICE: Terminating after redirect prevents the remaining protected HTML or PHP logic from executing accidentally.
     exit();
 }
  
+// SECTION: DEPENDENCY LOADING - Loads shared services so this page uses the same database and library logic as the rest of the system.
 require_once '../db.php';
  
+// WHY: GET parameters support filters, selected records, and dashboard links that can be bookmarked or refreshed.
+// SECURITY: Casting identifiers with intval() forces numeric IDs and reduces risk from manipulated request parameters.
 $claim_id = intval($_GET['id'] ?? 0);
+// CONDITION: Evaluates `if(!$claim_id) ` so the application can choose the correct business rule branch for the current user action.
 if(!$claim_id) {
+    // SECURITY: Redirecting immediately protects restricted pages after a failed authorization or invalid-record check.
     header("Location: All_Claim_Finance.php");
+    // BEST PRACTICE: Terminating after redirect prevents the remaining protected HTML or PHP logic from executing accidentally.
     exit();
 }
  
@@ -17,39 +36,68 @@ $success = '';
 $error   = '';
  
 // Handle form actions
+// SECTION: FORM SUBMISSION HANDLER - Processes user input only after an intentional form submission.
+// CONDITION: Evaluates `if($_SERVER['REQUEST_METHOD'] == 'POST') ` so the application can choose the correct business rule branch for the current user action.
 if($_SERVER['REQUEST_METHOD'] == 'POST') {
+    // BEST PRACTICE: trim() removes accidental whitespace before validation so values are stored and compared consistently.
     $remark = trim($_POST['comments'] ?? '');
  
+    // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
+    // CONDITION: Evaluates `if(isset($_POST['approve'])) ` so the application can choose the correct business rule branch for the current user action.
     if(isset($_POST['approve'])) {
+        // SECURITY: Using Prepared Statements to prevent SQL Injection.
+        // WHY: SQL is prepared separately from user data so identifiers, filters, and form values can be bound safely.
         $stmt = $conn->prepare("UPDATE claims SET status='Approved', finance_comment=? WHERE id=?");
+        // SECURITY: Using Prepared Statements to prevent SQL Injection.
+        // WHY: bind_param() attaches typed values to SQL placeholders, preventing input from becoming executable SQL.
         $stmt->bind_param('si', $remark, $claim_id);
+        // WHY: Executing the prepared statement performs the validated database operation for the current workflow.
         $stmt->execute();
         $success = "Claim has been APPROVED successfully!";
  
+    // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
+    // CONDITION: Evaluates `} elseif(isset($_POST['reject'])) ` so the application can choose the correct business rule branch for the current user action.
     } elseif(isset($_POST['reject'])) {
+        // VALIDATION: This condition rejects incomplete input so the database does not receive unusable claim or account records.
         if(empty($remark)) {
             $error = "Please provide a reason for rejection.";
+        // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
         } else {
+            // SECURITY: Using Prepared Statements to prevent SQL Injection.
+            // WHY: SQL is prepared separately from user data so identifiers, filters, and form values can be bound safely.
             $stmt = $conn->prepare("UPDATE claims SET status='Rejected', finance_comment=? WHERE id=?");
+            // SECURITY: Using Prepared Statements to prevent SQL Injection.
+            // WHY: bind_param() attaches typed values to SQL placeholders, preventing input from becoming executable SQL.
             $stmt->bind_param('si', $remark, $claim_id);
+            // WHY: Executing the prepared statement performs the validated database operation for the current workflow.
             $stmt->execute();
             $success = "Claim has been REJECTED.";
         }
     } 
 }
  
+// SECURITY: Using Prepared Statements to prevent SQL Injection.
+// WHY: SQL is prepared separately from user data so identifiers, filters, and form values can be bound safely.
 $stmt = $conn->prepare("
     SELECT c.*, u.name AS staff, u.staff_id, u.email AS staff_email, u.department
     FROM claims c
     JOIN users u ON c.user_id = u.id
     WHERE c.id = ?
 ");
+// SECURITY: Using Prepared Statements to prevent SQL Injection.
+// WHY: bind_param() attaches typed values to SQL placeholders, preventing input from becoming executable SQL.
 $stmt->bind_param('i', $claim_id);
+// WHY: Executing the prepared statement performs the validated database operation for the current workflow.
 $stmt->execute();
+// WHY: get_result() turns the executed query into rows that can be rendered in dashboards, tables, or decision screens.
+// WHY: fetch_assoc() returns one database row as named fields, making the business data readable and display-ready.
 $claim = $stmt->get_result()->fetch_assoc();
  
+// CONDITION: Evaluates `if(!$claim) ` so the application can choose the correct business rule branch for the current user action.
 if(!$claim) {
+    // SECURITY: Redirecting immediately protects restricted pages after a failed authorization or invalid-record check.
     header("Location: All_Claim_Finance.php");
+    // BEST PRACTICE: Terminating after redirect prevents the remaining protected HTML or PHP logic from executing accidentally.
     exit();
 }
  
@@ -57,6 +105,7 @@ $status = strtolower($claim['status']);
 ?>
 <!DOCTYPE html>
 <html lang="en">
+<!-- SECTION: DOCUMENT METADATA - Loads responsive settings and external UI libraries required by this page. -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -64,8 +113,10 @@ $status = strtolower($claim['status']);
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bootstrap-4/bootstrap-4.css">
+    <!-- SECTION: PAGE-SPECIFIC CSS - Defines local layout and visual rules for this screen. -->
     <style>
         /* FINANCE - DARK GREEN THEME WITH LIGHT BACKGROUND */
+        /* SECTION: DESIGN TOKENS - Central color variables keep role themes consistent across cards, buttons, and navigation. */
         :root {
             --finance-primary: #064e3b;
             --finance-secondary: #047857;
@@ -78,6 +129,7 @@ $status = strtolower($claim['status']);
         
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
+        /* SECTION: PAGE FOUNDATION - Body rules set the base font, background, and overflow behavior for the whole screen. */
         body {
             background: var(--finance-bg);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -85,10 +137,13 @@ $status = strtolower($claim['status']);
             overflow-x: hidden;
         }
         
+        /* BOOTSTRAP LAYOUT: The full-width container lets dashboard pages use the complete viewport for side navigation plus content. */
         .container-fluid { height: 100%; overflow: hidden; }
+        /* BOOTSTRAP LAYOUT: The zero-gutter row removes unwanted spacing between the sidebar and the main workspace. */
         .row.g-0 { height: 100%; }
         
         /* Sidebar */
+        /* SECTION: SIDEBAR NAVIGATION - The fixed-height sidebar keeps role-specific navigation visible for repeated dashboard use. */
         .sidebar {
             background: linear-gradient(180deg, #064e3b 0%, #047857 100%);
             height: 100vh;
@@ -99,6 +154,7 @@ $status = strtolower($claim['status']);
             top: 0;
         }
         
+        /* SECTION: SIDEBAR NAVIGATION - The fixed-height sidebar keeps role-specific navigation visible for repeated dashboard use. */
         .sidebar .nav-link {
             color: rgba(255, 255, 255, 0.85);
             padding: 12px 20px;
@@ -107,29 +163,36 @@ $status = strtolower($claim['status']);
             transition: all 0.3s ease;
         }
         
+        /* SECTION: SIDEBAR NAVIGATION - The fixed-height sidebar keeps role-specific navigation visible for repeated dashboard use. */
         .sidebar .nav-link:hover {
             background: rgba(16, 185, 129, 0.2);
             color: #10b981;
             transform: translateX(5px);
         }
         
+        /* SECTION: SIDEBAR NAVIGATION - The fixed-height sidebar keeps role-specific navigation visible for repeated dashboard use. */
         .sidebar .nav-link.active {
             background: #10b981;
             color: #064e3b;
             font-weight: 600;
         }
         
+        /* SECTION: MAIN WORKSPACE - A scrollable content panel allows long tables and forms without moving the sidebar. */
         .main-content {
             height: 100vh;
             overflow-y: auto;
             padding: 20px;
         }
         
+        /* SECTION: MAIN WORKSPACE - A scrollable content panel allows long tables and forms without moving the sidebar. */
         .main-content::-webkit-scrollbar { width: 8px; }
+        /* SECTION: MAIN WORKSPACE - A scrollable content panel allows long tables and forms without moving the sidebar. */
         .main-content::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 10px; }
+        /* SECTION: MAIN WORKSPACE - A scrollable content panel allows long tables and forms without moving the sidebar. */
         .main-content::-webkit-scrollbar-thumb { background: #10b981; border-radius: 10px; }
         
         /* Page Header */
+        /* SECTION: PAGE HEADER - The banner identifies the current workflow and gives immediate user context. */
         .page-header {
             background: linear-gradient(135deg, #064e3b 0%, #047857 100%);
             border-radius: 20px;
@@ -139,6 +202,7 @@ $status = strtolower($claim['status']);
         }
         
         /* Cards */
+        /* SECTION: CARD/PANEL COMPONENT - This visual container groups related controls or records so business information is easier to scan. */
         .info-card, .receipt-card, .action-card {
             background: white;
             border-radius: 20px;
@@ -174,40 +238,58 @@ $status = strtolower($claim['status']);
             color: #10b981;
         }
         
+        /* SECTION: STATUS PRESENTATION - Status colors distinguish Pending, Approved, Paid, Rejected, and Cancelled claim states. */
         .status-pending { background: #fef3c7; color: #d97706; padding: 5px 15px; border-radius: 20px; font-size: 13px; font-weight: 600; display: inline-block; }
+        /* SECTION: STATUS PRESENTATION - Status colors distinguish Pending, Approved, Paid, Rejected, and Cancelled claim states. */
         .status-approved { background: #d1fae5; color: #059669; padding: 5px 15px; border-radius: 20px; font-size: 13px; font-weight: 600; display: inline-block; }
+        /* SECTION: STATUS PRESENTATION - Status colors distinguish Pending, Approved, Paid, Rejected, and Cancelled claim states. */
         .status-paid { background: #dbeafe; color: #2563eb; padding: 5px 15px; border-radius: 20px; font-size: 13px; font-weight: 600; display: inline-block; }
+        /* SECTION: STATUS PRESENTATION - Status colors distinguish Pending, Approved, Paid, Rejected, and Cancelled claim states. */
         .status-rejected { background: #fee2e2; color: #dc2626; padding: 5px 15px; border-radius: 20px; font-size: 13px; font-weight: 600; display: inline-block; }
+        /* SECTION: STATUS PRESENTATION - Status colors distinguish Pending, Approved, Paid, Rejected, and Cancelled claim states. */
         .status-cancelled { background: #e5e7eb; color: #4b5563; padding: 5px 15px; border-radius: 20px; font-size: 13px; font-weight: 600; display: inline-block; }
         
         /* Buttons */
+        /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
         .btn-approve {
             background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             color: white; border: none; padding: 12px; border-radius: 12px; font-weight: 600; transition: all 0.3s ease;
         }
+        /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
         .btn-approve:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.4); color: white; }
         
+        /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
         .btn-reject {
             background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
             color: white; border: none; padding: 12px; border-radius: 12px; font-weight: 600; transition: all 0.3s ease;
         }
+        /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
         .btn-reject:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -5px rgba(239, 68, 68, 0.4); color: white; }
         
+        /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
         .btn-paid {
             background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
             color: white; border: none; padding: 12px; border-radius: 12px; font-weight: 600; transition: all 0.3s ease;
         }
+        /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
         .btn-paid:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -5px rgba(139, 92, 246, 0.4); color: white; }
         
+        /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
         .btn-back {
             background: #f1f5f9; color: #064e3b; border: none; border-radius: 10px; padding: 10px 20px; transition: all 0.3s ease;
         }
+        /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
         .btn-back:hover { background: #e2e8f0; transform: translateY(-2px); color: #064e3b; }
         
+        /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
         .btn-preview, .btn-download { border-radius: 10px; padding: 10px; font-weight: 500; transition: all 0.3s ease; }
+        /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
         .btn-preview { background: #10b981; color: white; }
+        /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
         .btn-preview:hover { background: #059669; transform: translateY(-2px); color: white; }
+        /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
         .btn-download { background: #064e3b; color: white; }
+        /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
         .btn-download:hover { background: #047857; transform: translateY(-2px); color: white; }
         
         /* Alert States */
@@ -218,9 +300,12 @@ $status = strtolower($claim['status']);
         .alert-secondary-custom { background: #f3f4f6; border-left: 4px solid #6b7280; color: #374151; }
         
         /* Form Controls */
+        /* SECTION: FORM CONTROLS - Consistent input styling helps users enter claim/account data accurately. */
         .form-control, .form-select { border-radius: 12px; border: 1px solid #e5e7eb; padding: 12px 15px; transition: all 0.3s ease; }
+        /* SECTION: FORM CONTROLS - Consistent input styling helps users enter claim/account data accurately. */
         .form-control:focus, .form-select:focus { border-color: #10b981; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1); }
         
+        /* SECTION: ANIMATION - Keyframes add subtle entrance motion to guide attention without changing business logic. */
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .fade-in { animation: fadeIn 0.5s ease-out; }
         hr { border-color: #e5e7eb; }
@@ -228,12 +313,18 @@ $status = strtolower($claim['status']);
         .receipt-img { max-height: 180px; object-fit: contain; border-radius: 10px; }
         .remark-box { background: #f0fdf4; border-radius: 12px; padding: 15px; }
         
+        /* SECTION: SIDEBAR NAVIGATION - The fixed-height sidebar keeps role-specific navigation visible for repeated dashboard use. */
+        /* SECTION: RESPONSIVE RULES - These rules adapt sidebars, cards, and tables for smaller screens. */
         @media (max-width: 768px) { .sidebar { height: auto; position: relative; } }
     </style>
 </head>
+<!-- SECTION: PAGE BODY - Begins the visible interface for the current UTMSPACE workflow. -->
 <body>
+    <!-- BOOTSTRAP LAYOUT: container-fluid spans the full browser width so dashboards can use the complete workspace. -->
     <div class="container-fluid p-0">
+        <!-- BOOTSTRAP LAYOUT: row creates the horizontal grid used to align sidebars, content columns, cards, or form fields. -->
         <div class="row g-0">
+            <!-- BOOTSTRAP LAYOUT: col-md-3/col-lg-2 reserves a narrower column for role navigation on medium and large screens. -->
             <div class="col-md-3 col-lg-2 sidebar">
                 <div class="p-3">
                     <div class="text-center mb-4">
@@ -242,6 +333,7 @@ $status = strtolower($claim['status']);
                         <small>Finance Portal</small>
                     </div>
                     <hr style="border-color: rgba(255,255,255,0.2);">
+                    <!-- SECTION: ROLE NAVIGATION - Provides role-specific movement between the pages allowed for the current user. -->
                     <nav class="nav flex-column">
                         <a class="nav-link" href="dashboard_Finance.php">
                             <i class="fas fa-tachometer-alt fa-fw me-2"></i> Dashboard
@@ -260,6 +352,7 @@ $status = strtolower($claim['status']);
                 </div>
             </div>
  
+            <!-- BOOTSTRAP LAYOUT: col-md-9/col-lg-10 allocates the wider content area for tables, dashboards, and forms. -->
             <div class="col-md-9 col-lg-10 main-content">
                 <div class="page-header fade-in">
                     <div class="d-flex justify-content-between align-items-center flex-wrap">
@@ -276,6 +369,7 @@ $status = strtolower($claim['status']);
                     </div>
                 </div>
  
+                <!-- BOOTSTRAP LAYOUT: row creates the horizontal grid used to align sidebars, content columns, cards, or form fields. -->
                 <div class="row g-4 fade-in">
                     <div class="col-md-7">
                         <div class="info-card">
@@ -292,35 +386,49 @@ $status = strtolower($claim['status']);
                                 </div>
                                 <hr>
                                 
+                                <!-- BOOTSTRAP LAYOUT: row creates the horizontal grid used to align sidebars, content columns, cards, or form fields. -->
                                 <div class="row">
+                                    <!-- BOOTSTRAP LAYOUT: col-md-6 gives each field half the row on medium screens so forms remain scannable. -->
                                     <div class="col-md-6">
                                         <div class="info-label">Claim ID</div>
                                         <div class="info-value">#<?php echo $claim['id']; ?></div>
                                     </div>
+                                    <!-- BOOTSTRAP LAYOUT: col-md-6 gives each field half the row on medium screens so forms remain scannable. -->
                                     <div class="col-md-6">
                                         <div class="info-label">Submitted On</div>
                                         <div class="info-value"><?php echo date('d M Y, h:i A', strtotime($claim['submitted_at'])); ?></div>
                                     </div>
+                                    <!-- BOOTSTRAP LAYOUT: col-md-6 gives each field half the row on medium screens so forms remain scannable. -->
                                     <div class="col-md-6">
                                         <div class="info-label">Staff Name</div>
+                                        <!-- SECURITY: Escaping output to prevent XSS attacks. -->
                                         <div class="info-value"><?php echo htmlspecialchars($claim['staff']); ?></div>
                                     </div>
+                                    <!-- BOOTSTRAP LAYOUT: col-md-6 gives each field half the row on medium screens so forms remain scannable. -->
                                     <div class="col-md-6">
                                         <div class="info-label">Staff ID</div>
+                                        <!-- SECURITY: Escaping output to prevent XSS attacks. -->
                                         <div class="info-value"><?php echo htmlspecialchars($claim['staff_id']); ?></div>
                                     </div>
+                                    <!-- BOOTSTRAP LAYOUT: col-md-6 gives each field half the row on medium screens so forms remain scannable. -->
                                     <div class="col-md-6">
                                         <div class="info-label">Email</div>
+                                        <!-- SECURITY: Escaping output to prevent XSS attacks. -->
                                         <div class="info-value"><?php echo htmlspecialchars($claim['staff_email']); ?></div>
                                     </div>
+                                    <!-- BOOTSTRAP LAYOUT: col-md-6 gives each field half the row on medium screens so forms remain scannable. -->
                                     <div class="col-md-6">
                                         <div class="info-label">Department</div>
+                                        <!-- SECURITY: Escaping output to prevent XSS attacks. -->
                                         <div class="info-value"><?php echo htmlspecialchars($claim['department'] ?: '—'); ?></div>
                                     </div>
+                                    <!-- BOOTSTRAP LAYOUT: col-md-6 gives each field half the row on medium screens so forms remain scannable. -->
                                     <div class="col-md-6">
                                         <div class="info-label">Claim Type</div>
+                                        <!-- SECURITY: Escaping output to prevent XSS attacks. -->
                                         <div class="info-value"><?php echo htmlspecialchars($claim['claim_type']); ?></div>
                                     </div>
+                                    <!-- BOOTSTRAP LAYOUT: col-md-6 gives each field half the row on medium screens so forms remain scannable. -->
                                     <div class="col-md-6">
                                         <div class="info-label">Expense Date</div>
                                         <div class="info-value"><?php echo $claim['expense_date'] ? date('d M Y', strtotime($claim['expense_date'])) : '-'; ?></div>
@@ -331,14 +439,19 @@ $status = strtolower($claim['status']);
                                     </div>
                                     <div class="col-12 mt-2">
                                         <div class="info-label">Description</div>
+                                        <!-- SECURITY: Escaping output to prevent XSS attacks. -->
+                                        <!-- SECURITY: Multi-line user text is escaped before line breaks are added, preventing stored XSS in descriptions or remarks. -->
                                         <div class="info-value"><?php echo nl2br(htmlspecialchars($claim['description'] ?? '-')); ?></div>
                                     </div>
                                     
+                                    <!-- CONDITION: Evaluates `if(!empty($claim['finance_comment']))` so the application can choose the correct business rule branch for the current user action. -->
                                     <?php if(!empty($claim['finance_comment'])): ?>
                                     <div class="col-12 mt-3">
                                         <div class="remark-box">
                                             <i class="fas fa-comment me-2" style="color: #10b981;"></i>
                                             <strong>Finance Remark</strong>
+                                            <!-- SECURITY: Escaping output to prevent XSS attacks. -->
+                                            <!-- SECURITY: Multi-line user text is escaped before line breaks are added, preventing stored XSS in descriptions or remarks. -->
                                             <p class="mb-0 mt-2"><?php echo nl2br(htmlspecialchars($claim['finance_comment'])); ?></p>
                                         </div>
                                     </div>
@@ -354,7 +467,9 @@ $status = strtolower($claim['status']);
                                 <i class="fas fa-paperclip" style="font-size: 45px; color: #10b981;"></i>
                                 <h5 class="mt-3" style="color: #064e3b;">Attached Receipt</h5>
                                 
+                                <!-- CONDITION: Evaluates `if(!empty($claim['receipt']))` so the application can choose the correct business rule branch for the current user action. -->
                                 <?php if(!empty($claim['receipt'])): ?>
+                                    <!-- SECURITY: Escaping output to prevent XSS attacks. -->
                                     <p class="text-muted small"><?php echo htmlspecialchars($claim['receipt']); ?></p>
                                     
                                     <?php
@@ -362,6 +477,7 @@ $status = strtolower($claim['status']);
                                     $ext = strtolower(pathinfo($claim['receipt'], PATHINFO_EXTENSION));
                                     ?>
                                     
+                                    <!-- CONDITION: Evaluates `if(in_array($ext, ['jpg','jpeg','png','gif']))` so the application can choose the correct business rule branch for the current user action. -->
                                     <?php if(in_array($ext, ['jpg','jpeg','png','gif'])): ?>
                                         <img src="<?php echo $receipt_path; ?>" class="receipt-img mb-3" alt="Receipt">
                                     <?php endif; ?>
@@ -374,6 +490,7 @@ $status = strtolower($claim['status']);
                                             <i class="fas fa-download me-2"></i>Download Receipt
                                         </a>
                                     </div>
+                                <!-- CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome. -->
                                 <?php else: ?>
                                     <div class="alert-warning-custom p-3 rounded mt-2">
                                         <i class="fas fa-exclamation-triangle me-2"></i>
@@ -391,7 +508,9 @@ $status = strtolower($claim['status']);
                                 </h5>
                                 <hr>
  
+                                <!-- CONDITION: Evaluates `if($status == 'pending')` so the application can choose the correct business rule branch for the current user action. -->
                                 <?php if($status == 'pending'): ?>
+                                    <!-- SECTION: USER INPUT FORM - Captures business data that will be validated server-side before database changes occur. -->
                                     <form method="POST" id="actionForm">
                                         <div class="mb-3">
                                             <label class="form-label fw-bold">Comments / Remarks</label>
@@ -412,6 +531,7 @@ $status = strtolower($claim['status']);
                                         </div>
                                     </form>
  
+                                <!-- CONDITION: Evaluates `elseif($status == 'approved')` so the application can choose the correct business rule branch for the current user action. -->
                                 <?php elseif($status == 'approved'): ?>
                                     <div class="alert-warning-custom p-3 mb-3 rounded">
                                         <i class="fas fa-info-circle me-2"></i>
@@ -424,6 +544,7 @@ $status = strtolower($claim['status']);
                                         </a>
                                     </div>
  
+                                <!-- CONDITION: Evaluates `elseif($status == 'paid')` so the application can choose the correct business rule branch for the current user action. -->
                                 <?php elseif($status == 'paid'): ?>
                                     <div class="alert-success-custom p-3 text-center rounded">
                                         <i class="fas fa-check-circle me-2"></i>
@@ -431,6 +552,7 @@ $status = strtolower($claim['status']);
                                         This claim has been paid. No further action required.
                                     </div>
  
+                                <!-- CONDITION: Evaluates `elseif($status == 'rejected')` so the application can choose the correct business rule branch for the current user action. -->
                                 <?php elseif($status == 'rejected'): ?>
                                     <div class="alert-danger-custom p-3 text-center rounded">
                                         <i class="fas fa-times-circle me-2"></i>
@@ -438,6 +560,7 @@ $status = strtolower($claim['status']);
                                         This claim has been rejected.
                                     </div>
                                     
+                                <!-- CONDITION: Evaluates `elseif($status == 'cancelled')` so the application can choose the correct business rule branch for the current user action. -->
                                 <?php elseif($status == 'cancelled'): ?>
                                     <div class="alert-secondary-custom p-3 text-center rounded">
                                         <i class="fas fa-ban me-2"></i>
@@ -453,14 +576,21 @@ $status = strtolower($claim['status']);
         </div>
     </div>
     
+    <!-- SECTION: CLIENT-SIDE BEHAVIOR - Loads JavaScript used for validation, alerts, navigation, charts, or tables. -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- SECTION: CLIENT-SIDE BEHAVIOR - Loads JavaScript used for validation, alerts, navigation, charts, or tables. -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
+    <!-- SECTION: CLIENT-SIDE BEHAVIOR - Loads JavaScript used for validation, alerts, navigation, charts, or tables. -->
     <script>
+        // SECTION: CLIENT FUNCTION - Encapsulates repeated UI logic so page behavior is easier to audit and maintain.
+        // SECTION: CONFIRMATION WORKFLOW - Requires deliberate confirmation before irreversible or high-impact actions occur.
         function confirmAction(actionType) {
             const remark = document.getElementById('finance-remark').value.trim();
             
+            // CONDITION: Evaluates `if (actionType === 'reject' && remark === '') ` so the application can choose the correct business rule branch for the current user action.
             if (actionType === 'reject' && remark === '') {
+                // SECTION: SWEETALERT FEEDBACK - Shows high-visibility success, error, warning, or confirmation messages for important actions.
                 Swal.fire({
                     icon: 'error',
                     title: 'Remark Required',
@@ -476,6 +606,7 @@ $status = strtolower($claim['status']);
             const confirmColor = actionType === 'approve' ? '#10b981' : '#ef4444';
             const confirmIcon = actionType === 'approve' ? '<i class="fas fa-check me-1"></i> Yes, Approve' : '<i class="fas fa-times me-1"></i> Yes, Reject';
 
+            // SECTION: SWEETALERT FEEDBACK - Shows high-visibility success, error, warning, or confirmation messages for important actions.
             Swal.fire({
                 title: title,
                 text: text,
@@ -485,17 +616,21 @@ $status = strtolower($claim['status']);
                 cancelButtonColor: '#6b7280',
                 confirmButtonText: confirmIcon
             }).then((result) => {
+                // CONDITION: Evaluates `if (result.isConfirmed) ` so the application can choose the correct business rule branch for the current user action.
                 if (result.isConfirmed) {
                     const form = document.getElementById('actionForm');
                     const hiddenAction = document.getElementById('hidden-action');
                     hiddenAction.name = actionType;
                     hiddenAction.value = '1';
+                    // WHY: The form is submitted programmatically only after the user confirms the action.
                     form.submit();
                 }
             });
         }
 
+        // CONDITION: Evaluates `if($success)` so the application can choose the correct business rule branch for the current user action.
         <?php if($success): ?>
+            // WHY: A toast configuration provides non-blocking feedback after low-risk successful actions.
             const Toast = Swal.mixin({
                 toast: true,
                 position: 'top-end',
@@ -507,7 +642,9 @@ $status = strtolower($claim['status']);
                 icon: 'success',
                 title: '<?php echo addslashes(strip_tags($success)); ?>'
             });
+        // CONDITION: Evaluates `elseif($error)` so the application can choose the correct business rule branch for the current user action.
         <?php elseif($error): ?>
+            // SECTION: SWEETALERT FEEDBACK - Shows high-visibility success, error, warning, or confirmation messages for important actions.
             Swal.fire({
                 icon: 'error',
                 title: 'Action Failed',

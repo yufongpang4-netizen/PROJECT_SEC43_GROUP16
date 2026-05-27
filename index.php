@@ -1,25 +1,47 @@
 <?php
+// ============================================================================
+// SECTION 0: DEFENSE-READY COMMENTING CONTEXT
+// Purpose: index.php is part of the UTMSPACE Staff Pay and Claim System.
+// The following comments intentionally explain both what each block does and why
+// it supports authentication, claim governance, reporting accuracy, security, or
+// examiner-readable user interaction during the final-year project defense.
+// ============================================================================
+// SECTION: SESSION INITIALIZATION - Starts or resumes the browser session so the application can identify the current authenticated user.
 session_start();
+// SECURITY: This session condition prevents unauthenticated users from reaching protected business pages.
+// CONDITION: Evaluates `if(isset($_SESSION['user_id'])) ` so the application can choose the correct business rule branch for the current user action.
 if(isset($_SESSION['user_id'])) {
+    // SECURITY: Role-based branching separates Staff, Finance, and Admin privileges so users can only access their permitted workflow.
     if($_SESSION['role'] == 'staff') {
+        // SECURITY: Redirecting immediately protects restricted pages after a failed authorization or invalid-record check.
         header("Location: staff/dashboard_Staff.php");
+    // SECURITY: Role-based branching separates Staff, Finance, and Admin privileges so users can only access their permitted workflow.
+    // CONDITION: Evaluates `} elseif($_SESSION['role'] == 'finance') ` so the application can choose the correct business rule branch for the current user action.
     } elseif($_SESSION['role'] == 'finance') {
+        // SECURITY: Redirecting immediately protects restricted pages after a failed authorization or invalid-record check.
         header("Location: finance/dashboard_Finance.php");
+    // SECURITY: Role-based branching separates Staff, Finance, and Admin privileges so users can only access their permitted workflow.
+    // CONDITION: Evaluates `} elseif($_SESSION['role'] == 'admin') ` so the application can choose the correct business rule branch for the current user action.
     } elseif($_SESSION['role'] == 'admin') {
+        // SECURITY: Redirecting immediately protects restricted pages after a failed authorization or invalid-record check.
         header("Location: admin/dashboard_Admin.php");
     }
+    // BEST PRACTICE: Terminating after redirect prevents the remaining protected HTML or PHP logic from executing accidentally.
     exit();
 }
 ?>
 <!DOCTYPE html>
 <html lang="en">
+<!-- SECTION: DOCUMENT METADATA - Loads responsive settings and external UI libraries required by this page. -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UTMSPACE - Staff Pay and Claim System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SECTION: PAGE-SPECIFIC CSS - Defines local layout and visual rules for this screen. -->
     <style>
+        /* SECTION: DESIGN TOKENS - Central color variables keep role themes consistent across cards, buttons, and navigation. */
         :root {
             --utm-navy: #0B3B5E;
             --utm-red: #C1272D;
@@ -30,6 +52,7 @@ if(isset($_SESSION['user_id'])) {
         
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
+        /* SECTION: PAGE FOUNDATION - Body rules set the base font, background, and overflow behavior for the whole screen. */
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             min-height: 100vh;
@@ -38,6 +61,7 @@ if(isset($_SESSION['user_id'])) {
         /* Blurry Background */
         .landing-page { position: relative; min-height: 100vh; overflow-x: hidden; }
         
+        /* WHY: The blurred background preserves institutional branding while keeping foreground forms readable. */
         .blurry-bg {
             position: fixed;
             top: 0;
@@ -53,6 +77,7 @@ if(isset($_SESSION['user_id'])) {
             z-index: 0;
         }
         
+        /* WHY: The blurred background preserves institutional branding while keeping foreground forms readable. */
         .blurry-bg::after {
             content: '';
             position: absolute;
@@ -63,6 +88,7 @@ if(isset($_SESSION['user_id'])) {
             background: rgba(11, 59, 94, 0.65);
         }
         
+        /* WHY: The content wrapper centers the authentication or landing card over the background image. */
         .content-wrapper {
             position: relative;
             z-index: 1;
@@ -73,6 +99,7 @@ if(isset($_SESSION['user_id'])) {
             padding: 40px 20px;
         }
         
+        /* SECTION: CARD/PANEL COMPONENT - This visual container groups related controls or records so business information is easier to scan. */
         .glass-card {
             background: rgba(255, 255, 255, 0.88);
             backdrop-filter: blur(16px);
@@ -130,6 +157,7 @@ if(isset($_SESSION['user_id'])) {
         }
         
         /* Buttons */
+        /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
         .btn-primary-custom {
             background: var(--utm-navy);
             color: white;
@@ -142,6 +170,7 @@ if(isset($_SESSION['user_id'])) {
             box-shadow: 0 4px 15px rgba(11, 59, 94, 0.2);
         }
         
+        /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
         .btn-primary-custom:hover {
             background: var(--utm-dark);
             border-color: var(--utm-dark);
@@ -150,6 +179,7 @@ if(isset($_SESSION['user_id'])) {
             color: white;
         }
         
+        /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
         .btn-secondary-custom {
             background: transparent;
             border: 2px solid var(--utm-navy);
@@ -161,6 +191,7 @@ if(isset($_SESSION['user_id'])) {
             transition: all 0.3s ease;
         }
         
+        /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
         .btn-secondary-custom:hover {
             background: var(--utm-navy);
             color: white;
@@ -168,6 +199,7 @@ if(isset($_SESSION['user_id'])) {
             box-shadow: 0 8px 25px rgba(11, 59, 94, 0.3);
         }
         
+        /* SECTION: ANIMATION - Keyframes add subtle entrance motion to guide attention without changing business logic. */
         @keyframes fadeInUp {
             from { opacity: 0; transform: translateY(30px); }
             to { opacity: 1; transform: translateY(0); }
@@ -203,12 +235,15 @@ if(isset($_SESSION['user_id'])) {
         }
     </style>
 </head>
+<!-- SECTION: PAGE BODY - Begins the visible interface for the current UTMSPACE workflow. -->
 <body class="landing-page">
     <div class="blurry-bg"></div>
     
     <div class="content-wrapper">
         <div class="container w-100">
+            <!-- BOOTSTRAP LAYOUT: row creates the horizontal grid used to align sidebars, content columns, cards, or form fields. -->
             <div class="row justify-content-center">
+                <!-- BOOTSTRAP LAYOUT: col-md-9/col-lg-10 allocates the wider content area for tables, dashboards, and forms. -->
                 <div class="col-lg-10 col-xl-9">
                     <div class="glass-card p-4 p-md-5 fade-in-up">
                         
@@ -239,7 +274,9 @@ if(isset($_SESSION['user_id'])) {
                             </a>
                         </div>
                         
+                        <!-- BOOTSTRAP LAYOUT: row creates the horizontal grid used to align sidebars, content columns, cards, or form fields. -->
                         <div class="row g-3 mt-2">
+                            <!-- BOOTSTRAP LAYOUT: col-md-3/col-lg-2 reserves a narrower column for role navigation on medium and large screens. -->
                             <div class="col-md-3 col-sm-6">
                                 <div class="feature-box text-center h-100">
                                     <i class="fas fa-file-invoice-dollar feature-icon"></i>
@@ -247,6 +284,7 @@ if(isset($_SESSION['user_id'])) {
                                     <small class="text-muted">With receipt uploads</small>
                                 </div>
                             </div>
+                            <!-- BOOTSTRAP LAYOUT: col-md-3/col-lg-2 reserves a narrower column for role navigation on medium and large screens. -->
                             <div class="col-md-3 col-sm-6">
                                 <div class="feature-box text-center h-100">
                                     <i class="fas fa-chart-line feature-icon"></i>
@@ -254,6 +292,7 @@ if(isset($_SESSION['user_id'])) {
                                     <small class="text-muted">Pending to Paid</small>
                                 </div>
                             </div>
+                            <!-- BOOTSTRAP LAYOUT: col-md-3/col-lg-2 reserves a narrower column for role navigation on medium and large screens. -->
                             <div class="col-md-3 col-sm-6">
                                 <div class="feature-box text-center h-100">
                                     <i class="fas fa-chart-pie feature-icon"></i>
@@ -261,6 +300,7 @@ if(isset($_SESSION['user_id'])) {
                                     <small class="text-muted">Review & approve</small>
                                 </div>
                             </div>
+                            <!-- BOOTSTRAP LAYOUT: col-md-3/col-lg-2 reserves a narrower column for role navigation on medium and large screens. -->
                             <div class="col-md-3 col-sm-6">
                                 <div class="feature-box text-center h-100">
                                     <i class="fas fa-file-export feature-icon"></i>
@@ -272,17 +312,21 @@ if(isset($_SESSION['user_id'])) {
                         
                         <hr class="my-4">
                         
+                        <!-- BOOTSTRAP LAYOUT: row creates the horizontal grid used to align sidebars, content columns, cards, or form fields. -->
                         <div class="row text-center">
+                            <!-- BOOTSTRAP LAYOUT: col-md-4 creates three balanced columns for summary cards or supporting panels. -->
                             <div class="col-md-4 mb-2 mb-md-0">
                                 <span class="text-muted small">
                                     <i class="fas fa-bolt footer-icon"></i> Easy submission
                                 </span>
                             </div>
+                            <!-- BOOTSTRAP LAYOUT: col-md-4 creates three balanced columns for summary cards or supporting panels. -->
                             <div class="col-md-4 mb-2 mb-md-0">
                                 <span class="text-muted small">
                                     <i class="fas fa-check-double footer-icon"></i> Fast approval
                                 </span>
                             </div>
+                            <!-- BOOTSTRAP LAYOUT: col-md-4 creates three balanced columns for summary cards or supporting panels. -->
                             <div class="col-md-4">
                                 <span class="text-muted small">
                                     <i class="fas fa-shield-alt footer-icon"></i> Secure system
@@ -295,6 +339,7 @@ if(isset($_SESSION['user_id'])) {
         </div>
     </div>
     
+    <!-- SECTION: CLIENT-SIDE BEHAVIOR - Loads JavaScript used for validation, alerts, navigation, charts, or tables. -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
