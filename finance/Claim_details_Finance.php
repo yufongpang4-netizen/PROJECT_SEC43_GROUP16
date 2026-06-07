@@ -20,6 +20,8 @@ if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'finance') {
  
 // SECTION: DEPENDENCY LOADING - Loads shared services so this page uses the same database and library logic as the rest of the system.
 require_once '../db.php';
+// SECTION: DEPENDENCY LOADING - Loads the centralized email helper so approval and rejection decisions notify Staff automatically.
+require_once '../mailer_helper.php';
  
 // WHY: GET parameters support filters, selected records, and dashboard links that can be bookmarked or refreshed.
 // SECURITY: Casting identifiers with intval() forces numeric IDs and reduces risk from manipulated request parameters.
@@ -34,6 +36,78 @@ if(!$claim_id) {
  
 $success = '';
 $error   = '';
+
+// SECTION: AUTOMATED CLAIM DECISION NOTIFICATION - Sends Staff an email after Finance approves or rejects a claim.
+// WHY: Staff should receive immediate decision feedback without repeatedly checking the dashboard, closing the review communication loop.
+function sendClaimDecisionNotification($conn, $claim_id, $decision, $remark)
+{
+    // SECURITY: Using Prepared Statements to prevent SQL Injection.
+    // WHY: SQL is prepared separately from the claim identifier so email recipient lookup remains safe and auditable.
+    $recipient_stmt = $conn->prepare("
+        SELECT c.id, c.claim_type, c.amount, u.name, u.email
+        FROM claims c
+        JOIN users u ON c.user_id = u.id
+        WHERE c.id = ?
+        LIMIT 1
+    ");
+    // SECURITY: Using Prepared Statements to prevent SQL Injection.
+    // WHY: bind_param() attaches the numeric claim identifier safely instead of embedding workflow data in executable SQL.
+    $recipient_stmt->bind_param("i", $claim_id);
+    // WHY: Executing the prepared statement retrieves the Staff recipient for the decision email.
+    $recipient_stmt->execute();
+    // WHY: get_result() turns the recipient query into a readable result set for notification logic.
+    $recipient_result = $recipient_stmt->get_result();
+
+    // CONDITION: Evaluates `if($recipient_result->num_rows === 0)` so the application avoids sending email when the claim owner cannot be found.
+    if($recipient_result->num_rows === 0) {
+        $recipient_stmt->close();
+        return false;
+    }
+
+    // WHY: fetch_assoc() returns one recipient row as named fields for clear email construction.
+    $recipient = $recipient_result->fetch_assoc();
+    $recipient_stmt->close();
+
+    // SECURITY: Preventing XSS by escaping dynamic claim values before placing them into the HTML email body.
+    // WHY: Claim fields and Finance remarks can contain user-controlled text and must remain display-only in email clients.
+    $safe_claim_id   = htmlspecialchars((string)$recipient['id'], ENT_QUOTES, 'UTF-8');
+    $safe_claim_type = htmlspecialchars($recipient['claim_type'], ENT_QUOTES, 'UTF-8');
+    $safe_amount     = htmlspecialchars(number_format($recipient['amount'], 2), ENT_QUOTES, 'UTF-8');
+    $safe_decision   = htmlspecialchars($decision, ENT_QUOTES, 'UTF-8');
+    $safe_remark     = nl2br(htmlspecialchars($remark !== '' ? $remark : 'No additional remark provided.', ENT_QUOTES, 'UTF-8'));
+
+    // SECTION: EMAIL BODY CREATION - Builds a claim decision message that Staff can read without opening the system first.
+    // WHY: Clear claim reference, amount, status, and remark details help Staff understand the Finance decision immediately.
+    $decision_body = '
+        <p style="margin:0 0 14px;">Finance has updated the decision for your claim.</p>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse; margin:18px 0;">
+            <tr>
+                <td style="padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; font-weight:700;">Claim ID</td>
+                <td style="padding:10px 12px; border:1px solid #e2e8f0;">#' . $safe_claim_id . '</td>
+            </tr>
+            <tr>
+                <td style="padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; font-weight:700;">Claim Type</td>
+                <td style="padding:10px 12px; border:1px solid #e2e8f0;">' . $safe_claim_type . '</td>
+            </tr>
+            <tr>
+                <td style="padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; font-weight:700;">Amount</td>
+                <td style="padding:10px 12px; border:1px solid #e2e8f0;">RM ' . $safe_amount . '</td>
+            </tr>
+            <tr>
+                <td style="padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; font-weight:700;">Decision</td>
+                <td style="padding:10px 12px; border:1px solid #e2e8f0;">' . $safe_decision . '</td>
+            </tr>
+            <tr>
+                <td style="padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; font-weight:700;">Finance Remark</td>
+                <td style="padding:10px 12px; border:1px solid #e2e8f0;">' . $safe_remark . '</td>
+            </tr>
+        </table>
+        <p style="margin:0;">Please log in to the Staff dashboard to review the full claim record.</p>
+    ';
+
+    // WHY: sendSystemEmail() centralizes PHPMailer delivery and keeps this Finance module focused on decision workflow data.
+    return sendSystemEmail($recipient['email'], $recipient['name'], 'Claim #' . $recipient['id'] . ' ' . $decision, $decision_body);
+}
  
 // Handle form actions
 // SECTION: FORM SUBMISSION HANDLER - Processes user input only after an intentional form submission.
@@ -52,8 +126,19 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         // WHY: bind_param() attaches typed values to SQL placeholders, preventing input from becoming executable SQL.
         $stmt->bind_param('si', $remark, $claim_id);
         // WHY: Executing the prepared statement performs the validated database operation for the current workflow.
-        $stmt->execute();
-        $success = "Claim has been APPROVED successfully!";
+        // CONDITION: Evaluates `if($stmt->execute())` so email notification is attempted only after the approval update succeeds.
+        if($stmt->execute()) {
+            $success = "Claim has been APPROVED successfully!";
+            // SECTION: AUTOMATED CLAIM DECISION NOTIFICATION - Notifies Staff that Finance approved the claim.
+            // WHY: Approval email lets Staff know the claim can move toward payment without manually refreshing the portal.
+            if(!sendClaimDecisionNotification($conn, $claim_id, 'Approved', $remark)) {
+                $success .= " Email notification could not be sent. Please check SMTP credentials.";
+            }
+        // CONDITION: This fallback executes when the approval update fails, keeping database failure separate from notification failure.
+        } else {
+            $error = "Approval failed due to system error.";
+        }
+        $stmt->close();
  
     // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
     // CONDITION: Evaluates `} elseif(isset($_POST['reject'])) ` so the application can choose the correct business rule branch for the current user action.
@@ -70,8 +155,19 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             // WHY: bind_param() attaches typed values to SQL placeholders, preventing input from becoming executable SQL.
             $stmt->bind_param('si', $remark, $claim_id);
             // WHY: Executing the prepared statement performs the validated database operation for the current workflow.
-            $stmt->execute();
-            $success = "Claim has been REJECTED.";
+            // CONDITION: Evaluates `if($stmt->execute())` so email notification is attempted only after the rejection update succeeds.
+            if($stmt->execute()) {
+                $success = "Claim has been REJECTED.";
+                // SECTION: AUTOMATED CLAIM DECISION NOTIFICATION - Notifies Staff that Finance rejected the claim and includes the required remark.
+                // WHY: Rejection email gives Staff the reason quickly so they can decide whether to correct and resubmit the claim.
+                if(!sendClaimDecisionNotification($conn, $claim_id, 'Rejected', $remark)) {
+                    $success .= " Email notification could not be sent. Please check SMTP credentials.";
+                }
+            // CONDITION: This fallback executes when the rejection update fails, keeping database failure separate from notification failure.
+            } else {
+                $error = "Rejection failed due to system error.";
+            }
+            $stmt->close();
         }
     } 
 }

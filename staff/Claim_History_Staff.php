@@ -10,17 +10,17 @@
 session_start();
 // SECTION: DEPENDENCY LOADING - Loads shared services so this page uses the same database and library logic as the rest of the system.
 require_once "../db.php";
- 
+
 // SECURITY: This session condition prevents unauthenticated users from reaching protected business pages.
 // SECURITY: Role-based branching separates Staff, Finance, and Admin privileges so users can only access their permitted workflow.
 // CONDITION: Evaluates `if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'staff') ` so the application can choose the correct business rule branch for the current user action.
-if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'staff') {
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'staff') {
     // SECURITY: Redirecting immediately protects restricted pages after a failed authorization or invalid-record check.
     header("Location: ../login.php");
     // BEST PRACTICE: Terminating after redirect prevents the remaining protected HTML or PHP logic from executing accidentally.
     exit();
 }
- 
+
 $user_id = $_SESSION['user_id'];
 $success = '';
 $error   = '';
@@ -28,12 +28,12 @@ $error   = '';
 // ========== EDIT & CANCEL CLAIM FUNCTIONALITY ==========
 // SECTION: FORM SUBMISSION HANDLER - Processes user input only after an intentional form submission.
 // CONDITION: Evaluates `if($_SERVER['REQUEST_METHOD'] == 'POST') ` so the application can choose the correct business rule branch for the current user action.
-if($_SERVER['REQUEST_METHOD'] == 'POST') {
-    
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+
     // Handle Edit Claim
     // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
     // CONDITION: Evaluates `if(isset($_POST['edit_id'])) ` so the application can choose the correct business rule branch for the current user action.
-    if(isset($_POST['edit_id'])) {
+    if (isset($_POST['edit_id'])) {
         // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
         // SECURITY: Casting identifiers with intval() forces numeric IDs and reduces risk from manipulated request parameters.
         $edit_id = intval($_POST['edit_id']);
@@ -46,7 +46,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         $expense_date = $_POST['expense_date'];
         // BEST PRACTICE: trim() removes accidental whitespace before validation so values are stored and compared consistently.
         $description = trim($_POST['description']);
-        
+
         $check_sql = "SELECT id, status, receipt, submitted_at FROM claims WHERE id = ? AND user_id = ? AND status IN ('Pending', 'Rejected')";
         // SECURITY: Using Prepared Statements to prevent SQL Injection.
         // WHY: SQL is prepared separately from user data so identifiers, filters, and form values can be bound safely.
@@ -58,30 +58,30 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         $check_stmt->execute();
         // WHY: get_result() turns the executed query into rows that can be rendered in dashboards, tables, or decision screens.
         $check_result = $check_stmt->get_result();
-        
+
         // CONDITION: Evaluates `if($check_result->num_rows == 0) ` so the application can choose the correct business rule branch for the current user action.
-        if($check_result->num_rows == 0) {
+        if ($check_result->num_rows == 0) {
             $error = "Claim cannot be edited. Either it doesn't exist, doesn't belong to you, or has already been approved/paid.";
-        // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+            // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
         } else {
             // WHY: fetch_assoc() returns one database row as named fields, making the business data readable and display-ready.
             $claim_data = $check_result->fetch_assoc();
             $old_receipt = $claim_data['receipt'];
             $current_status = $claim_data['status'];
-            
+
             // WHY: Date formatting converts database timestamps into human-readable dates for review and reports.
             $submitted_month = date('Y-m', strtotime($claim_data['submitted_at']));
-            
+
             // VALIDATION: This condition rejects incomplete input so the database does not receive unusable claim or account records.
             // CONDITION: Evaluates `if(empty($claim_type) || empty($amount) || empty($expense_date) || empty($description)) ` so the application can choose the correct business rule branch for the current user action.
-            if(empty($claim_type) || empty($amount) || empty($expense_date) || empty($description)) {
+            if (empty($claim_type) || empty($amount) || empty($expense_date) || empty($description)) {
                 $error = "Please fill in all required fields.";
-            } elseif(!is_numeric($amount) || $amount <= 0) {
+            } elseif (!is_numeric($amount) || $amount <= 0) {
                 $error = "Please enter a valid amount.";
-            // CONDITION: Evaluates `} elseif($amount > 200) ` so the application can choose the correct business rule branch for the current user action.
-            } elseif($amount > 200) {
+                // CONDITION: Evaluates `} elseif($amount > 200) ` so the application can choose the correct business rule branch for the current user action.
+            } elseif ($amount > 200) {
                 $error = "Maximum claim amount per claim is RM 200.00";
-            // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+                // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
             } else {
                 $check_limit_sql = "SELECT SUM(amount) as other_claims_total FROM claims 
                                     WHERE user_id = ? AND DATE_FORMAT(submitted_at, '%Y-%m') = ? 
@@ -106,53 +106,53 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                     // WHY: Date formatting converts database timestamps into human-readable dates for review and reports.
                     // WHY: number_format() displays monetary values with two decimals so financial amounts are consistent.
                     $error = "Edit failed! This amount exceeds your limit of RM 500.00 for the month of " . date('F Y', strtotime($claim_data['submitted_at'])) . ". You can only claim up to RM " . number_format(max($remaining, 0), 2) . " more for that month.";
-                // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+                    // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
                 } else {
                     $receipt_filename = $old_receipt;
-                    
+
                     // CONDITION: Evaluates `if(isset($_FILES['receipt']) && $_FILES['receipt']['error'] == 0 && $_FILES['receipt']['size'] > 0) ` so the application can choose the correct business rule branch for the current user action.
-                    if(isset($_FILES['receipt']) && $_FILES['receipt']['error'] == 0 && $_FILES['receipt']['size'] > 0) {
+                    if (isset($_FILES['receipt']) && $_FILES['receipt']['error'] == 0 && $_FILES['receipt']['size'] > 0) {
                         $allowed_types = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
                         $file_type = $_FILES['receipt']['type'];
                         // SECURITY: The 5MB upload limit prevents oversized receipt files from exhausting storage or memory.
                         $max_file_size = 5 * 1024 * 1024;
-                        
+
                         // CONDITION: Evaluates `if($_FILES['receipt']['size'] > $max_file_size) ` so the application can choose the correct business rule branch for the current user action.
-                        if($_FILES['receipt']['size'] > $max_file_size) {
+                        if ($_FILES['receipt']['size'] > $max_file_size) {
                             $error = "File size too large. Maximum size is 5MB.";
-                        // SECURITY: The MIME-type whitelist restricts receipt uploads to expected PDF/image evidence formats.
-                        // CONDITION: Evaluates `} elseif(in_array($file_type, $allowed_types)) ` so the application can choose the correct business rule branch for the current user action.
-                        } elseif(in_array($file_type, $allowed_types)) {
+                            // SECURITY: The MIME-type whitelist restricts receipt uploads to expected PDF/image evidence formats.
+                            // CONDITION: Evaluates `} elseif(in_array($file_type, $allowed_types)) ` so the application can choose the correct business rule branch for the current user action.
+                        } elseif (in_array($file_type, $allowed_types)) {
                             $upload_dir = '../uploads/receipts/';
-                            if(!file_exists($upload_dir)) {
+                            if (!file_exists($upload_dir)) {
                                 // BEST PRACTICE: The upload directory is created only when missing so receipt storage works on fresh deployment.
                                 mkdir($upload_dir, 0777, true);
                             }
-                            
+
                             $file_ext = pathinfo($_FILES['receipt']['name'], PATHINFO_EXTENSION);
                             $receipt_filename = 'receipt_' . time() . '_' . $user_id . '.' . $file_ext;
                             $target_file = $upload_dir . $receipt_filename;
-                            
+
                             // SECURITY: move_uploaded_file() stores only genuine PHP-uploaded files after validation.
                             // CONDITION: Evaluates `if(move_uploaded_file($_FILES['receipt']['tmp_name'], $target_file)) ` so the application can choose the correct business rule branch for the current user action.
-                            if(move_uploaded_file($_FILES['receipt']['tmp_name'], $target_file)) {
-                                if($old_receipt && file_exists($upload_dir . $old_receipt)) {
+                            if (move_uploaded_file($_FILES['receipt']['tmp_name'], $target_file)) {
+                                if ($old_receipt && file_exists($upload_dir . $old_receipt)) {
                                     // WHY: Removing an old receipt after replacement prevents stale evidence files from remaining on the server.
                                     unlink($upload_dir . $old_receipt);
                                 }
-                            // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+                                // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
                             } else {
                                 $error = "Failed to save the uploaded receipt.";
                             }
-                        // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+                            // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
                         } else {
                             $error = "Invalid file format. Only PDF, JPG, and PNG are allowed.";
                         }
                     }
-                    
+
                     // VALIDATION: This condition rejects incomplete input so the database does not receive unusable claim or account records.
                     // CONDITION: Evaluates `if(empty($error)) ` so the application can choose the correct business rule branch for the current user action.
-                    if(empty($error)) {
+                    if (empty($error)) {
                         $update_sql = "UPDATE claims SET claim_type = ?, amount = ?, expense_date = ?, description = ?, receipt = ?, status = 'Pending', finance_comment = NULL WHERE id = ? AND user_id = ?";
                         // SECURITY: Using Prepared Statements to prevent SQL Injection.
                         // WHY: SQL is prepared separately from user data so identifiers, filters, and form values can be bound safely.
@@ -160,23 +160,23 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                         // SECURITY: Using Prepared Statements to prevent SQL Injection.
                         // WHY: bind_param() attaches typed values to SQL placeholders, preventing input from becoming executable SQL.
                         $update_stmt->bind_param("sdsssii", $claim_type, $amount, $expense_date, $description, $receipt_filename, $edit_id, $user_id);
-                        
+
                         // WHY: Executing the prepared statement performs the validated database operation for the current workflow.
                         // CONDITION: Evaluates `if($update_stmt->execute()) ` so the application can choose the correct business rule branch for the current user action.
-                        if($update_stmt->execute()) {
+                        if ($update_stmt->execute()) {
                             if ($current_status === 'Rejected') {
                                 $success = "Rejected claim #$edit_id has been updated and resubmitted successfully!";
                                 // AUDIT: Activity logging creates an accountability trail for key actions such as claim submission, cancellation, and payment.
                                 // CONDITION: Evaluates `if (function_exists('logActivity')) logActivity($conn, $user_id, 'Resubmit Claim', "Resubmitted rejected claim #$edit_id");` so the application can choose the correct business rule branch for the current user action.
                                 if (function_exists('logActivity')) logActivity($conn, $user_id, 'Resubmit Claim', "Resubmitted rejected claim #$edit_id");
-                            // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+                                // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
                             } else {
                                 $success = "Claim #$edit_id has been updated successfully!";
                                 // AUDIT: Activity logging creates an accountability trail for key actions such as claim submission, cancellation, and payment.
                                 // CONDITION: Evaluates `if (function_exists('logActivity')) logActivity($conn, $user_id, 'Edit Claim', "Edited pending claim #$edit_id");` so the application can choose the correct business rule branch for the current user action.
                                 if (function_exists('logActivity')) logActivity($conn, $user_id, 'Edit Claim', "Edited pending claim #$edit_id");
                             }
-                        // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+                            // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
                         } else {
                             $error = "Failed to update claim. Please try again.";
                         }
@@ -187,53 +187,53 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
         $check_stmt->close();
     }
-    
+
     // Handle Cancel (Soft Delete)
     // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
     // CONDITION: Evaluates `elseif(isset($_POST['cancel_id'])) ` so the application can choose the correct business rule branch for the current user action.
-    elseif(isset($_POST['cancel_id'])) {
+    elseif (isset($_POST['cancel_id'])) {
         // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
         // SECURITY: Casting identifiers with intval() forces numeric IDs and reduces risk from manipulated request parameters.
         $cancel_id = intval($_POST['cancel_id']);
-        
+
         // SECURITY: Using Prepared Statements to prevent SQL Injection.
         // WHY: SQL is prepared separately from user data so identifiers, filters, and form values can be bound safely.
         $stmt = $conn->prepare("UPDATE claims SET status = 'Cancelled' WHERE id = ? AND user_id = ? AND status = 'Pending'");
         // SECURITY: Using Prepared Statements to prevent SQL Injection.
         // WHY: bind_param() attaches typed values to SQL placeholders, preventing input from becoming executable SQL.
         $stmt->bind_param('ii', $cancel_id, $user_id);
-        
+
         // WHY: Executing the prepared statement performs the validated database operation for the current workflow.
         // CONDITION: Evaluates `if($stmt->execute() && $stmt->affected_rows > 0) ` so the application can choose the correct business rule branch for the current user action.
-        if($stmt->execute() && $stmt->affected_rows > 0) {
+        if ($stmt->execute() && $stmt->affected_rows > 0) {
             $success = "Claim #$cancel_id has been successfully cancelled.";
             // AUDIT: Activity logging creates an accountability trail for key actions such as claim submission, cancellation, and payment.
             // CONDITION: Evaluates `if (function_exists('logActivity')) logActivity($conn, $user_id, 'Cancel Claim', "Staff cancelled claim #$cancel_id");` so the application can choose the correct business rule branch for the current user action.
             if (function_exists('logActivity')) logActivity($conn, $user_id, 'Cancel Claim', "Staff cancelled claim #$cancel_id");
-        // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+            // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
         } else {
             $error = "Could not cancel the claim. It may have already been processed.";
         }
         $stmt->close();
     }
 }
- 
+
 // ─── Filter ──────────────────────────────────────────────────────────
 // WHY: GET parameters support filters, selected records, and dashboard links that can be bookmarked or refreshed.
 $status_filter = $_GET['status'] ?? 'All';
 $status_filter = ucfirst($status_filter);
- 
+
 $where  = "WHERE user_id = ?";
 $params = [$user_id];
 $types  = 'i';
- 
+
 // CONDITION: Evaluates `if($status_filter !== 'All') ` so the application can choose the correct business rule branch for the current user action.
-if($status_filter !== 'All') {
+if ($status_filter !== 'All') {
     $where   .= " AND status = ?";
     $params[] = $status_filter;
     $types   .= 's';
 }
- 
+
 // SECURITY: Using Prepared Statements to prevent SQL Injection.
 // WHY: SQL is prepared separately from user data so identifiers, filters, and form values can be bound safely.
 $stmt = $conn->prepare("
@@ -253,14 +253,14 @@ $claims = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
 
 $display_total = 0;
-foreach($claims as $c) {
+foreach ($claims as $c) {
     // CONDITION: Evaluates `if ($status_filter === 'All' && in_array($c['status'], ['Cancelled', 'Rejected'])) ` so the application can choose the correct business rule branch for the current user action.
     if ($status_filter === 'All' && in_array($c['status'], ['Cancelled', 'Rejected'])) {
-        continue; 
+        continue;
     }
     $display_total += $c['amount'];
 }
- 
+
 // Counts for filter badges
 // SECURITY: Using Prepared Statements to prevent SQL Injection.
 // WHY: SQL is prepared separately from user data so identifiers, filters, and form values can be bound safely.
@@ -274,7 +274,7 @@ $counts_result->execute();
 // WHY: fetch_all(MYSQLI_ASSOC) collects every result row for table rendering and report generation.
 $counts_rows = $counts_result->get_result()->fetch_all(MYSQLI_ASSOC);
 $counts = ['All' => 0];
-foreach($counts_rows as $r) {
+foreach ($counts_rows as $r) {
     $counts[$r['status']] = $r['c'];
     $counts['All'] += $r['c'];
 }
@@ -282,6 +282,7 @@ foreach($counts_rows as $r) {
 <!DOCTYPE html>
 <html lang="en">
 <!-- SECTION: DOCUMENT METADATA - Loads responsive settings and external UI libraries required by this page. -->
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -302,112 +303,336 @@ foreach($counts_rows as $r) {
             --staff-text: #1e293b;
             --staff-gray: #64748b;
         }
-        
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         /* SECTION: PAGE FOUNDATION - Body rules set the base font, background, and overflow behavior for the whole screen. */
-        html, body { height: 100%; margin: 0; padding: 0; }
-        
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
         /* SECTION: PAGE FOUNDATION - Body rules set the base font, background, and overflow behavior for the whole screen. */
-        body { background: var(--staff-bg); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow-x: hidden; }
+        body {
+            background: var(--staff-bg);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+        }
+
         /* BOOTSTRAP LAYOUT: The full-width container lets dashboard pages use the complete viewport for side navigation plus content. */
-        .container-fluid { height: 100%; overflow: hidden; }
+        .container-fluid {
+            height: 100%;
+            overflow: hidden;
+        }
+
         /* BOOTSTRAP LAYOUT: The zero-gutter row removes unwanted spacing between the sidebar and the main workspace. */
-        .row.g-0 { height: 100%; }
-        
+        .row.g-0 {
+            height: 100%;
+        }
+
         /* SECTION: SIDEBAR NAVIGATION - The fixed-height sidebar keeps role-specific navigation visible for repeated dashboard use. */
-        .sidebar { background: linear-gradient(180deg, #0f2b4d 0%, #1e4d8c 100%); height: 100vh; color: white; transition: all 0.3s ease; overflow-y: auto; position: sticky; top: 0; }
+        .sidebar {
+            background: linear-gradient(180deg, #0f2b4d 0%, #1e4d8c 100%);
+            height: 100vh;
+            color: white;
+            transition: all 0.3s ease;
+            overflow-y: auto;
+            position: sticky;
+            top: 0;
+        }
+
         /* SECTION: SIDEBAR NAVIGATION - The fixed-height sidebar keeps role-specific navigation visible for repeated dashboard use. */
-        .sidebar .nav-link { color: rgba(255, 255, 255, 0.85); padding: 12px 20px; margin: 5px 0; border-radius: 10px; transition: all 0.3s ease; }
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.85);
+            padding: 12px 20px;
+            margin: 5px 0;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+
         /* SECTION: SIDEBAR NAVIGATION - The fixed-height sidebar keeps role-specific navigation visible for repeated dashboard use. */
-        .sidebar .nav-link:hover { background: rgba(59, 130, 246, 0.2); color: #3b82f6; transform: translateX(5px); }
+        .sidebar .nav-link:hover {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+            transform: translateX(5px);
+        }
+
         /* SECTION: SIDEBAR NAVIGATION - The fixed-height sidebar keeps role-specific navigation visible for repeated dashboard use. */
-        .sidebar .nav-link.active { background: #3b82f6; color: #0f2b4d; font-weight: 600; }
-        
+        .sidebar .nav-link.active {
+            background: #3b82f6;
+            color: #0f2b4d;
+            font-weight: 600;
+        }
+
         /* SECTION: MAIN WORKSPACE - A scrollable content panel allows long tables and forms without moving the sidebar. */
-        .main-content { height: 100vh; overflow-y: auto; padding: 20px; }
+        .main-content {
+            height: 100vh;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
         /* SECTION: MAIN WORKSPACE - A scrollable content panel allows long tables and forms without moving the sidebar. */
-        .main-content::-webkit-scrollbar { width: 8px; }
+        .main-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
         /* SECTION: MAIN WORKSPACE - A scrollable content panel allows long tables and forms without moving the sidebar. */
-        .main-content::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 10px; }
+        .main-content::-webkit-scrollbar-track {
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
+
         /* SECTION: MAIN WORKSPACE - A scrollable content panel allows long tables and forms without moving the sidebar. */
-        .main-content::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 10px; }
-        
+        .main-content::-webkit-scrollbar-thumb {
+            background: #3b82f6;
+            border-radius: 10px;
+        }
+
         /* Header */
         /* SECTION: PAGE HEADER - The banner identifies the current workflow and gives immediate user context. */
-        .page-header { background: linear-gradient(135deg, #0f2b4d 0%, #1e4d8c 100%); border-radius: 20px; padding: 20px 25px; color: white; margin-bottom: 25px; }
-        
+        .page-header {
+            background: linear-gradient(135deg, #0f2b4d 0%, #1e4d8c 100%);
+            border-radius: 20px;
+            padding: 20px 25px;
+            color: white;
+            margin-bottom: 25px;
+        }
+
         /* Filter Buttons */
-        .filter-btn { background: white; color: #0f2b4d; border: 1px solid #e2e8f0; transition: all 0.3s ease; }
-        .filter-btn:hover, .filter-btn.active { background: #3b82f6; color: white; border-color: #3b82f6; transform: translateY(-2px); }
-        .filter-badge { background: #e2e8f0; color: #0f2b4d; }
-        .filter-btn.active .filter-badge { background: white; color: #3b82f6; }
-        
+        .filter-btn {
+            background: white;
+            color: #0f2b4d;
+            border: 1px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+
+        .filter-btn:hover,
+        .filter-btn.active {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+            transform: translateY(-2px);
+        }
+
+        .filter-badge {
+            background: #e2e8f0;
+            color: #0f2b4d;
+        }
+
+        .filter-btn.active .filter-badge {
+            background: white;
+            color: #3b82f6;
+        }
+
         /* Table */
         /* SECTION: CARD/PANEL COMPONENT - This visual container groups related controls or records so business information is easier to scan. */
-        .claims-table { background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05); margin-bottom: 25px; }
+        .claims-table {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+            margin-bottom: 25px;
+        }
+
         /* SECTION: CARD/PANEL COMPONENT - This visual container groups related controls or records so business information is easier to scan. */
         /* SECTION: TABLE READABILITY - Table styling supports quick review of users, claims, and report rows. */
-        .claims-table thead { background: #f1f5f9; }
+        .claims-table thead {
+            background: #f1f5f9;
+        }
+
         /* SECTION: CARD/PANEL COMPONENT - This visual container groups related controls or records so business information is easier to scan. */
-        .claims-table th { color: #0f2b4d; font-weight: 600; padding: 15px; border: none; }
+        .claims-table th {
+            color: #0f2b4d;
+            font-weight: 600;
+            padding: 15px;
+            border: none;
+        }
+
         /* SECTION: CARD/PANEL COMPONENT - This visual container groups related controls or records so business information is easier to scan. */
-        .claims-table td { padding: 12px 15px; vertical-align: middle; border-bottom: 1px solid #eef2ff; }
+        .claims-table td {
+            padding: 12px 15px;
+            vertical-align: middle;
+            border-bottom: 1px solid #eef2ff;
+        }
+
         /* SECTION: CARD/PANEL COMPONENT - This visual container groups related controls or records so business information is easier to scan. */
-        .claims-table tr:hover { background: #f8fafc; }
-        
+        .claims-table tr:hover {
+            background: #f8fafc;
+        }
+
         /* Status Badges */
         /* SECTION: STATUS PRESENTATION - Status colors distinguish Pending, Approved, Paid, Rejected, and Cancelled claim states. */
-        .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; }
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
         /* SECTION: STATUS PRESENTATION - Status colors distinguish Pending, Approved, Paid, Rejected, and Cancelled claim states. */
-        .status-Pending { background: #fef3c7; color: #d97706; }
+        .status-Pending {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
         /* SECTION: STATUS PRESENTATION - Status colors distinguish Pending, Approved, Paid, Rejected, and Cancelled claim states. */
-        .status-Approved { background: #d1fae5; color: #059669; }
+        .status-Approved {
+            background: #d1fae5;
+            color: #059669;
+        }
+
         /* SECTION: STATUS PRESENTATION - Status colors distinguish Pending, Approved, Paid, Rejected, and Cancelled claim states. */
-        .status-Paid { background: #dbeafe; color: #2563eb; }
+        .status-Paid {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+
         /* SECTION: STATUS PRESENTATION - Status colors distinguish Pending, Approved, Paid, Rejected, and Cancelled claim states. */
-        .status-Rejected { background: #fee2e2; color: #dc2626; }
+        .status-Rejected {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
         /* SECTION: STATUS PRESENTATION - Status colors distinguish Pending, Approved, Paid, Rejected, and Cancelled claim states. */
-        .status-Cancelled { background: #e5e7eb; color: #4b5563; }
-        
+        .status-Cancelled {
+            background: #e5e7eb;
+            color: #4b5563;
+        }
+
         /* Buttons */
         /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
-        .btn-view { background: #3b82f6; color: white; border-radius: 8px; padding: 5px 12px; font-size: 12px; transition: all 0.3s ease; border: none; }
+        .btn-view {
+            background: #3b82f6;
+            color: white;
+            border-radius: 8px;
+            padding: 5px 12px;
+            font-size: 12px;
+            transition: all 0.3s ease;
+            border: none;
+        }
+
         /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
-        .btn-view:hover { background: #2563eb; transform: translateY(-2px); color: white; }
+        .btn-view:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+            color: white;
+        }
+
         /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
-        .btn-edit { background: #f59e0b; color: white; border-radius: 8px; padding: 5px 12px; font-size: 12px; transition: all 0.3s ease; border: none; }
+        .btn-edit {
+            background: #f59e0b;
+            color: white;
+            border-radius: 8px;
+            padding: 5px 12px;
+            font-size: 12px;
+            transition: all 0.3s ease;
+            border: none;
+        }
+
         /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
-        .btn-edit:hover { background: #d97706; transform: translateY(-2px); color: white; }
+        .btn-edit:hover {
+            background: #d97706;
+            transform: translateY(-2px);
+            color: white;
+        }
+
         /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
-        .btn-cancel { background: #ef4444; color: white; border-radius: 8px; padding: 5px 12px; font-size: 12px; transition: all 0.3s ease; border: none; }
+        .btn-cancel {
+            background: #ef4444;
+            color: white;
+            border-radius: 8px;
+            padding: 5px 12px;
+            font-size: 12px;
+            transition: all 0.3s ease;
+            border: none;
+        }
+
         /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
-        .btn-cancel:hover { background: #dc2626; transform: translateY(-2px); color: white; }
-        
+        .btn-cancel:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+            color: white;
+        }
+
         /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
-        .btn-new-claim { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none; border-radius: 12px; padding: 10px 20px; transition: all 0.3s ease; }
+        .btn-new-claim {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 10px 20px;
+            transition: all 0.3s ease;
+        }
+
         /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
-        .btn-new-claim:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.4); color: white; }
-        
+        .btn-new-claim:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.4);
+            color: white;
+        }
+
         /* SECTION: ANIMATION - Keyframes add subtle entrance motion to guide attention without changing business logic. */
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        .fade-in { animation: fadeIn 0.5s ease-out; }
-        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
         /* Empty State */
-        .empty-state { text-align: center; padding: 60px; }
-        .empty-icon { font-size: 60px; color: #cbd5e1; margin-bottom: 20px; }
-        
+        .empty-state {
+            text-align: center;
+            padding: 60px;
+        }
+
+        .empty-icon {
+            font-size: 60px;
+            color: #cbd5e1;
+            margin-bottom: 20px;
+        }
+
         /* Modal Styling */
         /* SECTION: MODAL STYLING - Modal visuals make detail review feel connected to the current table row. */
-        .modal-custom-header { background: linear-gradient(135deg, #0f2b4d 0%, #1e4d8c 100%); color: white; }
+        .modal-custom-header {
+            background: linear-gradient(135deg, #0f2b4d 0%, #1e4d8c 100%);
+            color: white;
+        }
+
         /* SECTION: MODAL STYLING - Modal visuals make detail review feel connected to the current table row. */
-        .modal-edit-header { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; }
-        
+        .modal-edit-header {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+        }
+
         /* SECTION: SIDEBAR NAVIGATION - The fixed-height sidebar keeps role-specific navigation visible for repeated dashboard use. */
         /* SECTION: RESPONSIVE RULES - These rules adapt sidebars, cards, and tables for smaller screens. */
-        @media (max-width: 768px) { .sidebar { min-height: auto; } }
+        @media (max-width: 768px) {
+            .sidebar {
+                min-height: auto;
+            }
+        }
     </style>
 </head>
 <!-- SECTION: PAGE BODY - Begins the visible interface for the current UTMSPACE workflow. -->
+
 <body>
     <!-- BOOTSTRAP LAYOUT: container-fluid spans the full browser width so dashboards can use the complete workspace. -->
     <div class="container-fluid p-0">
@@ -433,7 +658,7 @@ foreach($counts_rows as $r) {
                     </nav>
                 </div>
             </div>
- 
+
             <!-- BOOTSTRAP LAYOUT: col-md-9/col-lg-10 allocates the wider content area for tables, dashboards, and forms. -->
             <div class="col-md-9 col-lg-10 main-content">
                 <div class="page-header fade-in">
@@ -450,7 +675,7 @@ foreach($counts_rows as $r) {
                         </a>
                     </div>
                 </div>
- 
+
                 <div class="mb-4 fade-in">
                     <?php
                     $tab_statuses = [
@@ -459,20 +684,20 @@ foreach($counts_rows as $r) {
                         'Approved' => 'Approved',
                         'Paid'     => 'Paid',
                         'Rejected' => 'Rejected',
-                        'Cancelled'=> 'Cancelled'
+                        'Cancelled' => 'Cancelled'
                     ];
-                    foreach($tab_statuses as $val => $label):
+                    foreach ($tab_statuses as $val => $label):
                         $active = ($status_filter === $val);
                         $count  = $counts[$val] ?? 0;
                     ?>
-                    <a href="?status=<?php echo $val; ?>"
-                       class="btn filter-btn me-2 mb-2 <?php echo $active ? 'active' : ''; ?>">
-                        <?php echo $label; ?>
-                        <span class="badge filter-badge ms-1"><?php echo $count; ?></span>
-                    </a>
+                        <a href="?status=<?php echo $val; ?>"
+                            class="btn filter-btn me-2 mb-2 <?php echo $active ? 'active' : ''; ?>">
+                            <?php echo $label; ?>
+                            <span class="badge filter-badge ms-1"><?php echo $count; ?></span>
+                        </a>
                     <?php endforeach; ?>
                 </div>
- 
+
                 <div class="claims-table fade-in">
                     <div class="table-responsive">
                         <!-- SECTION: DATA TABLE - Presents database records in an examiner-friendly format for review, audit, or reporting. -->
@@ -490,20 +715,20 @@ foreach($counts_rows as $r) {
                             </thead>
                             <tbody>
                                 <!-- CONDITION: Evaluates `if(empty($claims))` so the application can choose the correct business rule branch for the current user action. -->
-                                <?php if(empty($claims)): ?>
+                                <?php if (empty($claims)): ?>
                                     <tr>
                                         <td colspan="7" class="empty-state">
                                             <div class="empty-icon">
                                                 <i class="fas fa-folder-open"></i>
                                             </div>
                                             <!-- CONDITION: Evaluates `if($counts['All'] == 0)` so the application can choose the correct business rule branch for the current user action. -->
-                                            <?php if($counts['All'] == 0): ?>
+                                            <?php if ($counts['All'] == 0): ?>
                                                 <h5 style="color: #0f2b4d;">No claims found</h5>
                                                 <p class="text-muted">You haven't submitted any claims yet.</p>
                                                 <a href="New_Claim_Staff.php" class="btn btn-new-claim">
                                                     <i class="fas fa-plus me-2"></i>Submit Your First Claim
                                                 </a>
-                                            <!-- CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome. -->
+                                                <!-- CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome. -->
                                             <?php else: ?>
                                                 <h5 style="color: #0f2b4d;">No <?php echo $status_filter === 'All' ? '' : strtolower($status_filter); ?> claims</h5>
                                                 <p class="text-muted">There are currently no claims matching this status.</p>
@@ -513,85 +738,82 @@ foreach($counts_rows as $r) {
                                             <?php endif; ?>
                                         </td>
                                     </tr>
-                                <!-- CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome. -->
+                                    <!-- CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome. -->
                                 <?php else: ?>
-                                    <?php foreach($claims as $i => $claim): ?>
-                                    <tr>
-                                        <td class="fw-bold"><?php echo $i + 1; ?></td>
-                                        <td><?php echo date('d M Y', strtotime($claim['submitted_at'])); ?></td>
-                                        <!-- SECURITY: Escaping output to prevent XSS attacks. -->
-                                        <td><?php echo htmlspecialchars($claim['claim_type']); ?></td>
-                                        <td class="fw-bold" style="color: #0f2b4d;">RM <?php echo number_format($claim['amount'], 2); ?></td>
-                                        <td><?php echo $claim['expense_date'] ? date('d M Y', strtotime($claim['expense_date'])) : '-'; ?></td>
-                                        <td>
-                                            <span class="status-badge status-<?php echo $claim['status']; ?>">
-                                                <i class="fas <?php echo $claim['status'] == 'Pending' ? 'fa-clock' : ($claim['status'] == 'Approved' ? 'fa-check' : ($claim['status'] == 'Paid' ? 'fa-dollar-sign' : ($claim['status'] == 'Cancelled' ? 'fa-ban' : 'fa-times'))); ?> me-1"></i>
-                                                <?php echo $claim['status']; ?>
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <button class="btn btn-view btn-sm me-1"
-                                                data-bs-toggle="modal" data-bs-target="#detailModal"
-                                                data-id="<?php echo $claim['id']; ?>"
-                                                <!-- SECURITY: Escaping output to prevent XSS attacks. -->
-                                                data-type="<?php echo htmlspecialchars($claim['claim_type']); ?>"
-                                                data-amount="<?php echo number_format($claim['amount'], 2); ?>"
-                                                data-expense-date="<?php echo $claim['expense_date']; ?>"
-                                                data-status="<?php echo $claim['status']; ?>"
-                                                <!-- SECURITY: Escaping output to prevent XSS attacks. -->
-                                                data-desc="<?php echo htmlspecialchars($claim['description']); ?>"
-                                                <!-- SECURITY: Escaping output to prevent XSS attacks. -->
-                                                data-remark="<?php echo htmlspecialchars($claim['finance_comment'] ?? ''); ?>"
-                                                <!-- SECURITY: Escaping output to prevent XSS attacks. -->
-                                                data-receipt="<?php echo htmlspecialchars($claim['receipt'] ?? ''); ?>">
-                                                <i class="fas fa-eye"></i> View
-                                            </button>
-                                            
-                                            <!-- CONDITION: Evaluates `if(strtolower($claim['status']) === 'pending' || strtolower($claim['status']) === 'rejected')` so the application can choose the correct business rule branch for the current user action. -->
-                                            <?php if(strtolower($claim['status']) === 'pending' || strtolower($claim['status']) === 'rejected'): ?>
-                                            <button class="btn btn-edit btn-sm me-1"
-                                                data-bs-toggle="modal" data-bs-target="#editModal"
-                                                data-id="<?php echo $claim['id']; ?>"
-                                                <!-- SECURITY: Escaping output to prevent XSS attacks. -->
-                                                data-type="<?php echo htmlspecialchars($claim['claim_type']); ?>"
-                                                data-amount="<?php echo $claim['amount']; ?>"
-                                                data-expense-date="<?php echo $claim['expense_date']; ?>"
-                                                <!-- SECURITY: Escaping output to prevent XSS attacks. -->
-                                                data-desc="<?php echo htmlspecialchars($claim['description']); ?>"
-                                                <!-- SECURITY: Escaping output to prevent XSS attacks. -->
-                                                data-receipt="<?php echo htmlspecialchars($claim['receipt'] ?? ''); ?>"
-                                                data-current-status="<?php echo $claim['status']; ?>">
-                                                <i class="fas fa-edit"></i> Edit
-                                            </button>
-                                            <?php endif; ?>
-                                            
-                                            <!-- CONDITION: Evaluates `if(strtolower($claim['status']) === 'pending')` so the application can choose the correct business rule branch for the current user action. -->
-                                            <?php if(strtolower($claim['status']) === 'pending'): ?>
-                                            <!-- SECTION: USER INPUT FORM - Captures business data that will be validated server-side before database changes occur. -->
-                                            <form method="POST" class="d-inline" id="cancel-form-<?php echo $claim['id']; ?>">
-                                                <input type="hidden" name="cancel_id" value="<?php echo $claim['id']; ?>">
-                                                <button type="button" class="btn btn-cancel btn-sm" onclick="confirmCancel(<?php echo $claim['id']; ?>)">
-                                                    <i class="fas fa-ban"></i> Cancel
+                                    <?php foreach ($claims as $i => $claim): ?>
+                                        <tr>
+                                            <td class="fw-bold"><?php echo $i + 1; ?></td>
+                                            <td><?php echo date('d M Y', strtotime($claim['submitted_at'])); ?></td>
+                                            <!-- SECURITY: Escaping output to prevent XSS attacks. -->
+                                            <td><?php echo htmlspecialchars($claim['claim_type']); ?></td>
+                                            <td class="fw-bold" style="color: #0f2b4d;">RM <?php echo number_format($claim['amount'], 2); ?></td>
+                                            <td><?php echo $claim['expense_date'] ? date('d M Y', strtotime($claim['expense_date'])) : '-'; ?></td>
+                                            <td>
+                                                <span class="status-badge status-<?php echo $claim['status']; ?>">
+                                                    <i class="fas <?php echo $claim['status'] == 'Pending' ? 'fa-clock' : ($claim['status'] == 'Approved' ? 'fa-check' : ($claim['status'] == 'Paid' ? 'fa-dollar-sign' : ($claim['status'] == 'Cancelled' ? 'fa-ban' : 'fa-times'))); ?> me-1"></i>
+                                                    <?php echo $claim['status']; ?>
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <!-- SECURITY: Preventing XSS by escaping dynamic claim metadata before placing it in button data attributes. -->
+                                                <!-- WHY: The View action requires hidden modal data, and escaped attributes keep user-entered claim content from breaking markup or executing scripts. -->
+                                                <button class="btn btn-view btn-sm me-1"
+                                                    data-bs-toggle="modal" data-bs-target="#detailModal"
+                                                    data-id="<?php echo (int)$claim['id']; ?>"
+                                                    data-type="<?php echo htmlspecialchars($claim['claim_type'], ENT_QUOTES, 'UTF-8'); ?>"
+                                                    data-amount="<?php echo number_format($claim['amount'], 2); ?>"
+                                                    data-expense-date="<?php echo htmlspecialchars($claim['expense_date'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                                                    data-status="<?php echo htmlspecialchars($claim['status'], ENT_QUOTES, 'UTF-8'); ?>"
+                                                    data-desc="<?php echo htmlspecialchars($claim['description'], ENT_QUOTES, 'UTF-8'); ?>"
+                                                    data-remark="<?php echo htmlspecialchars($claim['finance_comment'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                                                    data-receipt="<?php echo htmlspecialchars($claim['receipt'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+                                                    <i class="fas fa-eye"></i> View
                                                 </button>
-                                            </form>
-                                            <?php endif; ?>
-                                        </td>
-                                    </tr>
+
+                                                <!-- CONDITION: Evaluates `if(strtolower($claim['status']) === 'pending' || strtolower($claim['status']) === 'rejected')` so the application can choose the correct business rule branch for the current user action. -->
+                                                <?php if (strtolower($claim['status']) === 'pending' || strtolower($claim['status']) === 'rejected'): ?>
+                                                    <!-- SECURITY: Preventing XSS by escaping editable claim metadata before passing it to the Bootstrap edit modal. -->
+                                                    <!-- WHY: The Edit action depends on data attributes, so clean attributes preserve button rendering and protect modal population. -->
+                                                    <button class="btn btn-edit btn-sm me-1"
+                                                        data-bs-toggle="modal" data-bs-target="#editModal"
+                                                        data-id="<?php echo (int)$claim['id']; ?>"
+                                                        data-type="<?php echo htmlspecialchars($claim['claim_type'], ENT_QUOTES, 'UTF-8'); ?>"
+                                                        data-amount="<?php echo htmlspecialchars((string)$claim['amount'], ENT_QUOTES, 'UTF-8'); ?>"
+                                                        data-expense-date="<?php echo htmlspecialchars($claim['expense_date'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                                                        data-desc="<?php echo htmlspecialchars($claim['description'], ENT_QUOTES, 'UTF-8'); ?>"
+                                                        data-receipt="<?php echo htmlspecialchars($claim['receipt'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                                                        data-current-status="<?php echo htmlspecialchars($claim['status'], ENT_QUOTES, 'UTF-8'); ?>">
+                                                        <i class="fas fa-edit"></i> Edit
+                                                    </button>
+                                                <?php endif; ?>
+
+                                                <!-- CONDITION: Evaluates `if(strtolower($claim['status']) === 'pending')` so the application can choose the correct business rule branch for the current user action. -->
+                                                <?php if (strtolower($claim['status']) === 'pending'): ?>
+                                                    <!-- SECTION: USER INPUT FORM - Captures business data that will be validated server-side before database changes occur. -->
+                                                    <form method="POST" class="d-inline" id="cancel-form-<?php echo $claim['id']; ?>">
+                                                        <input type="hidden" name="cancel_id" value="<?php echo $claim['id']; ?>">
+                                                        <button type="button" class="btn btn-cancel btn-sm" onclick="confirmCancel(<?php echo $claim['id']; ?>)">
+                                                            <i class="fas fa-ban"></i> Cancel
+                                                        </button>
+                                                    </form>
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
                                     <?php endforeach; ?>
                                 <?php endif; ?>
                             </tbody>
                             <!-- CONDITION: Evaluates `if(!empty($claims))` so the application can choose the correct business rule branch for the current user action. -->
-                            <?php if(!empty($claims)): ?>
-                            <tfoot style="background: #f1f5f9;">
-                                <tr>
-                                    <td colspan="3" class="fw-bold text-end">
-                                        <?php echo ($status_filter === 'All') ? 'Total Valid Amount:' : 'Total Amount:'; ?>
-                                    </td>
-                                    <td colspan="4" class="fw-bold" style="color: #3b82f6; font-size: 18px;">
-                                        RM <?php echo number_format($display_total, 2); ?>
-                                    </td>
-                                </tr>
-                            </tfoot>
+                            <?php if (!empty($claims)): ?>
+                                <tfoot style="background: #f1f5f9;">
+                                    <tr>
+                                        <td colspan="3" class="fw-bold text-end">
+                                            <?php echo ($status_filter === 'All') ? 'Total Valid Amount:' : 'Total Amount:'; ?>
+                                        </td>
+                                        <td colspan="4" class="fw-bold" style="color: #3b82f6; font-size: 18px;">
+                                            RM <?php echo number_format($display_total, 2); ?>
+                                        </td>
+                                    </tr>
+                                </tfoot>
                             <?php endif; ?>
                         </table>
                     </div>
@@ -599,7 +821,7 @@ foreach($counts_rows as $r) {
             </div>
         </div>
     </div>
- 
+
     <!-- SECTION: MODAL DIALOG - Shows detailed records without leaving the current workflow context. -->
     <div class="modal fade" id="detailModal" tabindex="-1">
         <!-- SECTION: MODAL DIALOG - Shows detailed records without leaving the current workflow context. -->
@@ -667,7 +889,7 @@ foreach($counts_rows as $r) {
             </div>
         </div>
     </div>
-    
+
     <!-- SECTION: MODAL DIALOG - Shows detailed records without leaving the current workflow context. -->
     <div class="modal fade" id="editModal" tabindex="-1">
         <!-- SECTION: MODAL DIALOG - Shows detailed records without leaving the current workflow context. -->
@@ -687,9 +909,9 @@ foreach($counts_rows as $r) {
                     <!-- SECTION: MODAL DIALOG - Shows detailed records without leaving the current workflow context. -->
                     <div class="modal-body p-4">
                         <input type="hidden" name="edit_id" id="edit-id">
-                        
+
                         <div class="alert alert-info" id="edit-alert-msg"></div>
-                        
+
                         <!-- BOOTSTRAP LAYOUT: row creates the horizontal grid used to align sidebars, content columns, cards, or form fields. -->
                         <div class="row">
                             <!-- BOOTSTRAP LAYOUT: col-md-6 gives each field half the row on medium screens so forms remain scannable. -->
@@ -706,20 +928,20 @@ foreach($counts_rows as $r) {
                                     <option value="Medical">Medical</option>
                                 </select>
                             </div>
-                            
+
                             <!-- BOOTSTRAP LAYOUT: col-md-6 gives each field half the row on medium screens so forms remain scannable. -->
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-bold">Amount (RM) *</label>
                                 <input type="number" name="amount" id="edit-amount" step="0.01" min="0.01" max="200" class="form-control" required>
                                 <small class="text-muted">Maximum: RM 200.00 per claim</small>
                             </div>
-                            
+
                             <!-- BOOTSTRAP LAYOUT: col-md-6 gives each field half the row on medium screens so forms remain scannable. -->
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-bold">Expense Date *</label>
                                 <input type="date" name="expense_date" id="edit-expense-date" class="form-control" required max="<?php echo date('Y-m-d'); ?>">
                             </div>
-                            
+
                             <!-- BOOTSTRAP LAYOUT: col-md-6 gives each field half the row on medium screens so forms remain scannable. -->
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-bold">Receipt (Optional)</label>
@@ -728,7 +950,7 @@ foreach($counts_rows as $r) {
                                 <small class="text-muted">Leave empty to keep current receipt. Max 5MB.</small>
                                 <div id="current-receipt" class="mt-2"></div>
                             </div>
-                            
+
                             <div class="col-12 mb-3">
                                 <label class="form-label fw-bold">Description *</label>
                                 <textarea name="description" id="edit-description" rows="4" class="form-control" required></textarea>
@@ -746,81 +968,85 @@ foreach($counts_rows as $r) {
             </div>
         </div>
     </div>
- 
+
     <!-- SECTION: CLIENT-SIDE BEHAVIOR - Loads JavaScript used for validation, alerts, navigation, charts, or tables. -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <!-- SECTION: CLIENT-SIDE BEHAVIOR - Loads JavaScript used for validation, alerts, navigation, charts, or tables. -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    
+
     <!-- SECTION: CLIENT-SIDE BEHAVIOR - Loads JavaScript used for validation, alerts, navigation, charts, or tables. -->
     <script>
         document.getElementById('detailModal').addEventListener('show.bs.modal', function(e) {
             const btn = e.relatedTarget;
             const status = btn.dataset.status;
-            
+
             document.getElementById('modal-id').textContent = btn.dataset.id;
             document.getElementById('modal-type').textContent = btn.dataset.type;
             document.getElementById('modal-amount').textContent = btn.dataset.amount;
-            
+
             const expenseDate = btn.dataset.expenseDate;
             // CONDITION: Evaluates `if(expenseDate) ` so the application can choose the correct business rule branch for the current user action.
-            if(expenseDate) {
+            if (expenseDate) {
                 const date = new Date(expenseDate);
-                document.getElementById('modal-date').textContent = date.toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' });
-            // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+                document.getElementById('modal-date').textContent = date.toLocaleDateString('en-MY', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric'
+                });
+                // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
             } else {
                 document.getElementById('modal-date').textContent = '-';
             }
-            
+
             document.getElementById('modal-desc').textContent = btn.dataset.desc;
-            
+
             const statusEl = document.getElementById('modal-status');
             statusEl.textContent = status;
             statusEl.className = `status-badge status-${status}`;
-            
+
             const receipt = btn.dataset.receipt;
             const receiptContainer = document.getElementById('modal-receipt-container');
             // CONDITION: Evaluates `if (receipt) ` so the application can choose the correct business rule branch for the current user action.
             if (receipt) {
                 receiptContainer.innerHTML = `<a href="../uploads/receipts/${receipt}" target="_blank" class="text-decoration-none" style="color: #3b82f6;"><i class="fas fa-paperclip"></i> View Attached Receipt</a>`;
-            // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+                // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
             } else {
                 receiptContainer.textContent = 'No receipt attached';
             }
-            
+
             const remarkWrapper = document.getElementById('modal-remark-wrapper');
             const remark = btn.dataset.remark;
             // CONDITION: Evaluates `if(remark) ` so the application can choose the correct business rule branch for the current user action.
-            if(remark) {
+            if (remark) {
                 remarkWrapper.style.display = 'block';
                 document.getElementById('modal-remark').textContent = remark;
-            // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+                // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
             } else {
                 remarkWrapper.style.display = 'none';
             }
         });
-        
+
         document.getElementById('editModal').addEventListener('show.bs.modal', function(e) {
             const btn = e.relatedTarget;
             const currentStatus = btn.dataset.currentStatus;
-            
+
             document.getElementById('edit-id').value = btn.dataset.id;
             document.getElementById('edit-type').value = btn.dataset.type;
             document.getElementById('edit-amount').value = btn.dataset.amount;
             document.getElementById('edit-expense-date').value = btn.dataset.expenseDate;
             document.getElementById('edit-description').value = btn.dataset.desc;
-            
+
             const alertMsg = document.getElementById('edit-alert-msg');
             // CONDITION: Evaluates `if (currentStatus === 'Rejected') ` so the application can choose the correct business rule branch for the current user action.
             if (currentStatus === 'Rejected') {
                 alertMsg.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i> You are editing a <strong>Rejected</strong> claim. Upon saving, it will be resubmitted for approval.';
                 alertMsg.className = 'alert alert-warning';
-            // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+                // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
             } else {
                 alertMsg.innerHTML = '<i class="fas fa-info-circle me-2"></i> You can edit this claim while it is still in <strong>Pending</strong> status.';
                 alertMsg.className = 'alert alert-info';
             }
-            
+
             const receipt = btn.dataset.receipt;
             const receiptContainer = document.getElementById('current-receipt');
             // CONDITION: Evaluates `if (receipt) ` so the application can choose the correct business rule branch for the current user action.
@@ -830,7 +1056,7 @@ foreach($counts_rows as $r) {
                     Current receipt: <a href="../uploads/receipts/${receipt}" target="_blank">View attached file</a>
                     <br><small>Upload a new file if you want to replace it.</small>
                 </div>`;
-            // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+                // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
             } else {
                 receiptContainer.innerHTML = `<div class="alert alert-secondary">
                     <i class="fas fa-info-circle me-2"></i>
@@ -838,19 +1064,19 @@ foreach($counts_rows as $r) {
                 </div>`;
             }
         });
-        
+
         document.getElementById('editModal').addEventListener('shown.bs.modal', function() {
             const amountInput = document.getElementById('edit-amount');
             // WHY: Real-time input validation gives users immediate feedback before server-side validation runs.
             amountInput.addEventListener('input', function() {
                 // CONDITION: Evaluates `if(parseFloat(this.value) > 200) ` so the application can choose the correct business rule branch for the current user action.
-                if(parseFloat(this.value) > 200) {
+                if (parseFloat(this.value) > 200) {
                     // WHY: setCustomValidity integrates business rules with native browser validation messages.
                     this.setCustomValidity('Amount cannot exceed RM 200.00');
                     // WHY: The red border makes an over-limit claim amount immediately visible before the staff member resubmits.
                     // WHY: Border color feedback visually marks invalid financial input before submission.
                     this.style.borderColor = '#dc3545';
-                // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+                    // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
                 } else {
                     // WHY: setCustomValidity integrates business rules with native browser validation messages.
                     this.setCustomValidity('');
@@ -870,8 +1096,8 @@ foreach($counts_rows as $r) {
                 text: "This claim will be marked as cancelled and cannot be processed further.",
                 icon: 'warning',
                 showCancelButton: true,
-                confirmButtonColor: '#ef4444', 
-                cancelButtonColor: '#64748b',  
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#64748b',
                 confirmButtonText: '<i class="fas fa-ban me-1"></i> Yes, cancel it!',
                 background: 'rgba(255, 255, 255, 0.95)',
                 backdrop: `rgba(15, 43, 77, 0.4)`
@@ -884,7 +1110,7 @@ foreach($counts_rows as $r) {
         }
 
         // CONDITION: Evaluates `if($success)` so the application can choose the correct business rule branch for the current user action.
-        <?php if($success): ?>
+        <?php if ($success): ?>
             // WHY: A toast configuration provides non-blocking feedback after low-risk successful actions.
             const Toast = Swal.mixin({
                 toast: true,
@@ -901,8 +1127,8 @@ foreach($counts_rows as $r) {
                 icon: 'success',
                 title: '<?php echo addslashes($success); ?>'
             });
-        // CONDITION: Evaluates `elseif($error)` so the application can choose the correct business rule branch for the current user action.
-        <?php elseif($error): ?>
+            // CONDITION: Evaluates `elseif($error)` so the application can choose the correct business rule branch for the current user action.
+        <?php elseif ($error): ?>
             // SECTION: SWEETALERT FEEDBACK - Shows high-visibility success, error, warning, or confirmation messages for important actions.
             Swal.fire({
                 icon: 'error',
@@ -913,4 +1139,5 @@ foreach($counts_rows as $r) {
         <?php endif; ?>
     </script>
 </body>
+
 </html>

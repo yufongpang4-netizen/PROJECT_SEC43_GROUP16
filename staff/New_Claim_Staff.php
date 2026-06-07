@@ -10,11 +10,13 @@
 session_start();
 // SECTION: DEPENDENCY LOADING - Loads shared services so this page uses the same database and library logic as the rest of the system.
 require_once "../db.php";
+// SECTION: DEPENDENCY LOADING - Loads the centralized email helper so successful claim submissions can notify Finance automatically.
+require_once "../mailer_helper.php";
 
 // SECURITY: This session condition prevents unauthenticated users from reaching protected business pages.
 // SECURITY: Role-based branching separates Staff, Finance, and Admin privileges so users can only access their permitted workflow.
 // CONDITION: Evaluates `if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'staff') ` so the application can choose the correct business rule branch for the current user action.
-if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'staff') {
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'staff') {
     // SECURITY: Redirecting immediately protects restricted pages after a failed authorization or invalid-record check.
     header("Location: ../login.php");
     // BEST PRACTICE: Terminating after redirect prevents the remaining protected HTML or PHP logic from executing accidentally.
@@ -25,7 +27,9 @@ $success = '';
 $error   = '';
 
 // ========== CLAIM LIMITS CONFIGURATION ==========
-$MAX_CLAIM_AMOUNT_PER_MONTH = 500;   // Maximum RM 500 per month total
+// SECTION: CLAIM LIMITS CONFIGURATION - Defines financial policy limits used by both backend validation and user-facing guidance.
+// WHY: Centralizing these amounts keeps monthly governance, per-claim policy, and real-time UX validation aligned for Staff submissions.
+$MAX_CLAIM_AMOUNT_PER_MONTH = 500;    // Maximum RM 500 per month total
 $MAX_NUMBER_OF_CLAIMS_PER_MONTH = 3;  // Maximum 3 claims per month
 $MAX_AMOUNT_PER_CLAIM = 200;          // Maximum RM 200 per single claim
 
@@ -77,101 +81,99 @@ $has_pending_claims = ($pending_data['pending_count'] > 0);
 
 // SECTION: FORM SUBMISSION HANDLER - Processes user input only after an intentional form submission.
 // CONDITION: Evaluates `if($_SERVER['REQUEST_METHOD'] == 'POST') ` so the application can choose the correct business rule branch for the current user action.
-if($_SERVER['REQUEST_METHOD'] == 'POST') {
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
     $claim_type   = $_POST['claim_type'];
+    // WHY: Reading the raw amount preserves the exact submitted value so numeric validation can distinguish empty input from invalid text.
+    $amount_input = $_POST['amount'] ?? '';
     // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
     // BEST PRACTICE: Converting claim amounts to numeric values ensures financial limit checks use numeric comparison.
-    $amount       = floatval($_POST['amount']);
+    $amount       = is_numeric($amount_input) ? floatval($amount_input) : 0;
     // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
     $expense_date = $_POST['date'];
     // BEST PRACTICE: trim() removes accidental whitespace before validation so values are stored and compared consistently.
     $description  = trim($_POST['description']);
-    
+
     // Validate required fields
     // VALIDATION: This condition rejects incomplete input so the database does not receive unusable claim or account records.
-    // CONDITION: Evaluates `if(empty($claim_type) || empty($amount) || empty($expense_date) || empty($description)) ` so the application can choose the correct business rule branch for the current user action.
-    if(empty($claim_type) || empty($amount) || empty($expense_date) || empty($description)) {
+    // CONDITION: Evaluates `if(empty($claim_type) || $amount_input === '' || empty($expense_date) || empty($description)) ` so the application can choose the correct business rule branch for the current user action.
+    if (empty($claim_type) || $amount_input === '' || empty($expense_date) || empty($description)) {
         $error = "Please fill in all required fields.";
-    } 
-    // CONDITION: Evaluates `elseif(!is_numeric($amount) || $amount <= 0) ` so the application can choose the correct business rule branch for the current user action.
-    elseif(!is_numeric($amount) || $amount <= 0) {
-        $error = "Please enter a valid amount.";
+    }
+    // CONDITION: Evaluates `elseif(!is_numeric($amount_input) || $amount <= 0) ` so the application can choose the correct business rule branch for the current user action.
+    elseif (!is_numeric($amount_input) || $amount <= 0) {
+        $error = "Amount must be greater than RM 0.";
     }
     // CONDITION: Evaluates `elseif($has_pending_claims) ` so the application can choose the correct business rule branch for the current user action.
-    elseif($has_pending_claims) {
+    elseif ($has_pending_claims) {
         $error = "You have pending claims awaiting approval. Please wait before submitting new claims.";
     }
     // CONDITION: Evaluates `elseif($amount > $MAX_AMOUNT_PER_CLAIM) ` so the application can choose the correct business rule branch for the current user action.
-    elseif($amount > $MAX_AMOUNT_PER_CLAIM) {
+    elseif ($amount > $MAX_AMOUNT_PER_CLAIM) {
         // WHY: number_format() displays monetary values with two decimals so financial amounts are consistent.
-        $error = "Maximum claim amount per claim is RM " . number_format($MAX_AMOUNT_PER_CLAIM, 2) . 
-                 // WHY: number_format() displays monetary values with two decimals so financial amounts are consistent.
-                 ". Your claim amount: RM " . number_format($amount, 2);
-    }
-    // CONDITION: Evaluates `elseif($amount < 1) ` so the application can choose the correct business rule branch for the current user action.
-    elseif($amount < 1) {
-        $error = "Minimum claim amount is RM 1.00";
+        $error = "Maximum claim amount per claim is RM " . number_format($MAX_AMOUNT_PER_CLAIM, 2) .
+            // WHY: number_format() displays monetary values with two decimals so financial amounts are consistent.
+            ". Your claim amount: RM " . number_format($amount, 2);
     }
     // CONDITION: Evaluates `elseif(($total_amount_this_month + $amount) > $MAX_CLAIM_AMOUNT_PER_MONTH) ` so the application can choose the correct business rule branch for the current user action.
-    elseif(($total_amount_this_month + $amount) > $MAX_CLAIM_AMOUNT_PER_MONTH) {
+    elseif (($total_amount_this_month + $amount) > $MAX_CLAIM_AMOUNT_PER_MONTH) {
         $remaining = $MAX_CLAIM_AMOUNT_PER_MONTH - $total_amount_this_month;
-        $error = "Monthly claim limit reached! You have claimed RM " . 
-                 // WHY: number_format() displays monetary values with two decimals so financial amounts are consistent.
-                 number_format($total_amount_this_month, 2) . " out of RM " . 
-                 // WHY: number_format() displays monetary values with two decimals so financial amounts are consistent.
-                 number_format($MAX_CLAIM_AMOUNT_PER_MONTH, 2) . 
-                 // WHY: number_format() displays monetary values with two decimals so financial amounts are consistent.
-                 ". Remaining: RM " . number_format($remaining, 2);
+        $error = "Monthly claim limit reached! You have claimed RM " .
+            // WHY: number_format() displays monetary values with two decimals so financial amounts are consistent.
+            number_format($total_amount_this_month, 2) . " out of RM " .
+            // WHY: number_format() displays monetary values with two decimals so financial amounts are consistent.
+            number_format($MAX_CLAIM_AMOUNT_PER_MONTH, 2) .
+            // WHY: number_format() displays monetary values with two decimals so financial amounts are consistent.
+            ". Remaining: RM " . number_format($remaining, 2);
     }
     // CONDITION: Evaluates `elseif($total_claims_this_month >= $MAX_NUMBER_OF_CLAIMS_PER_MONTH) ` so the application can choose the correct business rule branch for the current user action.
-    elseif($total_claims_this_month >= $MAX_NUMBER_OF_CLAIMS_PER_MONTH) {
-        $error = "You have reached the maximum of " . $MAX_NUMBER_OF_CLAIMS_PER_MONTH . 
-                 " claims for this month.";
+    elseif ($total_claims_this_month >= $MAX_NUMBER_OF_CLAIMS_PER_MONTH) {
+        $error = "You have reached the maximum of " . $MAX_NUMBER_OF_CLAIMS_PER_MONTH .
+            " claims for this month.";
     }
     // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
     else {
         $status = 'Pending';
-        
+
         $receipt_filename = null;
         // CONDITION: Evaluates `if(isset($_FILES['receipt']) && $_FILES['receipt']['error'] == 0) ` so the application can choose the correct business rule branch for the current user action.
-        if(isset($_FILES['receipt']) && $_FILES['receipt']['error'] == 0) {
+        if (isset($_FILES['receipt']) && $_FILES['receipt']['error'] == 0) {
             $allowed_types = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
             $file_type     = $_FILES['receipt']['type'];
             // SECURITY: The 5MB upload limit prevents oversized receipt files from exhausting storage or memory.
             $max_file_size = 5 * 1024 * 1024;
-            
+
             // CONDITION: Evaluates `if($_FILES['receipt']['size'] > $max_file_size) ` so the application can choose the correct business rule branch for the current user action.
-            if($_FILES['receipt']['size'] > $max_file_size) {
+            if ($_FILES['receipt']['size'] > $max_file_size) {
                 $error = "File size too large. Maximum size is 5MB.";
             }
             // SECURITY: The MIME-type whitelist restricts receipt uploads to expected PDF/image evidence formats.
             // CONDITION: Evaluates `elseif(in_array($file_type, $allowed_types)) ` so the application can choose the correct business rule branch for the current user action.
-            elseif(in_array($file_type, $allowed_types)) {
+            elseif (in_array($file_type, $allowed_types)) {
                 $upload_dir = '../uploads/receipts/';
-                if(!file_exists($upload_dir)) {
+                if (!file_exists($upload_dir)) {
                     // BEST PRACTICE: The upload directory is created only when missing so receipt storage works on fresh deployment.
                     mkdir($upload_dir, 0777, true);
                 }
-                
+
                 $file_ext         = pathinfo($_FILES['receipt']['name'], PATHINFO_EXTENSION);
                 $receipt_filename = 'receipt_' . time() . '_' . $user_id . '.' . $file_ext;
                 $target_file      = $upload_dir . $receipt_filename;
-                
+
                 // SECURITY: move_uploaded_file() stores only genuine PHP-uploaded files after validation.
                 // CONDITION: Evaluates `if(!move_uploaded_file($_FILES['receipt']['tmp_name'], $target_file)) ` so the application can choose the correct business rule branch for the current user action.
-                if(!move_uploaded_file($_FILES['receipt']['tmp_name'], $target_file)) {
+                if (!move_uploaded_file($_FILES['receipt']['tmp_name'], $target_file)) {
                     $error = "Failed to save the uploaded receipt. Please try again.";
                 }
-            // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+                // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
             } else {
                 $error = "Invalid file format. Only PDF, JPG, and PNG are allowed.";
             }
         }
-        
+
         // VALIDATION: This condition rejects incomplete input so the database does not receive unusable claim or account records.
         // CONDITION: Evaluates `if(empty($error)) ` so the application can choose the correct business rule branch for the current user action.
-        if(empty($error)) {
+        if (empty($error)) {
             // SECURITY: Using Prepared Statements to prevent SQL Injection.
             // WHY: SQL is prepared separately from user data so identifiers, filters, and form values can be bound safely.
             $stmt = $conn->prepare("
@@ -180,7 +182,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             ");
             // SECURITY: Using Prepared Statements to prevent SQL Injection.
             // WHY: bind_param() attaches typed values to SQL placeholders, preventing input from becoming executable SQL.
-            $stmt->bind_param("isdssss",
+            $stmt->bind_param(
+                "isdssss",
                 $user_id,
                 $claim_type,
                 $amount,
@@ -189,19 +192,73 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $receipt_filename,
                 $status
             );
-            
+
             // WHY: Executing the prepared statement performs the validated database operation for the current workflow.
             // CONDITION: Evaluates `if($stmt->execute()) ` so the application can choose the correct business rule branch for the current user action.
-            if($stmt->execute()) {
+            if ($stmt->execute()) {
+                // SECTION: AUTOMATED FINANCE NOTIFICATION - Captures the new claim reference and informs Finance that a review action is required.
+                // WHY: Immediate email notification reduces manual checking and keeps the claim workflow moving after Staff submission.
+                $new_claim_id = $stmt->insert_id;
+
+                // SECURITY: Using Prepared Statements to prevent SQL Injection.
+                // WHY: SQL is prepared separately from role-filter values so notification routing remains safe and auditable.
+                $finance_role = 'finance';
+                $finance_stmt = $conn->prepare("SELECT name, email FROM users WHERE role = ? LIMIT 1");
+                // SECURITY: Using Prepared Statements to prevent SQL Injection.
+                // WHY: bind_param() attaches the Finance role safely instead of embedding workflow criteria directly into executable SQL.
+                $finance_stmt->bind_param("s", $finance_role);
+                // WHY: Executing the prepared statement retrieves the Finance recipient responsible for the next claim-processing step.
+                $finance_stmt->execute();
+                // WHY: get_result() turns the recipient query into a readable result set for notification logic.
+                $finance_result = $finance_stmt->get_result();
+
+                // CONDITION: Evaluates `if($finance_result->num_rows > 0)` so the application only sends email when a Finance account exists.
+                if ($finance_result->num_rows > 0) {
+                    // WHY: fetch_assoc() returns Finance recipient data as named fields for clear email construction.
+                    $finance_user = $finance_result->fetch_assoc();
+
+                    // SECURITY: Preventing XSS by escaping dynamic claim values before placing them into the HTML email body.
+                    // WHY: Email content may render in rich clients, so Staff-entered and database values must remain display-only text.
+                    $safe_claim_type = htmlspecialchars($claim_type, ENT_QUOTES, 'UTF-8');
+                    $safe_claim_id   = htmlspecialchars((string)$new_claim_id, ENT_QUOTES, 'UTF-8');
+                    $safe_amount     = htmlspecialchars(number_format($amount, 2), ENT_QUOTES, 'UTF-8');
+
+                    // SECTION: EMAIL BODY CREATION - Builds a concise Finance action message with the exact claim reference and amount.
+                    // WHY: Finance can quickly identify the pending claim and prioritize payment workflow review.
+                    $finance_body = '
+                        <p style="margin:0 0 14px;">A new staff claim has been submitted and is awaiting Finance review.</p>
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse; margin:18px 0;">
+                            <tr>
+                                <td style="padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; font-weight:700;">Claim ID</td>
+                                <td style="padding:10px 12px; border:1px solid #e2e8f0;">#' . $safe_claim_id . '</td>
+                            </tr>
+                            <tr>
+                                <td style="padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; font-weight:700;">Claim Type</td>
+                                <td style="padding:10px 12px; border:1px solid #e2e8f0;">' . $safe_claim_type . '</td>
+                            </tr>
+                            <tr>
+                                <td style="padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; font-weight:700;">Amount</td>
+                                <td style="padding:10px 12px; border:1px solid #e2e8f0;">RM ' . $safe_amount . '</td>
+                            </tr>
+                        </table>
+                        <p style="margin:0;">Please log in to the Finance dashboard to review and process this claim.</p>
+                    ';
+
+                    // WHY: sendSystemEmail() centralizes PHPMailer delivery and keeps business modules focused on workflow data.
+                    sendSystemEmail($finance_user['email'], $finance_user['name'], 'New Claim Submitted for Finance Review', $finance_body);
+                }
+                // WHY: Closing the recipient statement releases database resources after the notification routing check completes.
+                $finance_stmt->close();
+
                 $success = "Claim submitted successfully! Finance will review your claim.";
-                if(function_exists('logActivity')) {
+                if (function_exists('logActivity')) {
                     // AUDIT: Activity logging creates an accountability trail for key actions such as claim submission, cancellation, and payment.
                     // WHY: number_format() displays monetary values with two decimals so financial amounts are consistent.
                     logActivity($conn, $user_id, 'Submit Claim', "Submitted claim of RM " . number_format($amount, 2) . " for " . $claim_type);
                 }
                 $total_amount_this_month += $amount;
                 $total_claims_this_month++;
-            // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+                // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
             } else {
                 $error = "Database error: " . $conn->error;
             }
@@ -218,6 +275,7 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
 <!DOCTYPE html>
 <html lang="en">
 <!-- SECTION: DOCUMENT METADATA - Loads responsive settings and external UI libraries required by this page. -->
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -238,24 +296,39 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
             --staff-text: #1e293b;
             --staff-gray: #64748b;
         }
-        
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         /* SECTION: PAGE FOUNDATION - Body rules set the base font, background, and overflow behavior for the whole screen. */
-        html, body { height: 100%; margin: 0; padding: 0; }
-        
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
         /* SECTION: PAGE FOUNDATION - Body rules set the base font, background, and overflow behavior for the whole screen. */
         body {
             background: var(--staff-bg);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             overflow-x: hidden;
         }
-        
+
         /* BOOTSTRAP LAYOUT: The full-width container lets dashboard pages use the complete viewport for side navigation plus content. */
-        .container-fluid { height: 100%; overflow: hidden; }
+        .container-fluid {
+            height: 100%;
+            overflow: hidden;
+        }
+
         /* BOOTSTRAP LAYOUT: The zero-gutter row removes unwanted spacing between the sidebar and the main workspace. */
-        .row.g-0 { height: 100%; }
-        
+        .row.g-0 {
+            height: 100%;
+        }
+
         /* SECTION: SIDEBAR NAVIGATION - The fixed-height sidebar keeps role-specific navigation visible for repeated dashboard use. */
         .sidebar {
             background: linear-gradient(180deg, #0f2b4d 0%, #1e4d8c 100%);
@@ -266,7 +339,7 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
             position: sticky;
             top: 0;
         }
-        
+
         /* SECTION: SIDEBAR NAVIGATION - The fixed-height sidebar keeps role-specific navigation visible for repeated dashboard use. */
         .sidebar .nav-link {
             color: rgba(255, 255, 255, 0.85);
@@ -275,35 +348,45 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
             border-radius: 10px;
             transition: all 0.3s ease;
         }
-        
+
         /* SECTION: SIDEBAR NAVIGATION - The fixed-height sidebar keeps role-specific navigation visible for repeated dashboard use. */
         .sidebar .nav-link:hover {
             background: rgba(59, 130, 246, 0.2);
             color: #3b82f6;
             transform: translateX(5px);
         }
-        
+
         /* SECTION: SIDEBAR NAVIGATION - The fixed-height sidebar keeps role-specific navigation visible for repeated dashboard use. */
         .sidebar .nav-link.active {
             background: #3b82f6;
             color: #0f2b4d;
             font-weight: 600;
         }
-        
+
         /* SECTION: MAIN WORKSPACE - A scrollable content panel allows long tables and forms without moving the sidebar. */
         .main-content {
             height: 100vh;
             overflow-y: auto;
             padding: 20px;
         }
-        
+
         /* SECTION: MAIN WORKSPACE - A scrollable content panel allows long tables and forms without moving the sidebar. */
-        .main-content::-webkit-scrollbar { width: 8px; }
+        .main-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
         /* SECTION: MAIN WORKSPACE - A scrollable content panel allows long tables and forms without moving the sidebar. */
-        .main-content::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 10px; }
+        .main-content::-webkit-scrollbar-track {
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
+
         /* SECTION: MAIN WORKSPACE - A scrollable content panel allows long tables and forms without moving the sidebar. */
-        .main-content::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 10px; }
-        
+        .main-content::-webkit-scrollbar-thumb {
+            background: #3b82f6;
+            border-radius: 10px;
+        }
+
         /* Page Header */
         /* SECTION: PAGE HEADER - The banner identifies the current workflow and gives immediate user context. */
         .page-header {
@@ -313,7 +396,7 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
             color: white;
             margin-bottom: 25px;
         }
-        
+
         /* Limit Cards with Hover Effects */
         /* SECTION: CARD/PANEL COMPONENT - This visual container groups related controls or records so business information is easier to scan. */
         .limit-card {
@@ -325,19 +408,19 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
             border: 1px solid #e2e8f0;
             transition: all 0.3s ease;
         }
-        
+
         /* SECTION: CARD/PANEL COMPONENT - This visual container groups related controls or records so business information is easier to scan. */
         .limit-card:hover {
             transform: translateY(-3px);
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
         }
-        
+
         /* SECTION: CARD/PANEL COMPONENT - This visual container groups related controls or records so business information is easier to scan. */
         .limit-card h5 {
             color: #0f2b4d;
             margin-bottom: 15px;
         }
-        
+
         /* Stat Boxes inside Limit Card */
         /* SECTION: KPI CARD - Summary panels expose claim counts, payment totals, or limits at a glance for decision-making. */
         .stat-box {
@@ -347,57 +430,86 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
             transition: all 0.3s ease;
             cursor: pointer;
         }
-        
+
         /* SECTION: KPI CARD - Summary panels expose claim counts, payment totals, or limits at a glance for decision-making. */
         .stat-box:hover {
             transform: translateY(-3px);
         }
-        
+
         /* Monthly Budget Box - Blue theme */
         /* SECTION: KPI CARD - Summary panels expose claim counts, payment totals, or limits at a glance for decision-making. */
-        .stat-box-budget { border-left: 4px solid #3b82f6; }
+        .stat-box-budget {
+            border-left: 4px solid #3b82f6;
+        }
+
         /* SECTION: KPI CARD - Summary panels expose claim counts, payment totals, or limits at a glance for decision-making. */
-        .stat-box-budget:hover { background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); }
+        .stat-box-budget:hover {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+        }
+
         /* SECTION: KPI CARD - Summary panels expose claim counts, payment totals, or limits at a glance for decision-making. */
-        .stat-box-budget:hover .stat-value { color: #1e40af; }
-        
+        .stat-box-budget:hover .stat-value {
+            color: #1e40af;
+        }
+
         /* Claims Count Box - Yellow theme */
         /* SECTION: KPI CARD - Summary panels expose claim counts, payment totals, or limits at a glance for decision-making. */
-        .stat-box-count { border-left: 4px solid #f59e0b; }
+        .stat-box-count {
+            border-left: 4px solid #f59e0b;
+        }
+
         /* SECTION: KPI CARD - Summary panels expose claim counts, payment totals, or limits at a glance for decision-making. */
-        .stat-box-count:hover { background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); }
+        .stat-box-count:hover {
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+        }
+
         /* SECTION: KPI CARD - Summary panels expose claim counts, payment totals, or limits at a glance for decision-making. */
-        .stat-box-count:hover .stat-value { color: #b45309; }
-        
+        .stat-box-count:hover .stat-value {
+            color: #b45309;
+        }
+
         /* Per Claim Limit Box - Green theme */
         /* SECTION: KPI CARD - Summary panels expose claim counts, payment totals, or limits at a glance for decision-making. */
-        .stat-box-limit { border-left: 4px solid #10b981; }
+        .stat-box-limit {
+            border-left: 4px solid #10b981;
+        }
+
         /* SECTION: KPI CARD - Summary panels expose claim counts, payment totals, or limits at a glance for decision-making. */
-        .stat-box-limit:hover { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); }
+        .stat-box-limit:hover {
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+        }
+
         /* SECTION: KPI CARD - Summary panels expose claim counts, payment totals, or limits at a glance for decision-making. */
-        .stat-box-limit:hover .stat-value { color: #065f46; }
-        
+        .stat-box-limit:hover .stat-value {
+            color: #065f46;
+        }
+
         /* WHY: Progress bars convert monthly claim usage into a visual ratio that is easier to interpret than numbers alone. */
         .progress {
             height: 8px;
             border-radius: 10px;
             background-color: #e2e8f0;
         }
+
         /* WHY: Progress bars convert monthly claim usage into a visual ratio that is easier to interpret than numbers alone. */
         .progress-bar {
             background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
             border-radius: 10px;
         }
-        
-        .stat-label-small { color: #64748b; font-size: 12px; margin-top: 5px; }
-        
+
+        .stat-label-small {
+            color: #64748b;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
         .stat-value {
             font-size: 24px;
             font-weight: 700;
             color: #0f2b4d;
             transition: all 0.3s ease;
         }
-        
+
         .limit-warning {
             background-color: #fef3c7;
             border-left: 4px solid #f59e0b;
@@ -407,13 +519,13 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
             color: #92400e;
             font-size: 14px;
         }
-        
+
         .limit-danger {
             background-color: #fee2e2;
             border-left: 4px solid #ef4444;
             color: #991b1b;
         }
-        
+
         /* Form Card */
         /* SECTION: CARD/PANEL COMPONENT - This visual container groups related controls or records so business information is easier to scan. */
         .form-card {
@@ -422,28 +534,30 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
             border: none;
             box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
         }
-        
+
         /* SECTION: FORM CONTROLS - Consistent input styling helps users enter claim/account data accurately. */
         .form-label {
             font-weight: 600;
             color: #0f2b4d;
             margin-bottom: 8px;
         }
-        
+
         /* SECTION: FORM CONTROLS - Consistent input styling helps users enter claim/account data accurately. */
-        .form-control, .form-select {
+        .form-control,
+        .form-select {
             border-radius: 12px;
             border: 1px solid #e2e8f0;
             padding: 12px 15px;
             transition: all 0.3s ease;
         }
-        
+
         /* SECTION: FORM CONTROLS - Consistent input styling helps users enter claim/account data accurately. */
-        .form-control:focus, .form-select:focus {
+        .form-control:focus,
+        .form-select:focus {
             border-color: #3b82f6;
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
-        
+
         /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
         .btn-submit {
             background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
@@ -454,14 +568,14 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
             font-weight: 600;
             transition: all 0.3s ease;
         }
-        
+
         /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
         .btn-submit:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.4);
             color: white;
         }
-        
+
         /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
         .btn-cancel {
             background: #f1f5f9;
@@ -472,14 +586,14 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
             font-weight: 600;
             transition: all 0.3s ease;
         }
-        
+
         /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
         .btn-cancel:hover {
             background: #e2e8f0;
             transform: translateY(-2px);
             color: #0f2b4d;
         }
-        
+
         /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
         .btn-disabled {
             background: #cbd5e1;
@@ -490,68 +604,85 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
             cursor: not-allowed;
             border: none;
         }
-        
+
         /* SECTION: ANIMATION - Keyframes add subtle entrance motion to guide attention without changing business logic. */
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
-        
-        .fade-in { animation: fadeIn 0.5s ease-out; }
-        
-        hr { border-color: #e2e8f0; }
-        
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        hr {
+            border-color: #e2e8f0;
+        }
+
         .input-group-text {
             background: #f1f5f9;
             border: 1px solid #e2e8f0;
             color: #0f2b4d;
         }
-        
+
         .claim-disabled {
             opacity: 0.6;
             pointer-events: none;
         }
-        
+
         .info-box {
             background: #e8f0fe;
             border-radius: 12px;
             padding: 12px 15px;
             margin-top: 10px;
         }
-        
+
         .info-box i {
             color: #3b82f6;
             margin-right: 8px;
         }
-        
+
         /* SECTION: SWEETALERT THEME - Alert styling keeps confirmations and success messages visually consistent with the active role. */
         .swal2-backdrop-show {
             background: rgba(15, 43, 77, 0.6) !important;
             backdrop-filter: blur(8px) !important;
             -webkit-backdrop-filter: blur(8px) !important;
         }
+
         /* SECTION: SWEETALERT THEME - Alert styling keeps confirmations and success messages visually consistent with the active role. */
         .premium-swal-popup {
             border-radius: 24px !important;
             padding: 2.5em 2em !important;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
-            border: 1px solid rgba(255,255,255,0.2) !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
         }
+
         /* SECTION: SWEETALERT THEME - Alert styling keeps confirmations and success messages visually consistent with the active role. */
         .premium-swal-progress {
             background: linear-gradient(90deg, #3b82f6 0%, #10b981 100%) !important;
             height: 6px !important;
             border-radius: 10px;
         }
-        
+
         /* SECTION: RESPONSIVE RULES - These rules adapt sidebars, cards, and tables for smaller screens. */
         @media (max-width: 768px) {
+
             /* SECTION: SIDEBAR NAVIGATION - The fixed-height sidebar keeps role-specific navigation visible for repeated dashboard use. */
-            .sidebar { min-height: auto; }
+            .sidebar {
+                min-height: auto;
+            }
         }
     </style>
 </head>
 <!-- SECTION: PAGE BODY - Begins the visible interface for the current UTMSPACE workflow. -->
+
 <body>
     <!-- BOOTSTRAP LAYOUT: container-fluid spans the full browser width so dashboards can use the complete workspace. -->
     <div class="container-fluid p-0">
@@ -627,49 +758,49 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- CONDITION: Evaluates `if($has_pending_claims)` so the application can choose the correct business rule branch for the current user action. -->
-                    <?php if($has_pending_claims): ?>
-                    <div class="limit-warning">
-                        <i class="fas fa-clock me-2"></i>
-                        <strong>Pending Claims Alert!</strong> You have <?php echo $pending_data['pending_count']; ?> pending claim(s) awaiting approval. 
-                        You cannot submit new claims until they are processed.
-                    </div>
+                    <?php if ($has_pending_claims): ?>
+                        <div class="limit-warning">
+                            <i class="fas fa-clock me-2"></i>
+                            <strong>Pending Claims Alert!</strong> You have <?php echo $pending_data['pending_count']; ?> pending claim(s) awaiting approval.
+                            You cannot submit new claims until they are processed.
+                        </div>
                     <?php endif; ?>
-                    
+
                     <!-- CONDITION: Evaluates `if($total_amount_this_month >= $MAX_CLAIM_AMOUNT_PER_MONTH)` so the application can choose the correct business rule branch for the current user action. -->
-                    <?php if($total_amount_this_month >= $MAX_CLAIM_AMOUNT_PER_MONTH): ?>
-                    <div class="limit-warning limit-danger">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        <strong>Monthly budget exhausted!</strong> You have reached your monthly claim limit of RM <?php echo number_format($MAX_CLAIM_AMOUNT_PER_MONTH, 2); ?>.
-                    </div>
+                    <?php if ($total_amount_this_month >= $MAX_CLAIM_AMOUNT_PER_MONTH): ?>
+                        <div class="limit-warning limit-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Monthly budget exhausted!</strong> You have reached your monthly claim limit of RM <?php echo number_format($MAX_CLAIM_AMOUNT_PER_MONTH, 2); ?>.
+                        </div>
                     <?php endif; ?>
-                    
+
                     <!-- CONDITION: Evaluates `if($total_claims_this_month >= $MAX_NUMBER_OF_CLAIMS_PER_MONTH)` so the application can choose the correct business rule branch for the current user action. -->
-                    <?php if($total_claims_this_month >= $MAX_NUMBER_OF_CLAIMS_PER_MONTH): ?>
-                    <div class="limit-warning limit-danger">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        <strong>Monthly claim limit reached!</strong> You have submitted the maximum of <?php echo $MAX_NUMBER_OF_CLAIMS_PER_MONTH; ?> claims this month.
-                    </div>
+                    <?php if ($total_claims_this_month >= $MAX_NUMBER_OF_CLAIMS_PER_MONTH): ?>
+                        <div class="limit-warning limit-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Monthly claim limit reached!</strong> You have submitted the maximum of <?php echo $MAX_NUMBER_OF_CLAIMS_PER_MONTH; ?> claims this month.
+                        </div>
                     <?php endif; ?>
                 </div>
 
                 <div class="form-card fade-in mb-5">
                     <div class="card-body p-4">
                         <!-- SECTION: USER INPUT FORM - Captures business data that will be validated server-side before database changes occur. -->
-                        <form method="POST" enctype="multipart/form-data" id="claimForm" 
-                              <?php echo ($has_pending_claims || $total_amount_this_month >= $MAX_CLAIM_AMOUNT_PER_MONTH || $total_claims_this_month >= $MAX_NUMBER_OF_CLAIMS_PER_MONTH) ? 'class="claim-disabled"' : ''; ?>>
+                        <form method="POST" enctype="multipart/form-data" id="claimForm"
+                            <?php echo ($has_pending_claims || $total_amount_this_month >= $MAX_CLAIM_AMOUNT_PER_MONTH || $total_claims_this_month >= $MAX_NUMBER_OF_CLAIMS_PER_MONTH) ? 'class="claim-disabled"' : ''; ?>>
                             <!-- BOOTSTRAP LAYOUT: row creates the horizontal grid used to align sidebars, content columns, cards, or form fields. -->
                             <div class="row">
                                 <!-- BOOTSTRAP LAYOUT: col-md-6 gives each field half the row on medium screens so forms remain scannable. -->
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label"><i class="fas fa-tag me-1" style="color: #3b82f6;"></i>Claim Type *</label>
-                                    <select name="claim_type" class="form-select" required 
-                                            <?php echo ($has_pending_claims || $total_amount_this_month >= $MAX_CLAIM_AMOUNT_PER_MONTH || $total_claims_this_month >= $MAX_NUMBER_OF_CLAIMS_PER_MONTH) ? 'disabled' : ''; ?>>
+                                    <select name="claim_type" class="form-select" required
+                                        <?php echo ($has_pending_claims || $total_amount_this_month >= $MAX_CLAIM_AMOUNT_PER_MONTH || $total_claims_this_month >= $MAX_NUMBER_OF_CLAIMS_PER_MONTH) ? 'disabled' : ''; ?>>
                                         <option value="">Select claim type</option>
                                         <?php
-                                        $types = ['Travel','Meal','Accommodation','Transportation','Office Supplies','Training','Medical'];
-                                        foreach($types as $t) {
+                                        $types = ['Travel', 'Meal', 'Accommodation', 'Transportation', 'Office Supplies', 'Training', 'Medical'];
+                                        foreach ($types as $t) {
                                             // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
                                             $sel = (($_POST['claim_type'] ?? '') == $t) ? 'selected' : '';
                                             echo "<option value=\"$t\" $sel>$t</option>";
@@ -681,14 +812,18 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
                                 <!-- BOOTSTRAP LAYOUT: col-md-6 gives each field half the row on medium screens so forms remain scannable. -->
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label"><i class="fas fa-dollar-sign me-1" style="color: #3b82f6;"></i>Amount (RM) *</label>
-                                    <div class="input-group">
+                                    <div class="input-group has-validation">
                                         <span class="input-group-text">RM</span>
-                                        <input type="number" name="amount" step="0.01" min="0.01" 
-                                               max="<?php echo $MAX_AMOUNT_PER_CLAIM; ?>"
-                                               class="form-control" required placeholder="0.00"
-                                               <!-- SECURITY: Escaping output to prevent XSS attacks. -->
-                                               value="<?php echo htmlspecialchars($_POST['amount'] ?? ''); ?>"
-                                               <?php echo ($has_pending_claims || $total_amount_this_month >= $MAX_CLAIM_AMOUNT_PER_MONTH || $total_claims_this_month >= $MAX_NUMBER_OF_CLAIMS_PER_MONTH) ? 'disabled' : ''; ?>>
+                                        <!-- SECURITY: Preventing XSS by escaping the previously submitted amount before redisplaying it in the form value. -->
+                                        <!-- WHY: Keeping the amount value after validation failure improves UX while preventing stored or reflected script injection. -->
+                                        <input type="number" name="amount" id="claimAmount" step="0.01" min="0.01"
+                                            max="200"
+                                            class="form-control" required placeholder="0.00"
+                                            value="<?php echo htmlspecialchars($_POST['amount'] ?? ''); ?>"
+                                            <?php echo ($has_pending_claims || $total_amount_this_month >= $MAX_CLAIM_AMOUNT_PER_MONTH || $total_claims_this_month >= $MAX_NUMBER_OF_CLAIMS_PER_MONTH) ? 'disabled' : ''; ?>>
+                                        <!-- SECTION: REAL-TIME VALIDATION FEEDBACK - Provides immediate Bootstrap feedback for invalid claim amounts. -->
+                                        <!-- WHY: Inline validation prevents avoidable submissions and helps Staff correct amount issues before server-side processing. -->
+                                        <div id="amountFeedback" class="invalid-feedback"></div>
                                     </div>
                                     <small class="text-muted">Maximum: RM <?php echo number_format($MAX_AMOUNT_PER_CLAIM, 2); ?> per claim</small>
                                 </div>
@@ -696,9 +831,10 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
                                 <!-- BOOTSTRAP LAYOUT: col-md-6 gives each field half the row on medium screens so forms remain scannable. -->
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label"><i class="fas fa-calendar me-1" style="color: #3b82f6;"></i>Expense Date *</label>
+                                    <!-- SECURITY: Preventing XSS by escaping the submitted date before redisplaying it in the form value. -->
+                                    <!-- WHY: Staff can correct validation errors without losing the selected expense date, while the output remains display-only. -->
                                     <input type="date" name="date" class="form-control" required
                                         max="<?php echo date('Y-m-d'); ?>"
-                                        <!-- SECURITY: Escaping output to prevent XSS attacks. -->
                                         value="<?php echo htmlspecialchars($_POST['date'] ?? ''); ?>"
                                         <?php echo ($has_pending_claims || $total_amount_this_month >= $MAX_CLAIM_AMOUNT_PER_MONTH || $total_claims_this_month >= $MAX_NUMBER_OF_CLAIMS_PER_MONTH) ? 'disabled' : ''; ?>>
                                 </div>
@@ -718,9 +854,10 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
 
                                 <div class="col-12 mb-3">
                                     <label class="form-label"><i class="fas fa-align-left me-1" style="color: #3b82f6;"></i>Description *</label>
+                                    <!-- SECURITY: Preventing XSS by escaping the submitted description before redisplaying it in the textarea. -->
+                                    <!-- WHY: Staff-entered descriptions may contain special characters and must not become executable markup after validation feedback. -->
                                     <textarea name="description" rows="4" class="form-control" required
                                         placeholder="Describe your expense in detail (e.g., purpose, date, location)..."
-                                        <!-- SECURITY: Escaping output to prevent XSS attacks. -->
                                         <?php echo ($has_pending_claims || $total_amount_this_month >= $MAX_CLAIM_AMOUNT_PER_MONTH || $total_claims_this_month >= $MAX_NUMBER_OF_CLAIMS_PER_MONTH) ? 'disabled' : ''; ?>><?php echo htmlspecialchars($_POST['description'] ?? ''); ?></textarea>
                                 </div>
                             </div>
@@ -729,11 +866,11 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
 
                             <div class="d-flex gap-3">
                                 <!-- CONDITION: Evaluates `if($has_pending_claims || $total_amount_this_month >= $MAX_CLAIM_AMOUNT_PER_MONTH || $total_claims_this_month >= $MAX_NUMBER_OF_CLAIMS_PER_MONTH)` so the application can choose the correct business rule branch for the current user action. -->
-                                <?php if($has_pending_claims || $total_amount_this_month >= $MAX_CLAIM_AMOUNT_PER_MONTH || $total_claims_this_month >= $MAX_NUMBER_OF_CLAIMS_PER_MONTH): ?>
+                                <?php if ($has_pending_claims || $total_amount_this_month >= $MAX_CLAIM_AMOUNT_PER_MONTH || $total_claims_this_month >= $MAX_NUMBER_OF_CLAIMS_PER_MONTH): ?>
                                     <button type="button" class="btn btn-disabled"><i class="fas fa-ban me-2"></i>Claim Submission Disabled</button>
-                                <!-- CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome. -->
+                                    <!-- CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome. -->
                                 <?php else: ?>
-                                    <button type="submit" name="action" value="submit" class="btn btn-submit"><i class="fas fa-paper-plane me-2"></i>Submit Claim</button>
+                                    <button type="submit" name="action" value="submit" id="submitClaimButton" class="btn btn-submit"><i class="fas fa-paper-plane me-2"></i>Submit Claim</button>
                                 <?php endif; ?>
                                 <a href="dashboard_Staff.php" class="btn btn-cancel"><i class="fas fa-times me-2"></i>Cancel</a>
                             </div>
@@ -753,67 +890,115 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
         // SECTION: CLIENT FUNCTION - Encapsulates repeated UI logic so page behavior is easier to audit and maintain.
         function previewFile(input) {
             const preview = document.getElementById('filePreview');
-            const img     = document.getElementById('imgPreview');
+            const img = document.getElementById('imgPreview');
             // CONDITION: Evaluates `if(input.files && input.files[0]) ` so the application can choose the correct business rule branch for the current user action.
-            if(input.files && input.files[0]) {
+            if (input.files && input.files[0]) {
                 const file = input.files[0];
                 // WHY: Image-only preview logic avoids trying to render PDFs as image thumbnails.
                 // CONDITION: Evaluates `if(file.type.startsWith('image/')) ` so the application can choose the correct business rule branch for the current user action.
-                if(file.type.startsWith('image/')) {
+                if (file.type.startsWith('image/')) {
                     // WHY: FileReader previews image receipts locally so staff can confirm the correct evidence before submission.
                     const reader = new FileReader();
-                    reader.onload = e => { img.src = e.target.result; preview.style.display = 'block'; };
+                    reader.onload = e => {
+                        img.src = e.target.result;
+                        preview.style.display = 'block';
+                    };
                     // WHY: readAsDataURL converts a selected image into a browser-previewable source without uploading it first.
                     reader.readAsDataURL(file);
-                // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+                    // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
                 } else {
                     preview.style.display = 'none';
                 }
                 // SECURITY: Client-side file-size checking warns users early, while server-side validation remains authoritative.
                 // CONDITION: Evaluates `if(file.size > 5 * 1024 * 1024) ` so the application can choose the correct business rule branch for the current user action.
-                if(file.size > 5 * 1024 * 1024) {
-                    alert('File is too large. Maximum size is 5MB.');
+                if (file.size > 5 * 1024 * 1024) {
+                    // SECTION: SWEETALERT FEEDBACK - Shows high-visibility validation messages without using standard browser alert boxes.
+                    // WHY: SweetAlert2 keeps the warning consistent with the UTMSPACE user experience standards.
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Receipt Too Large',
+                        text: 'File is too large. Maximum size is 5MB.',
+                        confirmButtonColor: '#3b82f6'
+                    });
                     input.value = '';
                     preview.style.display = 'none';
                 }
             }
         }
-        
-        const amountInput = document.querySelector('input[name="amount"]');
-        // CONDITION: Evaluates `if(amountInput) ` so the application can choose the correct business rule branch for the current user action.
-        if(amountInput) {
-            // WHY: Real-time input validation gives users immediate feedback before server-side validation runs.
-            amountInput.addEventListener('input', function() {
-                const maxAmount = <?php echo $MAX_AMOUNT_PER_CLAIM; ?>;
-                // CONDITION: Evaluates `if(parseFloat(this.value) > maxAmount) ` so the application can choose the correct business rule branch for the current user action.
-                if(parseFloat(this.value) > maxAmount) {
-                    // WHY: setCustomValidity integrates business rules with native browser validation messages.
-                    this.setCustomValidity(`Amount cannot exceed RM ${maxAmount.toFixed(2)}`);
-                    // WHY: The red border makes an over-limit claim amount immediately visible before the staff member submits.
-                    // WHY: Border color feedback visually marks invalid financial input before submission.
-                    this.style.borderColor = '#dc3545';
-                // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
-                } else {
-                    // WHY: setCustomValidity integrates business rules with native browser validation messages.
-                    this.setCustomValidity('');
-                    // WHY: Restoring the neutral border communicates that the claim amount is back within the permitted limit.
-                    // WHY: Border color feedback visually marks invalid financial input before submission.
-                    this.style.borderColor = '#e2e8f0';
+
+        // SECTION: REAL-TIME AMOUNT VALIDATION - Watches the amount field and applies Bootstrap validation states immediately.
+        // WHY: Staff receive instant, precise guidance and the Submit button remains disabled until the amount satisfies claim policy.
+        document.addEventListener('DOMContentLoaded', function() {
+            const amountInput = document.getElementById('claimAmount');
+            const amountFeedback = document.getElementById('amountFeedback');
+            const submitButton = document.getElementById('submitClaimButton');
+            const maxAmount = 200;
+
+            // SECTION: VALIDATION STATE HELPER - Applies one consistent UI state for invalid and valid amount outcomes.
+            // WHY: Centralizing class and button changes prevents duplicated logic and keeps the form response predictable.
+            function setAmountValidationState(isValid, message) {
+                // CONDITION: Evaluates `if(!amountInput || !amountFeedback || !submitButton)` so disabled workflows do not execute validation logic unnecessarily.
+                if (!amountInput || !amountFeedback || !submitButton) {
+                    return;
                 }
-            });
-        }
+
+                // CONDITION: Evaluates `if(isValid)` so the application can choose the correct visual and business state for the amount field.
+                if (isValid) {
+                    amountInput.classList.remove('is-invalid');
+                    amountInput.classList.add('is-valid');
+                    amountInput.setCustomValidity('');
+                    amountFeedback.textContent = '';
+                    submitButton.disabled = false;
+                    // CONDITION: This fallback executes when the amount violates the client-side policy rule.
+                } else {
+                    amountInput.classList.remove('is-valid');
+                    amountInput.classList.add('is-invalid');
+                    amountInput.setCustomValidity(message);
+                    amountFeedback.textContent = message;
+                    submitButton.disabled = true;
+                }
+            }
+
+            // SECTION: AMOUNT BUSINESS RULES - Enforces the user-facing RM 0 and RM 200 policy boundaries before form submission.
+            // WHY: Early validation improves UX, reduces avoidable server requests, and protects Finance from invalid claim amounts.
+            function validateAmountInput() {
+                const amountValue = parseFloat(amountInput.value);
+
+                // CONDITION: Evaluates `if(amountInput.value === '' || Number.isNaN(amountValue) || amountValue <= 0)` to block empty or non-positive claim values.
+                if (amountInput.value === '' || Number.isNaN(amountValue) || amountValue <= 0) {
+                    setAmountValidationState(false, 'Amount must be greater than RM 0');
+                    return;
+                }
+
+                // CONDITION: Evaluates `if(amountValue > maxAmount)` to block claims above the configured policy ceiling.
+                if (amountValue > maxAmount) {
+                    setAmountValidationState(false, 'Policy Alert: Maximum claim per transaction is RM 200.');
+                    return;
+                }
+
+                setAmountValidationState(true, '');
+            }
+
+            // CONDITION: Evaluates `if(amountInput && submitButton)` so real-time validation is attached only on active claim forms.
+            if (amountInput && submitButton) {
+                // WHY: The input event reacts on every change so Staff do not need to submit the form to discover amount problems.
+                amountInput.addEventListener('input', validateAmountInput);
+                // WHY: Initial validation disables Submit on an empty form, preventing accidental incomplete submissions.
+                validateAmountInput();
+            }
+        });
 
         // CONDITION: Evaluates `if($success)` so the application can choose the correct business rule branch for the current user action.
-        <?php if($success): ?>
+        <?php if ($success): ?>
             // WHY: The countdown timer keeps users informed during automatic claim-history redirection.
             let timerInterval;
             // SECTION: SWEETALERT FEEDBACK - Shows high-visibility success, error, warning, or confirmation messages for important actions.
             Swal.fire({
                 title: 'Submission Successful!',
                 html: '<div class="mt-2 text-muted" style="font-size: 1.05rem;">Your expense claim has been successfully sent to Finance and is awaiting review.</div>' +
-                      '<div class="mt-4 p-3 rounded-3" style="background: #f8fafc; border: 1px dashed #cbd5e1;">' +
-                      '<i class="fas fa-rocket me-2" style="color: #3b82f6;"></i> Redirecting to Claim History in <b><span id="swal-timer" style="color: #0f2b4d; font-size: 1.2rem;">3</span></b> seconds...' +
-                      '</div>',
+                    '<div class="mt-4 p-3 rounded-3" style="background: #f8fafc; border: 1px dashed #cbd5e1;">' +
+                    '<i class="fas fa-rocket me-2" style="color: #3b82f6;"></i> Redirecting to Claim History in <b><span id="swal-timer" style="color: #0f2b4d; font-size: 1.2rem;">3</span></b> seconds...' +
+                    '</div>',
                 icon: 'success',
                 timer: 3000,
                 timerProgressBar: true,
@@ -844,17 +1029,20 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
                     window.location.href = 'Claim_History_Staff.php';
                 }
             });
-        // CONDITION: Evaluates `elseif($error)` so the application can choose the correct business rule branch for the current user action.
-        <?php elseif($error): ?>
+            // CONDITION: Evaluates `elseif($error)` so the application can choose the correct business rule branch for the current user action.
+        <?php elseif ($error): ?>
             // SECTION: SWEETALERT FEEDBACK - Shows high-visibility success, error, warning, or confirmation messages for important actions.
             Swal.fire({
                 icon: 'error',
                 title: 'Submission Failed',
                 text: '<?php echo addslashes($error); ?>',
                 confirmButtonColor: '#3b82f6',
-                showClass: { popup: 'animate__animated animate__shakeX' }
+                showClass: {
+                    popup: 'animate__animated animate__shakeX'
+                }
             });
         <?php endif; ?>
     </script>
 </body>
+
 </html>
