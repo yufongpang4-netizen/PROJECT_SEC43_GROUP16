@@ -36,7 +36,7 @@ $bg_image = match($requested_role) {
 
 // SECTION: FORM SUBMISSION HANDLER - Processes user input only after an intentional form submission.
 // CONDITION: Evaluates `if ($_SERVER['REQUEST_METHOD'] === 'POST') ` so the application can choose the correct business rule branch for the current user action.
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     // BEST PRACTICE: trim() removes accidental whitespace before validation so values are stored and compared consistently.
     $name = trim($_POST['name']);
     // BEST PRACTICE: trim() removes accidental whitespace before validation so values are stored and compared consistently.
@@ -274,11 +274,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <!-- BOOTSTRAP LAYOUT: col-md-6 gives each field half the row on medium screens so forms remain scannable. -->
                     <div class="col-md-6">
                         <label class="form-label ms-1">Phone *</label>
+                        <!-- SECURITY: Escaping output to prevent XSS attacks. -->
+                        <!-- WHY: The previous phone value is encoded before display so failed submissions can repopulate safely without rendering executable HTML. -->
                         <input type="tel" name="phone" id="phoneInput" class="form-control" required 
                                pattern="^(\+?6?01)[0-9]{8,9}$" 
                                title="Please enter a valid Malaysian phone number (e.g., 0123456789)"
-                               <!-- SECURITY: Escaping output to prevent XSS attacks. -->
-                               placeholder="0123456789" value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>">
+                               placeholder="0123456789" value="<?php echo htmlspecialchars($_POST['phone'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
                     </div>
                     
                     <!-- CONDITION: Evaluates `if($requested_role == 'staff')` so the application can choose the correct business rule branch for the current user action. -->
