@@ -30,6 +30,23 @@ $date_from = $_GET['date_from'] ?? date('Y-m-01');          // 1st of current mo
 $date_to   = $_GET['date_to']   ?? date('Y-m-t');           // last day of current month
 // WHY: GET parameters support filters, selected records, and dashboard links that can be bookmarked or refreshed.
 $status_f  = $_GET['status']    ?? 'All';                  
+
+// === SECTION: EXPORT FILTER WHITELIST ===
+// What: Accept only the official claim statuses supported by the Finance reporting workflow.
+// Why: Whitelisting prevents unexpected URL values from appearing in report headers or being used as invalid filters.
+$valid_status_filters = ['All', 'Pending', 'Approved', 'Paid', 'Rejected', 'Cancelled'];
+if (!in_array($status_f, $valid_status_filters, true)) {
+    $status_f = 'All';
+}
+
+// === SECTION: REPORT OUTPUT ENCODING HELPER ===
+// What: Centralize HTML escaping for values printed in the browser-based PDF view.
+// Why: A single helper keeps the export report readable while preventing user-controlled database values from becoming executable HTML.
+function escapeReportOutput($value)
+{
+    // SECURITY: Preventing XSS by encoding dynamic report values before they are rendered into HTML.
+    return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+}
  
 // ─── Build query ────────────────────────────────────────────────────
 $where = "WHERE c.submitted_at BETWEEN ? AND DATE_ADD(?, INTERVAL 1 DAY)";
@@ -141,10 +158,10 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
 <body>
 <div class="no-print" style="padding:15px; background:#f3f4f6; text-align:center; border-bottom:1px solid #ddd;">
     <button onclick="window.print()" style="padding:10px 25px; background:#064e3b; color:white; border:none; border-radius:8px; cursor:pointer; margin-right:10px;">
-        🖨️ Print / Save as PDF
+        Print / Save as PDF
     </button>
     <button onclick="window.close()" style="padding:10px 25px; background:#6b7280; color:white; border:none; border-radius:8px; cursor:pointer;">
-        ✕ Close
+        Close
     </button>
 </div>
 <div class="report-container">
@@ -152,10 +169,13 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
     <div class="subtitle">Claims Report</div>
     
     <div class="info-box">
-        // WHY: Date formatting converts database timestamps into human-readable dates for review and reports.
-        <strong>Period:</strong> <?php echo date('d M Y', strtotime($date_from)); ?> – <?php echo date('d M Y', strtotime($date_to)); ?> &nbsp;|&nbsp;
-        <strong>Status:</strong> <?php echo $status_f === 'All' ? 'All' : ucfirst($status_f); ?> &nbsp;|&nbsp;
-        // WHY: Date formatting converts database timestamps into human-readable dates for review and reports.
+        <?php
+        // === SECTION: PDF REPORT METADATA ===
+        // What: Print the selected period, status filter, and generation timestamp at the top of the report.
+        // Why: Finance exports need clear audit context so reviewers know exactly what data range the PDF represents.
+        ?>
+        <strong>Period:</strong> <?php echo date('d M Y', strtotime($date_from)); ?> &ndash; <?php echo date('d M Y', strtotime($date_to)); ?> &nbsp;|&nbsp;
+        <strong>Status:</strong> <?php echo escapeReportOutput($status_f === 'All' ? 'All' : ucfirst($status_f)); ?> &nbsp;|&nbsp;
         <strong>Generated:</strong> <?php echo date('d M Y, h:i A'); ?>
     </div>
     
@@ -169,31 +189,33 @@ if(isset($_GET['export']) && $_GET['export'] === 'pdf') {
         </thead>
         <tbody>
         <?php foreach($claims as $i => $c): ?>
+            <?php
+            // === SECTION: PDF TABLE ROW OUTPUT SAFETY ===
+            // What: Prepare escaped display values and a safe CSS class for each claim row.
+            // Why: Claim reports contain database values entered by users, so every visible value must be encoded before printing.
+            // SECURITY: Preventing XSS by escaping staff, department, claim type, and status values before rendering the PDF table.
+            $status_label = ucfirst((string) $c['status']);
+            $status_class = preg_replace('/[^A-Za-z]/', '', $status_label);
+            ?>
             <tr>
                 <td><?php echo $i+1; ?></td>
-                // SECURITY: Escaping output to prevent XSS attacks.
-                // WHY: Dynamic database or form values are encoded before display so user-supplied text cannot become executable HTML or JavaScript.
-                <td><?php echo htmlspecialchars($c['staff']); ?></td>
-                // SECURITY: Escaping output to prevent XSS attacks.
-                // WHY: Dynamic database or form values are encoded before display so user-supplied text cannot become executable HTML or JavaScript.
-                <td><?php echo htmlspecialchars($c['staff_id']); ?></td>
-                // SECURITY: Escaping output to prevent XSS attacks.
-                // WHY: Dynamic database or form values are encoded before display so user-supplied text cannot become executable HTML or JavaScript.
-                <td><?php echo htmlspecialchars($c['department']); ?></td>
-                // SECURITY: Escaping output to prevent XSS attacks.
-                // WHY: Dynamic database or form values are encoded before display so user-supplied text cannot become executable HTML or JavaScript.
-                <td><?php echo htmlspecialchars($c['claim_type']); ?></td>
-                // WHY: number_format() displays monetary values with two decimals so financial amounts are consistent.
-                <td>RM <?php echo number_format($c['amount'],2); ?></td>
-                // WHY: Date formatting converts database timestamps into human-readable dates for review and reports.
+                <td><?php echo escapeReportOutput($c['staff']); ?></td>
+                <td><?php echo escapeReportOutput($c['staff_id']); ?></td>
+                <td><?php echo escapeReportOutput($c['department'] ?? '-'); ?></td>
+                <td><?php echo escapeReportOutput($c['claim_type']); ?></td>
+                <td>RM <?php echo number_format((float) $c['amount'], 2); ?></td>
                 <td><?php echo $c['expense_date'] ? date('d/m/Y',strtotime($c['expense_date'])) : '-'; ?></td>
-                <td><span class="status-badge status-<?php echo ucfirst($c['status']); ?>"><?php echo ucfirst($c['status']); ?></span></td>
+                <td><span class="status-badge status-<?php echo escapeReportOutput($status_class); ?>"><?php echo escapeReportOutput($status_label); ?></span></td>
             </tr>
         <?php endforeach; ?>
             <tr class="total-row">
                 <td colspan="5" style="text-align:right;">TOTAL: </td>
-                // WHY: number_format() displays monetary values with two decimals so financial amounts are consistent.
-                <td colspan="3">RM <?php echo number_format($total_amount, 2); ?></td>
+                <?php
+                // === SECTION: PDF TOTAL ROW ===
+                // What: Print the calculated report total at the bottom of the PDF table.
+                // Why: Finance users need an immediate total for reconciliation without manually adding claim amounts.
+                ?>
+                <td colspan="3">RM <?php echo number_format((float) $total_amount, 2); ?></td>
             </tr>
         </tbody>
     </table>
