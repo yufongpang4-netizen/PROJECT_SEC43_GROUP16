@@ -12,6 +12,10 @@ session_start();
 require_once "../db.php";
 // SECTION: DEPENDENCY LOADING - Loads the centralized email helper so successful claim submissions can notify Finance automatically.
 require_once "../mailer_helper.php";
+// SECTION: SECURITY HELPER LOADING - Loads reusable CSRF protection for state-changing Staff forms.
+require_once "../csrf_helper.php";
+// SECTION: UPLOAD HELPER LOADING - Loads hardened receipt upload validation and storage rules.
+require_once "../receipt_upload_helper.php";
 
 // SECURITY: This session condition prevents unauthenticated users from reaching protected business pages.
 // SECURITY: Role-based branching separates Staff, Finance, and Admin privileges so users can only access their permitted workflow.
@@ -81,7 +85,12 @@ $has_pending_claims = ($pending_data['pending_count'] > 0);
 
 // SECTION: FORM SUBMISSION HANDLER - Processes user input only after an intentional form submission.
 // CONDITION: Evaluates `if($_SERVER['REQUEST_METHOD'] == 'POST') ` so the application can choose the correct business rule branch for the current user action.
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+if (($_SERVER['REQUEST_METHOD'] ?? '') == 'POST') {
+    // SECURITY: Preventing CSRF by validating the Staff claim form token before processing claim data or receipt uploads.
+    // Why: Claim submission changes business records and must originate from the legitimate UTMSPACE form.
+    if (!requireValidCsrfToken($_POST['csrf_token'] ?? '', $error)) {
+        // The shared helper sets a safe user-facing error message.
+    } else {
     // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
     $claim_type   = $_POST['claim_type'];
     // WHY: Reading the raw amount preserves the exact submitted value so numeric validation can distinguish empty input from invalid text.
@@ -135,41 +144,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     else {
         $status = 'Pending';
 
-        $receipt_filename = null;
-        // CONDITION: Evaluates `if(isset($_FILES['receipt']) && $_FILES['receipt']['error'] == 0) ` so the application can choose the correct business rule branch for the current user action.
-        if (isset($_FILES['receipt']) && $_FILES['receipt']['error'] == 0) {
-            $allowed_types = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
-            $file_type     = $_FILES['receipt']['type'];
-            // SECURITY: The 5MB upload limit prevents oversized receipt files from exhausting storage or memory.
-            $max_file_size = 5 * 1024 * 1024;
-
-            // CONDITION: Evaluates `if($_FILES['receipt']['size'] > $max_file_size) ` so the application can choose the correct business rule branch for the current user action.
-            if ($_FILES['receipt']['size'] > $max_file_size) {
-                $error = "File size too large. Maximum size is 5MB.";
-            }
-            // SECURITY: The MIME-type whitelist restricts receipt uploads to expected PDF/image evidence formats.
-            // CONDITION: Evaluates `elseif(in_array($file_type, $allowed_types)) ` so the application can choose the correct business rule branch for the current user action.
-            elseif (in_array($file_type, $allowed_types)) {
-                $upload_dir = '../uploads/receipts/';
-                if (!file_exists($upload_dir)) {
-                    // BEST PRACTICE: The upload directory is created only when missing so receipt storage works on fresh deployment.
-                    mkdir($upload_dir, 0777, true);
-                }
-
-                $file_ext         = pathinfo($_FILES['receipt']['name'], PATHINFO_EXTENSION);
-                $receipt_filename = 'receipt_' . time() . '_' . $user_id . '.' . $file_ext;
-                $target_file      = $upload_dir . $receipt_filename;
-
-                // SECURITY: move_uploaded_file() stores only genuine PHP-uploaded files after validation.
-                // CONDITION: Evaluates `if(!move_uploaded_file($_FILES['receipt']['tmp_name'], $target_file)) ` so the application can choose the correct business rule branch for the current user action.
-                if (!move_uploaded_file($_FILES['receipt']['tmp_name'], $target_file)) {
-                    $error = "Failed to save the uploaded receipt. Please try again.";
-                }
-                // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
-            } else {
-                $error = "Invalid file format. Only PDF, JPG, and PNG are allowed.";
-            }
-        }
+        // === SECTION: HARDENED RECEIPT UPLOAD ===
+        // What: Validate and store the optional receipt using the shared upload helper.
+        // Why: The helper enforces server-side MIME detection, size limits, random filenames, and upload-folder protections.
+        $receipt_filename = saveReceiptUpload($_FILES['receipt'] ?? null, '../uploads/receipts/', $error);
 
         // VALIDATION: This condition rejects incomplete input so the database does not receive unusable claim or account records.
         // CONDITION: Evaluates `if(empty($error)) ` so the application can choose the correct business rule branch for the current user action.
@@ -265,6 +243,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $stmt->close();
         }
     }
+}
 }
 
 $remaining_amount = $MAX_CLAIM_AMOUNT_PER_MONTH - $total_amount_this_month;
@@ -790,6 +769,7 @@ $claim_percentage = ($total_claims_this_month / $MAX_NUMBER_OF_CLAIMS_PER_MONTH)
                         <!-- SECTION: USER INPUT FORM - Captures business data that will be validated server-side before database changes occur. -->
                         <form method="POST" enctype="multipart/form-data" id="claimForm"
                             <?php echo ($has_pending_claims || $total_amount_this_month >= $MAX_CLAIM_AMOUNT_PER_MONTH || $total_claims_this_month >= $MAX_NUMBER_OF_CLAIMS_PER_MONTH) ? 'class="claim-disabled"' : ''; ?>>
+                            <?php echo csrfInputField(); ?>
                             <!-- BOOTSTRAP LAYOUT: row creates the horizontal grid used to align sidebars, content columns, cards, or form fields. -->
                             <div class="row">
                                 <!-- BOOTSTRAP LAYOUT: col-md-6 gives each field half the row on medium screens so forms remain scannable. -->

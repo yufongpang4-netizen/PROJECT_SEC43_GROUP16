@@ -20,6 +20,10 @@ if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'finance') {
  
 // SECTION: DEPENDENCY LOADING - Loads shared services so this page uses the same database and library logic as the rest of the system.
 require_once '../db.php';
+// === SECTION: CSRF DEFENSE DEPENDENCY ===
+// What: Load the centralized CSRF helper used by protected Finance forms.
+// Why: Finance approval and rejection change claim status, so each POST must prove it came from the authenticated browser session.
+require_once '../csrf_helper.php';
 // SECTION: DEPENDENCY LOADING - Loads the centralized email helper so approval and rejection decisions notify Staff automatically.
 require_once '../mailer_helper.php';
  
@@ -108,70 +112,78 @@ function sendClaimDecisionNotification($conn, $claim_id, $decision, $remark)
     // WHY: sendSystemEmail() centralizes PHPMailer delivery and keeps this Finance module focused on decision workflow data.
     return sendSystemEmail($recipient['email'], $recipient['name'], 'Claim #' . $recipient['id'] . ' ' . $decision, $decision_body);
 }
- 
+
 // Handle form actions
 // SECTION: FORM SUBMISSION HANDLER - Processes user input only after an intentional form submission.
 // CONDITION: Evaluates `if($_SERVER['REQUEST_METHOD'] == 'POST') ` so the application can choose the correct business rule branch for the current user action.
 if($_SERVER['REQUEST_METHOD'] == 'POST') {
-    // BEST PRACTICE: trim() removes accidental whitespace before validation so values are stored and compared consistently.
-    $remark = trim($_POST['comments'] ?? '');
+    // === SECTION: CSRF TOKEN VALIDATION ===
+    // What: Validate the hidden form token before accepting Finance approval or rejection input.
+    // Why: This prevents a malicious external page from forcing a logged-in Finance user to change a claim decision.
+    // SECURITY: Preventing Cross-Site Request Forgery by requiring a session-bound token on every Finance decision POST.
+    if(!requireValidCsrfToken($_POST['csrf_token'] ?? '', $error)) {
+        // WHY: The workflow stops immediately when the token is missing or invalid so no claim status can be changed silently.
+    } else {
+        // BEST PRACTICE: trim() removes accidental whitespace before validation so values are stored and compared consistently.
+        $remark = trim($_POST['comments'] ?? '');
  
-    // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
-    // CONDITION: Evaluates `if(isset($_POST['approve'])) ` so the application can choose the correct business rule branch for the current user action.
-    if(isset($_POST['approve'])) {
-        // SECURITY: Using Prepared Statements to prevent SQL Injection.
-        // WHY: SQL is prepared separately from user data so identifiers, filters, and form values can be bound safely.
-        $stmt = $conn->prepare("UPDATE claims SET status='Approved', finance_comment=? WHERE id=?");
-        // SECURITY: Using Prepared Statements to prevent SQL Injection.
-        // WHY: bind_param() attaches typed values to SQL placeholders, preventing input from becoming executable SQL.
-        $stmt->bind_param('si', $remark, $claim_id);
-        // WHY: Executing the prepared statement performs the validated database operation for the current workflow.
-        // CONDITION: Evaluates `if($stmt->execute())` so email notification is attempted only after the approval update succeeds.
-        if($stmt->execute()) {
-            $success = "Claim has been APPROVED successfully!";
-            // SECTION: AUTOMATED CLAIM DECISION NOTIFICATION - Notifies Staff that Finance approved the claim.
-            // WHY: Approval email lets Staff know the claim can move toward payment without manually refreshing the portal.
-            if(!sendClaimDecisionNotification($conn, $claim_id, 'Approved', $remark)) {
-                $success .= " Email notification could not be sent. Please check SMTP credentials.";
-            }
-        // CONDITION: This fallback executes when the approval update fails, keeping database failure separate from notification failure.
-        } else {
-            $error = "Approval failed due to system error.";
-        }
-        $stmt->close();
- 
-    // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
-    // CONDITION: Evaluates `} elseif(isset($_POST['reject'])) ` so the application can choose the correct business rule branch for the current user action.
-    } elseif(isset($_POST['reject'])) {
-        // VALIDATION: This condition rejects incomplete input so the database does not receive unusable claim or account records.
-        if(empty($remark)) {
-            $error = "Please provide a reason for rejection.";
-        // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
-        } else {
+        // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
+        // CONDITION: Evaluates `if(isset($_POST['approve'])) ` so the application can choose the correct business rule branch for the current user action.
+        if(isset($_POST['approve'])) {
             // SECURITY: Using Prepared Statements to prevent SQL Injection.
             // WHY: SQL is prepared separately from user data so identifiers, filters, and form values can be bound safely.
-            $stmt = $conn->prepare("UPDATE claims SET status='Rejected', finance_comment=? WHERE id=?");
+            $stmt = $conn->prepare("UPDATE claims SET status='Approved', finance_comment=? WHERE id=?");
             // SECURITY: Using Prepared Statements to prevent SQL Injection.
             // WHY: bind_param() attaches typed values to SQL placeholders, preventing input from becoming executable SQL.
             $stmt->bind_param('si', $remark, $claim_id);
             // WHY: Executing the prepared statement performs the validated database operation for the current workflow.
-            // CONDITION: Evaluates `if($stmt->execute())` so email notification is attempted only after the rejection update succeeds.
+            // CONDITION: Evaluates `if($stmt->execute())` so email notification is attempted only after the approval update succeeds.
             if($stmt->execute()) {
-                $success = "Claim has been REJECTED.";
-                // SECTION: AUTOMATED CLAIM DECISION NOTIFICATION - Notifies Staff that Finance rejected the claim and includes the required remark.
-                // WHY: Rejection email gives Staff the reason quickly so they can decide whether to correct and resubmit the claim.
-                if(!sendClaimDecisionNotification($conn, $claim_id, 'Rejected', $remark)) {
+                $success = "Claim has been APPROVED successfully!";
+                // SECTION: AUTOMATED CLAIM DECISION NOTIFICATION - Notifies Staff that Finance approved the claim.
+                // WHY: Approval email lets Staff know the claim can move toward payment without manually refreshing the portal.
+                if(!sendClaimDecisionNotification($conn, $claim_id, 'Approved', $remark)) {
                     $success .= " Email notification could not be sent. Please check SMTP credentials.";
                 }
-            // CONDITION: This fallback executes when the rejection update fails, keeping database failure separate from notification failure.
+            // CONDITION: This fallback executes when the approval update fails, keeping database failure separate from notification failure.
             } else {
-                $error = "Rejection failed due to system error.";
+                $error = "Approval failed due to system error.";
             }
             $stmt->close();
+
+        // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
+        // CONDITION: Evaluates `} elseif(isset($_POST['reject'])) ` so the application can choose the correct business rule branch for the current user action.
+        } elseif(isset($_POST['reject'])) {
+            // VALIDATION: This condition rejects incomplete input so the database does not receive unusable claim or account records.
+            if(empty($remark)) {
+                $error = "Please provide a reason for rejection.";
+            // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+            } else {
+                // SECURITY: Using Prepared Statements to prevent SQL Injection.
+                // WHY: SQL is prepared separately from user data so identifiers, filters, and form values can be bound safely.
+                $stmt = $conn->prepare("UPDATE claims SET status='Rejected', finance_comment=? WHERE id=?");
+                // SECURITY: Using Prepared Statements to prevent SQL Injection.
+                // WHY: bind_param() attaches typed values to SQL placeholders, preventing input from becoming executable SQL.
+                $stmt->bind_param('si', $remark, $claim_id);
+                // WHY: Executing the prepared statement performs the validated database operation for the current workflow.
+                // CONDITION: Evaluates `if($stmt->execute())` so email notification is attempted only after the rejection update succeeds.
+                if($stmt->execute()) {
+                    $success = "Claim has been REJECTED.";
+                    // SECTION: AUTOMATED CLAIM DECISION NOTIFICATION - Notifies Staff that Finance rejected the claim and includes the required remark.
+                    // WHY: Rejection email gives Staff the reason quickly so they can decide whether to correct and resubmit the claim.
+                    if(!sendClaimDecisionNotification($conn, $claim_id, 'Rejected', $remark)) {
+                        $success .= " Email notification could not be sent. Please check SMTP credentials.";
+                    }
+                // CONDITION: This fallback executes when the rejection update fails, keeping database failure separate from notification failure.
+                } else {
+                    $error = "Rejection failed due to system error.";
+                }
+                $stmt->close();
+            }
         }
-    } 
+    }
 }
- 
+
 // SECURITY: Using Prepared Statements to prevent SQL Injection.
 // WHY: SQL is prepared separately from user data so identifiers, filters, and form values can be bound safely.
 $stmt = $conn->prepare("
@@ -608,6 +620,7 @@ $status = strtolower($claim['status']);
                                 <?php if($status == 'pending'): ?>
                                     <!-- SECTION: USER INPUT FORM - Captures business data that will be validated server-side before database changes occur. -->
                                     <form method="POST" id="actionForm">
+                                        <?php echo csrfInputField(); ?>
                                         <div class="mb-3">
                                             <label class="form-label fw-bold">Comments / Remarks</label>
                                             <textarea name="comments" id="finance-remark" class="form-control" rows="3"

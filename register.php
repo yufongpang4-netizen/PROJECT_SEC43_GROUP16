@@ -10,6 +10,10 @@
 session_start();
 // SECTION: DEPENDENCY LOADING - Loads shared services so this page uses the same database and library logic as the rest of the system.
 require_once "db.php";
+// SECTION: EMAIL SERVICE LOADING - Loads the centralized PHPMailer helper used for account verification messages.
+require_once "mailer_helper.php";
+// SECTION: SECURITY HELPER LOADING - Loads reusable CSRF protection for the public registration form.
+require_once "csrf_helper.php";
 
 // SECURITY: This session condition prevents unauthenticated users from reaching protected business pages.
 // CONDITION: Evaluates `if (isset($_SESSION['user_id'])) ` so the application can choose the correct business rule branch for the current user action.
@@ -22,22 +26,26 @@ if (isset($_SESSION['user_id'])) {
 
 $success = '';
 $error = '';
-// WHY: GET parameters support filters, selected records, and dashboard links that can be bookmarked or refreshed.
-$requested_role = $_GET['role'] ?? 'staff';
-// CONDITION: Evaluates `if(!in_array($requested_role, ['staff', 'finance', 'admin'])) $requested_role = 'staff';` so the application can choose the correct business rule branch for the current user action.
-if (!in_array($requested_role, ['staff', 'finance', 'admin'])) $requested_role = 'staff';
 
-// WHY: match maps each role or claim status to a consistent visual outcome, keeping business states predictable.
-$bg_image = match ($requested_role) {
-    'staff' => 'css/images/staff.jpeg',
-    'finance' => 'css/images/finance.jpg',
-    'admin' => 'css/images/admin.jpg',
-    default => 'css/images/utm.jpg'
-};
+// === SECTION 1A: REGISTRATION ROLE POLICY ===
+// What: Public registration is restricted to Staff accounts only.
+// Why: Finance and Admin accounts carry elevated privileges and must be created by an existing Admin, not self-selected by public users.
+$role = 'staff';
+$bg_image = 'css/images/staff.jpeg';
+
+// === SECTION 1B: STAFF DEPARTMENT POLICY ===
+// What: Define the official departments available to Staff self-registration.
+// Why: Department data must still be collected for reporting, but it must remain limited to approved Staff departments.
+$valid_staff_departments = ['Human Resources', 'Information Technology', 'Marketing', 'Sales'];
 
 // SECTION: FORM SUBMISSION HANDLER - Processes user input only after an intentional form submission.
 // CONDITION: Evaluates `if ($_SERVER['REQUEST_METHOD'] === 'POST') ` so the application can choose the correct business rule branch for the current user action.
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
+    // SECURITY: Preventing CSRF by validating that registration data came from the legitimate UTMSPACE form.
+    // Why: Public account creation changes authentication records and must not be triggered by a forged external page.
+    if (!requireValidCsrfToken($_POST['csrf_token'] ?? '', $error)) {
+        // The shared helper sets a safe user-facing error message.
+    } else {
     // BEST PRACTICE: trim() removes accidental whitespace before validation so values are stored and compared consistently.
     $name = trim($_POST['name']);
     // BEST PRACTICE: trim() removes accidental whitespace before validation so values are stored and compared consistently.
@@ -48,39 +56,36 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     $password = $_POST['password'];
     // BEST PRACTICE: trim() removes accidental whitespace before validation so values are stored and compared consistently.
     $phone = trim($_POST['phone']);
-    // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
-    $role = $_POST['role'];
-
-    // CONDITION: Evaluates `if ($role == 'finance') { $department = 'Finance'; }` so the application can choose the correct business rule branch for the current user action.
-    if ($role == 'finance') {
-        $department = 'Finance';
-    } elseif ($role == 'admin') {
-        $department = NULL;
-    }
     // BEST PRACTICE: trim() removes accidental whitespace before validation so values are stored and compared consistently.
-    // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
-    else {
-        $department = trim($_POST['department'] ?? '');
-    }
+    $department = trim($_POST['department'] ?? '');
 
     // VALIDATION: This condition rejects incomplete input so the database does not receive unusable claim or account records.
-    // CONDITION: Evaluates `if (empty($name) || empty($staff_id) || empty($email) || empty($password) || empty($phone)) ` so the application can choose the correct business rule branch for the current user action.
-    if (empty($name) || empty($staff_id) || empty($email) || empty($password) || empty($phone)) {
-        $error = "Please fill in all required fields including Phone number.";
+    // CONDITION: Evaluates required Staff registration fields so incomplete public accounts are rejected before database insertion.
+    if (empty($name) || empty($staff_id) || empty($email) || empty($password) || empty($phone) || empty($department)) {
+        $error = "Please fill in all required fields including Phone number and Department.";
         // VALIDATION: FILTER_VALIDATE_EMAIL verifies email structure before storage or notification delivery.
         // CONDITION: Evaluates `} elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) ` so the application can choose the correct business rule branch for the current user action.
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = "Please enter a valid email address!";
+        // VALIDATION: The department must be selected from the approved Staff list before insertion.
+        // SECURITY: Preventing privilege and reporting abuse by rejecting browser-modified department values.
+    } elseif (!in_array($department, $valid_staff_departments, true)) {
+        $error = "Please select a valid Staff department.";
         // VALIDATION: This regular expression accepts Malaysian mobile numbers beginning with 01, +601, or 601 followed by the required digits.
         // WHY: match maps each role or claim status to a consistent visual outcome, keeping business states predictable.
         // CONDITION: Evaluates `} elseif (!preg_match('/^(\+?6?01)[0-9]{8,9}$/', $phone)) ` so the application can choose the correct business rule branch for the current user action.
     } elseif (!preg_match('/^(\+?6?01)[0-9]{8,9}$/', $phone)) {
         $error = "Please enter a valid Malaysian phone number! (e.g., 0123456789)";
-        // VALIDATION: This regular expression enforces at least one uppercase letter in the password-strength rule.
-        // WHY: match maps each role or claim status to a consistent visual outcome, keeping business states predictable.
-        // CONDITION: Evaluates `} elseif (strlen($password) < 8 || !preg_match('/[A-Z]/', $password) || !preg_match('/[0-9]/', $password)) ` so the application can choose the correct business rule branch for the current user action.
-    } elseif (strlen($password) < 8 || !preg_match('/[A-Z]/', $password) || !preg_match('/[0-9]/', $password)) {
-        $error = "Password does not meet security requirements!";
+        // VALIDATION: Strict password policy enforces length, uppercase, lowercase, number, and special character requirements.
+        // WHY: Stronger passwords reduce the risk of unauthorized access to claim and payment information.
+    } elseif (
+        strlen($password) < 8 ||
+        !preg_match('/[A-Z]/', $password) ||
+        !preg_match('/[a-z]/', $password) ||
+        !preg_match('/[0-9]/', $password) ||
+        !preg_match('/[!@#$%^&*()_+\-=\[\]{};:\'",.<>?\/\\\\|`~]/', $password)
+    ) {
+        $error = "Password must contain at least 8 characters, 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character.";
         // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
     } else {
         // SECURITY: Using Prepared Statements to prevent SQL Injection.
@@ -100,22 +105,72 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             // SECURITY: Hashing password using bcrypt.
             // WHY: Only the password hash is stored, protecting the original password from database disclosure.
             $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+
+            // === SECTION: EMAIL VERIFICATION TOKEN GENERATION ===
+            // What: Create a random verification token and expiry timestamp for the new Staff account.
+            // Why: Login must be blocked until the user proves ownership of the registered email address.
+            // SECURITY: random_bytes() produces cryptographically secure token material for the verification link.
+            $email_verified = 0;
+            $verification_token = bin2hex(random_bytes(32));
+            $verification_expires_at = date('Y-m-d H:i:s', strtotime('+24 hours'));
+
             // SECURITY: Using Prepared Statements to prevent SQL Injection.
             // WHY: SQL is prepared separately from user data so identifiers, filters, and form values can be bound safely.
-            $stmt = $conn->prepare("INSERT INTO users (name, staff_id, email, department, password, phone, role, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'Active')");
-            // SECURITY: Using Prepared Statements to prevent SQL Injection.
-            // WHY: bind_param() attaches typed values to SQL placeholders, preventing input from becoming executable SQL.
-            $stmt->bind_param("sssssss", $name, $staff_id, $email, $department, $hashed_password, $phone, $role);
-            // WHY: Executing the prepared statement performs the validated database operation for the current workflow.
-            // CONDITION: Evaluates `if ($stmt->execute()) { $success = "Registration successful!"; }` so the application can choose the correct business rule branch for the current user action.
-            if ($stmt->execute()) {
-                $success = "Registration successful!";
-            }
-            // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
-            else {
-                $error = "Registration failed.";
+            // TRANSACTION: The account insert and verification email are treated as one registration workflow.
+            // WHY: If the email cannot be sent, the user should not be left with an unusable unverified account that blocks re-registration.
+            $conn->begin_transaction();
+            $stmt = $conn->prepare("INSERT INTO users (name, staff_id, email, department, password, phone, role, status, email_verified, email_verification_token, email_verification_expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'Active', ?, ?, ?)");
+            if (!$stmt) {
+                $conn->rollback();
+                $error = "Registration setup is incomplete. Please run the email verification SQL migration first.";
+            } else {
+                // SECURITY: Using Prepared Statements to prevent SQL Injection.
+                // WHY: bind_param() attaches typed values to SQL placeholders, preventing input from becoming executable SQL.
+                $stmt->bind_param("sssssssiss", $name, $staff_id, $email, $department, $hashed_password, $phone, $role, $email_verified, $verification_token, $verification_expires_at);
+                // WHY: Executing the prepared statement performs the validated database operation for the current workflow.
+                // CONDITION: Evaluates `if ($stmt->execute())` so the application can choose the correct business rule branch for the current user action.
+                if ($stmt->execute()) {
+                    // === SECTION: VERIFICATION EMAIL DELIVERY ===
+                    // What: Build a signed account verification link and email it to the registered user.
+                    // Why: The business workflow requires verified email ownership before a Staff account can access the claim portal.
+                    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+                    $base_path = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/');
+                    $verification_link = $scheme . '://' . $_SERVER['HTTP_HOST'] . $base_path . '/verify_email.php?token=' . urlencode($verification_token);
+
+                    // SECURITY: Preventing XSS by escaping dynamic email content before inserting it into the HTML message.
+                    $safe_link = htmlspecialchars($verification_link, ENT_QUOTES, 'UTF-8');
+
+                    $verification_body = '
+                        <p style="margin:0 0 14px;">Your UTMSPACE Staff account has been created successfully.</p>
+                        <p style="margin:0 0 18px;">Please verify your email address before logging in to the claim system.</p>
+                        <p style="margin:0 0 20px;">
+                            <a href="' . $safe_link . '" style="display:inline-block; background:#0B3B5E; color:#ffffff; padding:12px 18px; border-radius:8px; text-decoration:none; font-weight:700;">
+                                Verify Email Address
+                            </a>
+                        </p>
+                        <p style="margin:0; color:#64748b; font-size:13px;">This verification link expires in 24 hours.</p>
+                        <p style="margin:12px 0 0; color:#64748b; font-size:13px;">If the button does not work, open this link in your browser:<br>' . $safe_link . '</p>
+                    ';
+
+                    if (sendSystemEmail($email, $name, 'Verify your UTMSPACE account', $verification_body)) {
+                        // TRANSACTION: Commit only after the verification email has been accepted by the SMTP service.
+                        // WHY: This keeps the registration workflow consistent for users and avoids duplicate unverified records after mail failures.
+                        $conn->commit();
+                        $success = "Registration successful. Please check your email and verify your account before logging in.";
+                    } else {
+                        $conn->rollback();
+                        $error = "Registration could not be completed because the verification email was not sent. Please check SMTP settings or try again later.";
+                    }
+                }
+                // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+                else {
+                    $conn->rollback();
+                    $error = "Registration failed.";
+                }
+                $stmt->close();
             }
         }
+    }
     }
 }
 ?>
@@ -265,28 +320,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             display: inline-block;
         }
 
-        .role-switch-btn {
-            border: 2px solid var(--utm-navy);
-            background: transparent;
-            color: var(--utm-navy);
-            border-radius: 50px;
-            padding: 6px 15px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            text-decoration: none;
-            transition: all 0.3s;
-        }
-
-        .role-switch-btn:hover {
-            background: var(--utm-navy);
-            color: white;
-        }
-
-        .role-switch-btn.active {
-            background: var(--utm-navy);
-            color: white;
-        }
-
         /* SECTION: ANIMATION - Keyframes add subtle entrance motion to guide attention without changing business logic. */
         @keyframes fadeInUp {
             from {
@@ -321,13 +354,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             </div>
 
             <div class="text-center mb-4">
-                <h3 class="fw-bold" style="color: var(--utm-navy);"><?php echo ucfirst($requested_role); ?> Registration</h3>
-                <div class="role-badge mb-2"><i class="fas fa-id-badge me-2"></i>UTMSPACE Official Portal</div>
+                <h3 class="fw-bold" style="color: var(--utm-navy);">Staff Registration</h3>
+                <div class="role-badge mb-2"><i class="fas fa-id-badge me-2"></i>UTMSPACE Staff Portal</div>
             </div>
 
             <!-- SECTION: USER INPUT FORM - Captures business data that will be validated server-side before database changes occur. -->
             <form method="POST" id="regForm">
-                <input type="hidden" name="role" value="<?php echo $requested_role; ?>">
+                <?php echo csrfInputField(); ?>
                 <!-- BOOTSTRAP LAYOUT: row creates the horizontal grid used to align sidebars, content columns, cards, or form fields. -->
                 <div class="row g-3">
                     <!-- BOOTSTRAP LAYOUT: col-md-6 gives each field half the row on medium screens so forms remain scannable. -->
@@ -359,26 +392,29 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                             value="<?php echo htmlspecialchars($_POST['phone'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
                     </div>
 
-                    <!-- CONDITION: Evaluates `if($requested_role == 'staff')` so the application can choose the correct business rule branch for the current user action. -->
-                    <?php if ($requested_role == 'staff'): ?>
-                        <div class="col-12">
-                            <label class="form-label ms-1">Department *</label>
-                            <select name="department" class="form-select" required>
-                                <option value="">Choose your department...</option>
-                                <option <?php echo (($_POST['department'] ?? '') == 'Information Technology') ? 'selected' : ''; ?>>Information Technology</option>
-                                <option <?php echo (($_POST['department'] ?? '') == 'Human Resources') ? 'selected' : ''; ?>>Human Resources</option>
-                                <option <?php echo (($_POST['department'] ?? '') == 'Marketing') ? 'selected' : ''; ?>>Marketing</option>
-                                <option <?php echo (($_POST['department'] ?? '') == 'Finance') ? 'selected' : ''; ?>>Finance</option>
-                            </select>
-                        </div>
-                    <?php endif; ?>
+                    <div class="col-12">
+                        <label class="form-label ms-1">Department *</label>
+                        <select name="department" class="form-select" required>
+                            <option value="">Choose your department...</option>
+                            <?php foreach ($valid_staff_departments as $department_option): ?>
+                                <!-- SECURITY: Escaping output to prevent XSS attacks. -->
+                                <!-- WHY: Department values are encoded before display so submitted profile metadata remains safe and report-ready. -->
+                                <option value="<?php echo htmlspecialchars($department_option, ENT_QUOTES, 'UTF-8'); ?>" <?php echo (($_POST['department'] ?? '') == $department_option) ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($department_option, ENT_QUOTES, 'UTF-8'); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
 
                     <div class="col-12">
                         <label class="form-label ms-1">Password *</label>
                         <input type="password" name="password" id="password" class="form-control" required>
                         <ul class="small text-muted mt-2 list-unstyled ms-1" id="reqs">
-                            <li id="l">✗ Min 8 characters</li>
-                            <li id="u">✗ At least 1 Uppercase & 1 Number</li>
+                            <li id="req-length">✗ Minimum 8 characters</li>
+                            <li id="req-upper">✗ At least 1 uppercase letter</li>
+                            <li id="req-lower">✗ At least 1 lowercase letter</li>
+                            <li id="req-number">✗ At least 1 number</li>
+                            <li id="req-special">✗ At least 1 special character</li>
                         </ul>
                     </div>
                 </div>
@@ -389,13 +425,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             </form>
 
             <div class="mt-4 pt-3 border-top text-center">
-                <p class="small text-muted mb-3">Registering for a different role?</p>
-                <div class="d-flex justify-content-center gap-2">
-                    <a href="?role=staff" class="role-switch-btn <?php echo $requested_role == 'staff' ? 'active' : ''; ?>">Staff</a>
-                    <a href="?role=finance" class="role-switch-btn <?php echo $requested_role == 'finance' ? 'active' : ''; ?>">Finance</a>
-                    <a href="?role=admin" class="role-switch-btn <?php echo $requested_role == 'admin' ? 'active' : ''; ?>">Admin</a>
-                </div>
-                <p class="mt-4 mb-0">Already a member? <a href="login.php" class="fw-bold" style="color: var(--utm-red);">Log In</a></p>
+                <p class="mb-0">Already a member? <a href="login.php" class="fw-bold" style="color: var(--utm-red);">Log In</a></p>
             </div>
         </div>
     </div>
@@ -405,23 +435,46 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     <!-- SECTION: CLIENT-SIDE BEHAVIOR - Loads JavaScript used for validation, alerts, navigation, charts, or tables. -->
     <script>
         const p = document.getElementById('password');
-        const fl = document.getElementById('l'),
-            fu = document.getElementById('u');
+        const passwordRequirements = {
+            length: document.getElementById('req-length'),
+            upper: document.getElementById('req-upper'),
+            lower: document.getElementById('req-lower'),
+            number: document.getElementById('req-number'),
+            special: document.getElementById('req-special')
+        };
         const form = document.getElementById('regForm');
         let isPasswordValid = false;
 
-        // WHY: Real-time input validation gives users immediate feedback before server-side validation runs.
-        p.addEventListener('input', () => {
-            const v = p.value;
-            const okL = v.length >= 8;
-            const okU = /[A-Z]/.test(v) && /[0-9]/.test(v);
-            fl.innerHTML = (okL ? '✓' : '✗') + ' Min 8 characters';
-            fl.style.color = okL ? '#28a745' : '#6c757d';
-            fu.innerHTML = (okU ? '✓' : '✗') + ' At least 1 Uppercase & 1 Number';
-            fu.style.color = okU ? '#28a745' : '#6c757d';
+        // SECTION: CLIENT PASSWORD REQUIREMENT RENDERING - Updates one checklist row with a tick or cross.
+        // WHY: Real-time feedback helps users correct weak passwords before submitting the registration form.
+        function updatePasswordRequirement(element, isValid) {
+            const requirementText = element.textContent.substring(2);
+            element.textContent = (isValid ? '✓ ' : '✗ ') + requirementText;
+            element.style.color = isValid ? '#28a745' : '#6c757d';
+        }
 
-            isPasswordValid = okL && okU;
-        });
+        // SECTION: CLIENT PASSWORD POLICY CHECK - Mirrors the server-side strict password rule.
+        // WHY: Running the same rule in the browser gives immediate UX feedback while the PHP rule remains the authoritative security control.
+        function validatePasswordPolicy() {
+            const v = p.value;
+            const hasLength = v.length >= 8;
+            const hasUpper = /[A-Z]/.test(v);
+            const hasLower = /[a-z]/.test(v);
+            const hasNumber = /[0-9]/.test(v);
+            const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};:'",.<>?\/\\|`~]/.test(v);
+
+            updatePasswordRequirement(passwordRequirements.length, hasLength);
+            updatePasswordRequirement(passwordRequirements.upper, hasUpper);
+            updatePasswordRequirement(passwordRequirements.lower, hasLower);
+            updatePasswordRequirement(passwordRequirements.number, hasNumber);
+            updatePasswordRequirement(passwordRequirements.special, hasSpecial);
+
+            isPasswordValid = hasLength && hasUpper && hasLower && hasNumber && hasSpecial;
+            return isPasswordValid;
+        }
+
+        // WHY: Real-time input validation gives users immediate feedback before server-side validation runs.
+        p.addEventListener('input', validatePasswordPolicy);
 
         const phoneInput = document.getElementById('phoneInput');
         // CONDITION: Evaluates `if (phoneInput) ` so the application can choose the correct business rule branch for the current user action.
@@ -436,14 +489,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         // WHY: Submit handling prevents weak or invalid forms from being sent and displays clear user feedback.
         form.addEventListener('submit', function(e) {
             // CONDITION: Evaluates `if (!isPasswordValid) ` so the application can choose the correct business rule branch for the current user action.
-            if (!isPasswordValid) {
+            if (!validatePasswordPolicy()) {
                 // WHY: preventDefault() pauses browser submission so client-side validation or confirmation can run first.
                 e.preventDefault();
                 // SECTION: SWEETALERT FEEDBACK - Shows high-visibility success, error, warning, or confirmation messages for important actions.
                 Swal.fire({
                     icon: 'warning',
                     title: 'Weak Password',
-                    text: 'Please ensure your password meets all the security requirements (min 8 chars, 1 uppercase, 1 number).',
+                    text: 'Please ensure your password has at least 8 characters, 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character.',
                     confirmButtonColor: '#C1272D',
                     background: 'rgba(255, 255, 255, 0.95)',
                     backdrop: `rgba(11, 59, 94, 0.4)`
@@ -456,18 +509,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             // SECTION: SWEETALERT FEEDBACK - Shows high-visibility success, error, warning, or confirmation messages for important actions.
             Swal.fire({
                 icon: 'success',
-                title: 'Registration Successful!',
-                text: 'Your account has been created successfully.',
-                confirmButtonText: '<i class="fas fa-sign-in-alt me-1"></i> Login Now',
+                title: 'Check Your Email',
+                text: '<?php echo addslashes($success); ?>',
+                confirmButtonText: 'OK',
                 confirmButtonColor: '#0B3B5E',
                 background: 'rgba(255, 255, 255, 0.95)',
                 backdrop: `rgba(11, 59, 94, 0.4)`
-            }).then((result) => {
-                // CONDITION: Evaluates `if (result.isConfirmed || result.isDismissed) ` so the application can choose the correct business rule branch for the current user action.
-                if (result.isConfirmed || result.isDismissed) {
-                    // WHY: Redirecting after success moves the user to the next logical workflow page without manual navigation.
-                    window.location.href = 'login.php';
-                }
             });
             // CONDITION: Evaluates `elseif($error)` so the application can choose the correct business rule branch for the current user action.
         <?php elseif ($error): ?>

@@ -20,6 +20,10 @@ if(!isset($_SESSION['user_id']) || $_SESSION['role'] != 'finance') {
 
 // SECTION: DEPENDENCY LOADING - Loads shared services so this page uses the same database and library logic as the rest of the system.
 require_once '../db.php';
+// === SECTION: CSRF DEFENSE DEPENDENCY ===
+// What: Load the centralized CSRF helper used by the Finance payment form.
+// Why: Payment confirmation changes a claim to Paid, so the request must be tied to the authenticated Finance session.
+require_once '../csrf_helper.php';
 // SECTION: DEPENDENCY LOADING - Loads the centralized email helper so successful payments can notify Staff automatically.
 require_once '../mailer_helper.php';
 
@@ -63,88 +67,96 @@ if(strlen($mock_bank_suffix) < 4) $mock_bank_suffix = '8821';
 // SECTION: FORM SUBMISSION HANDLER - Processes user input only after an intentional form submission.
 // CONDITION: Evaluates `if($_SERVER['REQUEST_METHOD'] === 'POST') ` so the application can choose the correct business rule branch for the current user action.
 if($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // SECURITY: Using Prepared Statements to prevent SQL Injection.
-    // WHY: SQL is prepared separately from user data so identifiers, filters, and form values can be bound safely.
-    $update_stmt = $conn->prepare("UPDATE claims SET status = 'Paid' WHERE id = ?");
-    // SECURITY: Using Prepared Statements to prevent SQL Injection.
-    // WHY: bind_param() attaches typed values to SQL placeholders, preventing input from becoming executable SQL.
-    $update_stmt->bind_param("i", $claim_id);
-    
-    // WHY: Executing the prepared statement performs the validated database operation for the current workflow.
-    // CONDITION: Evaluates `if($update_stmt->execute()) ` so the application can choose the correct business rule branch for the current user action.
-    if($update_stmt->execute()) {
-        // WHY: number_format() displays monetary values with two decimals so financial amounts are consistent.
-        $success = "Payment of RM " . number_format($claim['amount'], 2) . " to " . $claim['staff_name'] . " was successful.";
-
-        // SECTION: AUTOMATED STAFF PAYMENT NOTIFICATION - Informs the claim owner immediately after Finance marks the claim as paid.
-        // WHY: Automated payment confirmation closes the business loop and reduces staff uncertainty about reimbursement status.
-        // SECURITY: Using Prepared Statements to prevent SQL Injection.
-        // WHY: SQL is prepared separately from the claim identifier so recipient lookup remains safe and auditable.
-        $staff_email_stmt = $conn->prepare("
-            SELECT u.name, u.email, c.amount, c.claim_type
-            FROM claims c
-            JOIN users u ON c.user_id = u.id
-            WHERE c.id = ?
-            LIMIT 1
-        ");
-        // SECURITY: Using Prepared Statements to prevent SQL Injection.
-        // WHY: bind_param() attaches the numeric claim identifier safely instead of embedding request data into executable SQL.
-        $staff_email_stmt->bind_param("i", $claim_id);
-        // WHY: Executing the prepared statement retrieves the claim owner for the payment confirmation email.
-        $staff_email_stmt->execute();
-        // WHY: get_result() turns the recipient query into rows that can be used by the notification workflow.
-        $staff_email_result = $staff_email_stmt->get_result();
-
-        // CONDITION: Evaluates `if($staff_email_result->num_rows > 0)` so the application only sends email when the claim owner can be found.
-        if($staff_email_result->num_rows > 0) {
-            // WHY: fetch_assoc() returns Staff recipient data as named fields for clear payment email construction.
-            $staff_email_user = $staff_email_result->fetch_assoc();
-
-            // SECURITY: Preventing XSS by escaping dynamic payment values before placing them into the HTML email body.
-            // WHY: Claim type and staff records may contain user-controlled content and must remain display-only in the email.
-            $safe_claim_id   = htmlspecialchars((string)$claim_id, ENT_QUOTES, 'UTF-8');
-            $safe_claim_type = htmlspecialchars($staff_email_user['claim_type'], ENT_QUOTES, 'UTF-8');
-            $safe_amount     = htmlspecialchars(number_format($staff_email_user['amount'], 2), ENT_QUOTES, 'UTF-8');
-
-            // SECTION: EMAIL BODY CREATION - Builds a professional confirmation message containing payment reference details.
-            // WHY: The Staff member receives a clear record that Finance has completed reimbursement for the claim.
-            $staff_body = '
-                <p style="margin:0 0 14px;">Your reimbursement has been successfully processed by Finance.</p>
-                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse; margin:18px 0;">
-                    <tr>
-                        <td style="padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; font-weight:700;">Claim ID</td>
-                        <td style="padding:10px 12px; border:1px solid #e2e8f0;">#' . $safe_claim_id . '</td>
-                    </tr>
-                    <tr>
-                        <td style="padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; font-weight:700;">Claim Type</td>
-                        <td style="padding:10px 12px; border:1px solid #e2e8f0;">' . $safe_claim_type . '</td>
-                    </tr>
-                    <tr>
-                        <td style="padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; font-weight:700;">Paid Amount</td>
-                        <td style="padding:10px 12px; border:1px solid #e2e8f0;">RM ' . $safe_amount . '</td>
-                    </tr>
-                </table>
-                <p style="margin:0;">Please log in to the Staff dashboard if you need to review your claim history.</p>
-            ';
-
-            // WHY: sendSystemEmail() centralizes PHPMailer delivery and avoids duplicating SMTP configuration in Finance modules.
-            // CONDITION: Evaluates `if(!sendSystemEmail(...))` so the payment workflow can report notification delivery failure without reversing a completed payment.
-            if(!sendSystemEmail($staff_email_user['email'], $staff_email_user['name'], 'Payment Successful for Claim #' . $claim_id, $staff_body)) {
-                $success .= " Email notification could not be sent. Please check SMTP credentials.";
-            }
-        }
-        // WHY: Closing the recipient statement releases database resources after the payment notification routing check completes.
-        $staff_email_stmt->close();
-        
-        // CONDITION: Evaluates `if (function_exists('logActivity')) ` so the application can choose the correct business rule branch for the current user action.
-        if (function_exists('logActivity')) {
-            // AUDIT: Activity logging creates an accountability trail for key actions such as claim submission, cancellation, and payment.
-            // WHY: number_format() displays monetary values with two decimals so financial amounts are consistent.
-            logActivity($conn, $_SESSION['user_id'], 'Process Payment', "Processed payment of RM " . number_format($claim['amount'], 2) . " for claim #$claim_id");
-        }
-    // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+    // === SECTION: CSRF TOKEN VALIDATION ===
+    // What: Validate the hidden form token before processing a reimbursement payment.
+    // Why: Finance payment is a high-impact business action and must not be executable through a forged browser request.
+    // SECURITY: Preventing Cross-Site Request Forgery by requiring a session-bound token before marking claims as Paid.
+    if(!requireValidCsrfToken($_POST['csrf_token'] ?? '', $error)) {
+        // WHY: No payment update is attempted when the submitted token does not match the Finance user's session.
     } else {
-        $error = "Payment failed due to system error.";
+        // SECURITY: Using Prepared Statements to prevent SQL Injection.
+        // WHY: SQL is prepared separately from user data so identifiers, filters, and form values can be bound safely.
+        $update_stmt = $conn->prepare("UPDATE claims SET status = 'Paid' WHERE id = ?");
+        // SECURITY: Using Prepared Statements to prevent SQL Injection.
+        // WHY: bind_param() attaches typed values to SQL placeholders, preventing input from becoming executable SQL.
+        $update_stmt->bind_param("i", $claim_id);
+
+        // WHY: Executing the prepared statement performs the validated database operation for the current workflow.
+        // CONDITION: Evaluates `if($update_stmt->execute()) ` so the application can choose the correct business rule branch for the current user action.
+        if($update_stmt->execute()) {
+            // WHY: number_format() displays monetary values with two decimals so financial amounts are consistent.
+            $success = "Payment of RM " . number_format($claim['amount'], 2) . " to " . $claim['staff_name'] . " was successful.";
+
+            // SECTION: AUTOMATED STAFF PAYMENT NOTIFICATION - Informs the claim owner immediately after Finance marks the claim as paid.
+            // WHY: Automated payment confirmation closes the business loop and reduces staff uncertainty about reimbursement status.
+            // SECURITY: Using Prepared Statements to prevent SQL Injection.
+            // WHY: SQL is prepared separately from the claim identifier so recipient lookup remains safe and auditable.
+            $staff_email_stmt = $conn->prepare("
+                SELECT u.name, u.email, c.amount, c.claim_type
+                FROM claims c
+                JOIN users u ON c.user_id = u.id
+                WHERE c.id = ?
+                LIMIT 1
+            ");
+            // SECURITY: Using Prepared Statements to prevent SQL Injection.
+            // WHY: bind_param() attaches the numeric claim identifier safely instead of embedding request data into executable SQL.
+            $staff_email_stmt->bind_param("i", $claim_id);
+            // WHY: Executing the prepared statement retrieves the claim owner for the payment confirmation email.
+            $staff_email_stmt->execute();
+            // WHY: get_result() turns the recipient query into rows that can be used by the notification workflow.
+            $staff_email_result = $staff_email_stmt->get_result();
+
+            // CONDITION: Evaluates `if($staff_email_result->num_rows > 0)` so the application only sends email when the claim owner can be found.
+            if($staff_email_result->num_rows > 0) {
+                // WHY: fetch_assoc() returns Staff recipient data as named fields for clear payment email construction.
+                $staff_email_user = $staff_email_result->fetch_assoc();
+
+                // SECURITY: Preventing XSS by escaping dynamic payment values before placing them into the HTML email body.
+                // WHY: Claim type and staff records may contain user-controlled content and must remain display-only in the email.
+                $safe_claim_id   = htmlspecialchars((string)$claim_id, ENT_QUOTES, 'UTF-8');
+                $safe_claim_type = htmlspecialchars($staff_email_user['claim_type'], ENT_QUOTES, 'UTF-8');
+                $safe_amount     = htmlspecialchars(number_format($staff_email_user['amount'], 2), ENT_QUOTES, 'UTF-8');
+
+                // SECTION: EMAIL BODY CREATION - Builds a professional confirmation message containing payment reference details.
+                // WHY: The Staff member receives a clear record that Finance has completed reimbursement for the claim.
+                $staff_body = '
+                    <p style="margin:0 0 14px;">Your reimbursement has been successfully processed by Finance.</p>
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse; margin:18px 0;">
+                        <tr>
+                            <td style="padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; font-weight:700;">Claim ID</td>
+                            <td style="padding:10px 12px; border:1px solid #e2e8f0;">#' . $safe_claim_id . '</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; font-weight:700;">Claim Type</td>
+                            <td style="padding:10px 12px; border:1px solid #e2e8f0;">' . $safe_claim_type . '</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; font-weight:700;">Paid Amount</td>
+                            <td style="padding:10px 12px; border:1px solid #e2e8f0;">RM ' . $safe_amount . '</td>
+                        </tr>
+                    </table>
+                    <p style="margin:0;">Please log in to the Staff dashboard if you need to review your claim history.</p>
+                ';
+
+                // WHY: sendSystemEmail() centralizes PHPMailer delivery and avoids duplicating SMTP configuration in Finance modules.
+                // CONDITION: Evaluates `if(!sendSystemEmail(...))` so the payment workflow can report notification delivery failure without reversing a completed payment.
+                if(!sendSystemEmail($staff_email_user['email'], $staff_email_user['name'], 'Payment Successful for Claim #' . $claim_id, $staff_body)) {
+                    $success .= " Email notification could not be sent. Please check SMTP credentials.";
+                }
+            }
+            // WHY: Closing the recipient statement releases database resources after the payment notification routing check completes.
+            $staff_email_stmt->close();
+
+            // CONDITION: Evaluates `if (function_exists('logActivity')) ` so the application can choose the correct business rule branch for the current user action.
+            if (function_exists('logActivity')) {
+                // AUDIT: Activity logging creates an accountability trail for key actions such as claim submission, cancellation, and payment.
+                // WHY: number_format() displays monetary values with two decimals so financial amounts are consistent.
+                logActivity($conn, $_SESSION['user_id'], 'Process Payment', "Processed payment of RM " . number_format($claim['amount'], 2) . " for claim #$claim_id");
+            }
+        // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+        } else {
+            $error = "Payment failed due to system error.";
+        }
     }
 }
 ?>
@@ -291,6 +303,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <!-- SECTION: USER INPUT FORM - Captures business data that will be validated server-side before database changes occur. -->
             <form method="POST" id="paymentForm" class="mt-4">
+                <?php echo csrfInputField(); ?>
                 <button type="submit" class="btn btn-pay">
                     <i class="fas fa-fingerprint me-2"></i>Confirm Transfer
                 </button>

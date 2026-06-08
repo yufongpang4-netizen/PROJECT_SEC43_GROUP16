@@ -10,6 +10,8 @@
 session_start();
 // SECTION: DEPENDENCY LOADING - Loads shared services so this page uses the same database and library logic as the rest of the system.
 require_once "../db.php";
+// SECTION: SECURITY HELPER LOADING - Loads reusable CSRF protection for Staff profile updates.
+require_once "../csrf_helper.php";
 
 // SECURITY: This session condition prevents unauthenticated users from reaching protected business pages.
 // SECURITY: Role-based branching separates Staff, Finance, and Admin privileges so users can only access their permitted workflow.
@@ -62,7 +64,12 @@ $current_dept = $legacy_staff_department_map[$current_dept] ?? $current_dept;
 
 // SECTION: FORM SUBMISSION HANDLER - Processes user input only after an intentional form submission.
 // CONDITION: Evaluates `if($_SERVER['REQUEST_METHOD'] == 'POST') ` so the application can choose the correct business rule branch for the current user action.
-if($_SERVER['REQUEST_METHOD'] == 'POST') {
+if (($_SERVER['REQUEST_METHOD'] ?? '') == 'POST') {
+    // SECURITY: Preventing CSRF by validating the Staff profile form token before updating personal data.
+    // Why: Profile updates change account contact data and must originate from a trusted UTMSPACE form.
+    if (!requireValidCsrfToken($_POST['csrf_token'] ?? '', $error)) {
+        // The shared helper sets a safe user-facing error message.
+    } else {
     // BEST PRACTICE: trim() removes accidental whitespace before validation so values are stored and compared consistently.
     $email = trim($_POST['email']);
     // BEST PRACTICE: trim() removes accidental whitespace before validation so values are stored and compared consistently.
@@ -211,6 +218,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
     } else {
         $error = implode("<br>", $errors);
+    }
     }
 }
 ?>
@@ -506,6 +514,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                             
                             <!-- SECTION: USER INPUT FORM - Captures business data that will be validated server-side before database changes occur. -->
                             <form method="POST" id="editProfileForm">
+                                <?php echo csrfInputField(); ?>
                                 <div class="mb-3">
                                     <label class="form-label"><i class="fas fa-user me-1" style="color: #3b82f6;"></i>Full Name</label>
                                     <!-- SECURITY: Escaping output to prevent XSS attacks. -->

@@ -10,6 +10,8 @@
 session_start();
 // SECTION: DEPENDENCY LOADING - Loads shared services so this page uses the same database and library logic as the rest of the system.
 require_once "db.php";
+// SECTION: SECURITY HELPER LOADING - Loads reusable CSRF protection for the password reset request form.
+require_once "csrf_helper.php";
 
 // SECTION: DEPENDENCY LOADING - Loads shared services so this page uses the same database and library logic as the rest of the system.
 require 'vendor/Exception.php';
@@ -28,7 +30,12 @@ $status = ''; // success or error
 
 // SECTION: FORM SUBMISSION HANDLER - Processes user input only after an intentional form submission.
 // CONDITION: Evaluates `if ($_SERVER['REQUEST_METHOD'] === 'POST') ` so the application can choose the correct business rule branch for the current user action.
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
+    // SECURITY: Preventing CSRF by validating that the reset request came from the legitimate UTMSPACE form.
+    // Why: Password reset email generation changes account recovery state and must reject forged submissions.
+    if (!requireValidCsrfToken($_POST['csrf_token'] ?? '', $message)) {
+        $status = 'error';
+    } else {
     // BEST PRACTICE: trim() removes accidental whitespace before validation so values are stored and compared consistently.
     $email = trim($_POST['email']);
     
@@ -119,6 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $message = "No account found with that email address.";
         }
     }
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -165,6 +173,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <!-- SECTION: USER INPUT FORM - Captures business data that will be validated server-side before database changes occur. -->
         <form method="POST" id="forgotForm">
+            <?php echo csrfInputField(); ?>
             <div class="mb-4">
                 <label class="form-label text-navy fw-semibold"><i class="fas fa-envelope me-2 opacity-75"></i>Email Address</label>
                 <input type="email" name="email" class="form-control" placeholder="name@utmspace.edu.my" required>

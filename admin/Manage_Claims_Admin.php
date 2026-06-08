@@ -27,6 +27,10 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
 // Include the database connection configuration
 // SECTION: DEPENDENCY LOADING - Loads shared services so this page uses the same database and library logic as the rest of the system.
 require_once '../db.php';
+// === SECTION: CSRF DEFENSE DEPENDENCY ===
+// What: Load the centralized CSRF helper for Admin claim cancellation forms.
+// Why: Force-cancelling a claim changes reimbursement records, so the request must be verified against the Admin session.
+require_once '../csrf_helper.php';
 
 // =========================================================================
 // SECTION 2: HANDLE FORM SUBMISSION (FORCE CANCEL CLAIM)
@@ -37,28 +41,35 @@ require_once '../db.php';
 // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
 // CONDITION: Evaluates `if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['void_id'])) ` so the application can choose the correct business rule branch for the current user action.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['void_id'])) {
+    // === SECTION: CSRF TOKEN VALIDATION ===
+    // What: Validate the hidden token before accepting the force-cancel request.
+    // Why: Admin cancellation affects claim validity and must not be executable by a forged request from another website.
+    // SECURITY: Preventing Cross-Site Request Forgery by requiring a valid token before changing claim status.
+    if (!validateCsrfToken($_POST['csrf_token'] ?? '')) {
+        // WHY: Invalid tokens stop the state change while leaving the page available for the Admin to retry from the proper form.
+    } else {
+        // Sanitize input: Convert the ID to an integer to absolutely prevent SQL injection.
+        // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
+        // SECURITY: Casting identifiers with intval() forces numeric IDs and reduces risk from manipulated request parameters.
+        $vid = intval($_POST['void_id']);
 
-    // Sanitize input: Convert the ID to an integer to absolutely prevent SQL injection.
-    // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
-    // SECURITY: Casting identifiers with intval() forces numeric IDs and reduces risk from manipulated request parameters.
-    $vid = intval($_POST['void_id']);
+        // Use Prepared Statements to securely update the database.
+        // SECURITY: Using Prepared Statements to prevent SQL Injection.
+        // WHY: SQL is prepared separately from user data so identifiers, filters, and form values can be bound safely.
+        $stmt = $conn->prepare("UPDATE claims SET status = 'Cancelled' WHERE id = ?");
+        // SECURITY: Using Prepared Statements to prevent SQL Injection.
+        // WHY: bind_param() attaches typed values to SQL placeholders, preventing input from becoming executable SQL.
+        $stmt->bind_param("i", $vid); // 'i' indicates the parameter is an integer
 
-    // Use Prepared Statements to securely update the database.
-    // SECURITY: Using Prepared Statements to prevent SQL Injection.
-    // WHY: SQL is prepared separately from user data so identifiers, filters, and form values can be bound safely.
-    $stmt = $conn->prepare("UPDATE claims SET status = 'Cancelled' WHERE id = ?");
-    // SECURITY: Using Prepared Statements to prevent SQL Injection.
-    // WHY: bind_param() attaches typed values to SQL placeholders, preventing input from becoming executable SQL.
-    $stmt->bind_param("i", $vid); // 'i' indicates the parameter is an integer
-
-    // Execute the query. If successful AND the logActivity function exists, log this action.
-    // WHY: Executing the prepared statement performs the validated database operation for the current workflow.
-    // CONDITION: Evaluates `if ($stmt->execute() && function_exists('logActivity')) ` so the application can choose the correct business rule branch for the current user action.
-    if ($stmt->execute() && function_exists('logActivity')) {
-        // AUDIT: Activity logging creates an accountability trail for key actions such as claim submission, cancellation, and payment.
-        logActivity($conn, $_SESSION['user_id'], 'Force Cancel Claim', "Admin force-cancelled claim #$vid");
+        // Execute the query. If successful AND the logActivity function exists, log this action.
+        // WHY: Executing the prepared statement performs the validated database operation for the current workflow.
+        // CONDITION: Evaluates `if ($stmt->execute() && function_exists('logActivity')) ` so the application can choose the correct business rule branch for the current user action.
+        if ($stmt->execute() && function_exists('logActivity')) {
+            // AUDIT: Activity logging creates an accountability trail for key actions such as claim submission, cancellation, and payment.
+            logActivity($conn, $_SESSION['user_id'], 'Force Cancel Claim', "Admin force-cancelled claim #$vid");
+        }
+        $stmt->close(); // Close the statement to free up server resources
     }
-    $stmt->close(); // Close the statement to free up server resources
 }
 
 // =========================================================================
@@ -502,6 +513,7 @@ $claims = $conn->query($sql);
 
                                             <!-- SECTION: USER INPUT FORM - Captures business data that will be validated server-side before database changes occur. -->
                                             <form method="POST" id="void-<?php echo $c['id']; ?>">
+                                                <?php echo csrfInputField(); ?>
                                                 <input type="hidden" name="void_id" value="<?php echo $c['id']; ?>">
 
                                                 <button type="button" class="btn btn-void"

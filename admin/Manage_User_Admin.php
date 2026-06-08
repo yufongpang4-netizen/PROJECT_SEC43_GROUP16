@@ -26,6 +26,10 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
 
 // SECTION: DEPENDENCY LOADING - Loads shared services so this page uses the same database and library logic as the rest of the system.
 require_once '../db.php'; // Include database connection
+// === SECTION: CSRF DEFENSE DEPENDENCY ===
+// What: Load the centralized CSRF helper for Admin account creation and status changes.
+// Why: Admin actions can create users or deactivate accounts, so every state-changing POST must be verified against the active session.
+require_once '../csrf_helper.php';
 
 // Initialize variables for UI feedback messages
 $message      = '';
@@ -36,62 +40,71 @@ $view_user    = null;
 // SECTION 2: TOGGLE USER STATUS (ACTIVATE / DEACTIVATE)
 // Purpose: Safely allow admins to suspend or reactivate accounts.
 // =========================================================================
-// Check if the URL contains 'toggle_status' and ensure it is a valid number to prevent SQL errors.
-// WHY: GET parameters support filters, selected records, and dashboard links that can be bookmarked or refreshed.
-// CONDITION: Evaluates `if (isset($_GET['toggle_status']) && is_numeric($_GET['toggle_status'])) ` so the application can choose the correct business rule branch for the current user action.
-if (isset($_GET['toggle_status']) && is_numeric($_GET['toggle_status'])) {
-    // WHY: GET parameters support filters, selected records, and dashboard links that can be bookmarked or refreshed.
-    $uid = (int)$_GET['toggle_status']; // Cast to integer for extra security
-
-    // Query to check the current status and role of the targeted user
-    // SECURITY: Using Prepared Statements to prevent SQL Injection.
-    // WHY: SQL is prepared separately from user data so identifiers, filters, and form values can be bound safely.
-    $chk = $conn->prepare("SELECT role, name, status FROM users WHERE id=?");
-    // SECURITY: Using Prepared Statements to prevent SQL Injection.
-    // WHY: bind_param() attaches typed values to SQL placeholders, preventing input from becoming executable SQL.
-    $chk->bind_param("i", $uid);
-    // WHY: Executing the prepared statement performs the validated database operation for the current workflow.
-    $chk->execute();
-    // WHY: get_result() turns the executed query into rows that can be rendered in dashboards, tables, or decision screens.
-    // WHY: fetch_assoc() returns one database row as named fields, making the business data readable and display-ready.
-    $row = $chk->get_result()->fetch_assoc();
-    $chk->close();
-
-    // Business Logic & Security Constraints:
-    // CONDITION: Evaluates `if (!$row) ` so the application can choose the correct business rule branch for the current user action.
-    if (!$row) {
-        $message      = "User not found.";
+// Check if the POST contains a status-toggle action and ensure the target user ID is numeric.
+// SECTION: FORM SUBMISSION HANDLER - Processes user input only after an intentional form submission.
+// CONDITION: Evaluates `if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'toggle_status' && is_numeric($_POST['user_id'] ?? null)) ` so the application can choose the correct business rule branch for the current user action.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'toggle_status' && is_numeric($_POST['user_id'] ?? null)) {
+    // === SECTION: CSRF TOKEN VALIDATION ===
+    // What: Validate the hidden token before activating or deactivating any account.
+    // Why: Account status controls user access, so the Admin's browser must prove the request originated from this portal form.
+    // SECURITY: Preventing Cross-Site Request Forgery by rejecting account status changes without a valid session token.
+    if (!requireValidCsrfToken($_POST['csrf_token'] ?? '', $message)) {
         $message_type = 'error';
-        // CONDITION: Evaluates `} elseif ($row['role'] === 'admin') ` so the application can choose the correct business rule branch for the current user action.
-    } elseif ($row['role'] === 'admin') {
-        // Prevent deactivating other admins to avoid locking everyone out of the system
-        $message      = "Cannot alter the status of an Admin account.";
-        $message_type = 'error';
-        // CONDITION: Evaluates `} elseif ((int)$uid === (int)$_SESSION['user_id']) ` so the application can choose the correct business rule branch for the current user action.
-    } elseif ((int)$uid === (int)$_SESSION['user_id']) {
-        // Prevent the current admin from deactivating themselves accidentally
-        $message      = "You cannot deactivate your own account.";
-        $message_type = 'error';
-        // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
     } else {
-        // Flip the status: If Active, make Inactive. If Inactive, make Active.
-        $new_status = ($row['status'] === 'Active') ? 'Inactive' : 'Active';
+        // WHY: Reading POST data captures the admin-selected account target before validation and database updates.
+        // SECURITY: Casting identifiers with intval() forces numeric IDs and reduces risk from manipulated request parameters.
+        $uid = (int)$_POST['user_id']; // Cast to integer for extra security
 
-        // Execute the update query securely using Prepared Statements
+        // Query to check the current status and role of the targeted user
         // SECURITY: Using Prepared Statements to prevent SQL Injection.
         // WHY: SQL is prepared separately from user data so identifiers, filters, and form values can be bound safely.
-        $upd = $conn->prepare("UPDATE users SET status=? WHERE id=?");
+        $chk = $conn->prepare("SELECT role, name, status FROM users WHERE id=?");
         // SECURITY: Using Prepared Statements to prevent SQL Injection.
         // WHY: bind_param() attaches typed values to SQL placeholders, preventing input from becoming executable SQL.
-        $upd->bind_param("si", $new_status, $uid);
+        $chk->bind_param("i", $uid);
         // WHY: Executing the prepared statement performs the validated database operation for the current workflow.
-        $upd->execute();
-        $upd->close();
+        $chk->execute();
+        // WHY: get_result() turns the executed query into rows that can be rendered in dashboards, tables, or decision screens.
+        // WHY: fetch_assoc() returns one database row as named fields, making the business data readable and display-ready.
+        $row = $chk->get_result()->fetch_assoc();
+        $chk->close();
 
-        // Set success message to display via SweetAlert later
-        // SECURITY: addslashes() protects generated JavaScript strings from breaking syntax when server messages contain quotes.
-        $message = "User " . addslashes($row['name']) . " is now " . $new_status . ".";
-        $message_type = 'success';
+        // Business Logic & Security Constraints:
+        // CONDITION: Evaluates `if (!$row) ` so the application can choose the correct business rule branch for the current user action.
+        if (!$row) {
+            $message      = "User not found.";
+            $message_type = 'error';
+            // CONDITION: Evaluates `} elseif ($row['role'] === 'admin') ` so the application can choose the correct business rule branch for the current user action.
+        } elseif ($row['role'] === 'admin') {
+            // Prevent deactivating other admins to avoid locking everyone out of the system
+            $message      = "Cannot alter the status of an Admin account.";
+            $message_type = 'error';
+            // CONDITION: Evaluates `} elseif ((int)$uid === (int)$_SESSION['user_id']) ` so the application can choose the correct business rule branch for the current user action.
+        } elseif ((int)$uid === (int)$_SESSION['user_id']) {
+            // Prevent the current admin from deactivating themselves accidentally
+            $message      = "You cannot deactivate your own account.";
+            $message_type = 'error';
+            // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+        } else {
+            // Flip the status: If Active, make Inactive. If Inactive, make Active.
+            $new_status = ($row['status'] === 'Active') ? 'Inactive' : 'Active';
+
+            // Execute the update query securely using Prepared Statements
+            // SECURITY: Using Prepared Statements to prevent SQL Injection.
+            // WHY: SQL is prepared separately from user data so identifiers, filters, and form values can be bound safely.
+            $upd = $conn->prepare("UPDATE users SET status=? WHERE id=?");
+            // SECURITY: Using Prepared Statements to prevent SQL Injection.
+            // WHY: bind_param() attaches typed values to SQL placeholders, preventing input from becoming executable SQL.
+            $upd->bind_param("si", $new_status, $uid);
+            // WHY: Executing the prepared statement performs the validated database operation for the current workflow.
+            $upd->execute();
+            $upd->close();
+
+            // Set success message to display via SweetAlert later
+            // SECURITY: addslashes() protects generated JavaScript strings from breaking syntax when server messages contain quotes.
+            $message = "User " . addslashes($row['name']) . " is now " . $new_status . ".";
+            $message_type = 'success';
+        }
     }
 }
 
@@ -122,6 +135,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $new_pass     = $_POST['password'] ?? '';
 
     $errors = []; // Array to collect validation error messages
+
+    // === SECTION: CSRF TOKEN VALIDATION ===
+    // What: Verify that the Add New User request carries the token generated for this Admin session.
+    // Why: User creation is a privileged action, so the system must reject forged POST requests before any database lookup or insertion occurs.
+    // SECURITY: Preventing Cross-Site Request Forgery by adding token failure to the same validation gate used by the account form.
+    if (!validateCsrfToken($_POST['csrf_token'] ?? '')) {
+        $errors[] = "Security validation failed. Please refresh the page and try again.";
+    }
 
     // === SECTION: STAFF DEPARTMENT POLICY ===
     // What: Define the approved department list for Staff accounts created by Admin.
@@ -731,11 +752,31 @@ $stmt->close();
                                             <?php if ($user['role'] !== 'admin' && (int)$user['id'] !== (int)$_SESSION['user_id']): ?>
 
                                                 <?php if ($user['status'] === 'Active'): ?>
-                                                    <a href="#" class="btn btn-deactivate" onclick="confirmAction('Deactivate', '<?php echo addslashes($user['name']); ?>', '?toggle_status=<?php echo $user['id']; ?>')"><i class="fas fa-ban me-1"></i> Deactivate</a>
+                                                    <!-- === SECTION: PROTECTED ACCOUNT STATUS FORM === -->
+                                                    <!-- What: Submit account deactivation through POST with a CSRF token instead of a direct URL. -->
+                                                    <!-- Why: Deactivation changes user access and must only occur after Admin confirmation from the active portal session. -->
+                                                    <form method="POST" id="toggle-user-<?php echo (int)$user['id']; ?>" class="d-inline">
+                                                        <?php echo csrfInputField(); ?>
+                                                        <input type="hidden" name="action" value="toggle_status">
+                                                        <input type="hidden" name="user_id" value="<?php echo (int)$user['id']; ?>">
+                                                        <button type="button" class="btn btn-deactivate" onclick="confirmAction('Deactivate', '<?php echo addslashes($user['name']); ?>', 'toggle-user-<?php echo (int)$user['id']; ?>')">
+                                                            <i class="fas fa-ban me-1"></i> Deactivate
+                                                        </button>
+                                                    </form>
 
                                                     <!-- CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome. -->
                                                 <?php else: ?>
-                                                    <a href="#" class="btn btn-activate" onclick="confirmAction('Activate', '<?php echo addslashes($user['name']); ?>', '?toggle_status=<?php echo $user['id']; ?>')"><i class="fas fa-check-circle me-1"></i> Activate</a>
+                                                    <!-- === SECTION: PROTECTED ACCOUNT STATUS FORM === -->
+                                                    <!-- What: Submit account activation through POST with a CSRF token instead of a direct URL. -->
+                                                    <!-- Why: Reactivation restores system access and must be protected with the same anti-forgery control as deactivation. -->
+                                                    <form method="POST" id="toggle-user-<?php echo (int)$user['id']; ?>" class="d-inline">
+                                                        <?php echo csrfInputField(); ?>
+                                                        <input type="hidden" name="action" value="toggle_status">
+                                                        <input type="hidden" name="user_id" value="<?php echo (int)$user['id']; ?>">
+                                                        <button type="button" class="btn btn-activate" onclick="confirmAction('Activate', '<?php echo addslashes($user['name']); ?>', 'toggle-user-<?php echo (int)$user['id']; ?>')">
+                                                            <i class="fas fa-check-circle me-1"></i> Activate
+                                                        </button>
+                                                    </form>
                                                 <?php endif; ?>
 
                                             <?php endif; ?>
@@ -766,6 +807,7 @@ $stmt->close();
                 <!-- SECTION: USER INPUT FORM - Captures new account details that are validated server-side before database insertion. -->
                 <!-- WHY: The hidden action value connects this modal form to the existing add_user POST handler at the top of the file. -->
                 <form method="POST">
+                    <?php echo csrfInputField(); ?>
                     <input type="hidden" name="action" value="add_user">
                     <div class="modal-body p-4">
                         <div class="row g-3">
@@ -925,7 +967,7 @@ $stmt->close();
         // It dynamically changes text and button colors based on the action passed into it.
         // SECTION: CLIENT FUNCTION - Encapsulates repeated UI logic so page behavior is easier to audit and maintain.
         // SECTION: CONFIRMATION WORKFLOW - Requires deliberate confirmation before irreversible or high-impact actions occur.
-        function confirmAction(action, name, url) {
+        function confirmAction(action, name, formId) {
             let color = action === 'Deactivate' ? '#dc3545' : '#10b981'; // Red for deactivate, Green for activate
             // SECTION: SWEETALERT FEEDBACK - Shows high-visibility success, error, warning, or confirmation messages for important actions.
             Swal.fire({
@@ -937,11 +979,12 @@ $stmt->close();
                 cancelButtonColor: '#6c757d',
                 confirmButtonText: `Yes, ${action} it!`
             }).then((result) => {
-                // If user clicks "Yes", execute the PHP GET request by changing the URL
+                // If user clicks "Yes", submit the protected POST form that contains the CSRF token.
                 // CONDITION: Evaluates `if (result.isConfirmed) ` so the application can choose the correct business rule branch for the current user action.
                 if (result.isConfirmed) {
-                    // WHY: Redirecting after success moves the user to the next logical workflow page without manual navigation.
-                    window.location.href = url;
+                    // SECURITY: The status form carries a hidden CSRF token so the server can verify the Admin session before changing access.
+                    // WHY: Form submission preserves the existing SweetAlert confirmation while removing unsafe URL-based state changes.
+                    document.getElementById(formId).submit();
                 }
             })
         }

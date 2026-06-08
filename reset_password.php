@@ -10,6 +10,8 @@
 session_start();
 // SECTION: DEPENDENCY LOADING - Loads shared services so this page uses the same database and library logic as the rest of the system.
 require_once "db.php";
+// SECTION: SECURITY HELPER LOADING - Loads reusable CSRF protection for the password reset form.
+require_once "csrf_helper.php";
 
 $error = '';
 $success = false;
@@ -59,7 +61,12 @@ if (isset($_GET['token'])) {
 
 // SECTION: FORM SUBMISSION HANDLER - Processes user input only after an intentional form submission.
 // CONDITION: Evaluates `if ($_SERVER['REQUEST_METHOD'] === 'POST' && $valid_token) ` so the application can choose the correct business rule branch for the current user action.
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $valid_token) {
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && $valid_token) {
+    // SECURITY: Preventing CSRF by validating the reset-password form token before updating credentials.
+    // Why: Password changes must originate from the legitimate token-protected UTMSPACE reset form.
+    if (!requireValidCsrfToken($_POST['csrf_token'] ?? '', $error)) {
+        // The shared helper sets a safe user-facing error message.
+    } else {
     // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
     $new_password = $_POST['new_password'];
     // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
@@ -91,6 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $valid_token) {
         } else {
             $error = "Failed to update password. Please try again.";
         }
+    }
     }
 }
 ?>
@@ -175,6 +183,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $valid_token) {
             
             <!-- SECTION: USER INPUT FORM - Captures business data that will be validated server-side before database changes occur. -->
             <form method="POST">
+                <?php echo csrfInputField(); ?>
                 <div class="mb-3">
                     <label class="form-label text-navy fw-semibold">New Password</label>
                     <input type="password" name="new_password" class="form-control" required minlength="6" placeholder="Enter new password">

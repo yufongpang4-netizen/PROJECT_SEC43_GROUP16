@@ -1,0 +1,12 @@
+# === SECTION: RECEIPT DIRECTORY HARDENING ===
+# What: Disable directory listing and prevent script-like uploads from executing inside the receipt evidence folder.
+# Why: Receipt files are user-supplied evidence, so the web server must treat this folder as storage only, not application code.
+Options -Indexes
+RemoveHandler .php .phtml .php3 .php4 .php5 .phar
+RemoveType .php .phtml .php3 .php4 .php5 .phar
+
+# SECURITY: Preventing uploaded script execution by denying direct access to server-side script extensions.
+# Why: Even if a malicious file bypassed validation, Apache should not execute or serve it as active code.
+<FilesMatch "\.(php|phtml|php3|php4|php5|phar|cgi|pl|asp|aspx|jsp)$">
+    Require all denied
+</FilesMatch>

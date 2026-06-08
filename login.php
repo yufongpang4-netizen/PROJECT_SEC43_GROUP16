@@ -10,6 +10,8 @@
 session_start();
 // SECTION: DEPENDENCY LOADING - Loads shared services so this page uses the same database and library logic as the rest of the system.
 require_once "db.php";
+// SECTION: SECURITY HELPER LOADING - Loads reusable CSRF protection for the login form.
+require_once "csrf_helper.php";
 
 // SECURITY: This session condition prevents unauthenticated users from reaching protected business pages.
 // CONDITION: Evaluates `if (isset($_SESSION['user_id'])) ` so the application can choose the correct business rule branch for the current user action.
@@ -25,7 +27,12 @@ $success_redirect = '';
 
 // SECTION: FORM SUBMISSION HANDLER - Processes user input only after an intentional form submission.
 // CONDITION: Evaluates `if ($_SERVER['REQUEST_METHOD'] === 'POST') ` so the application can choose the correct business rule branch for the current user action.
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
+    // SECURITY: Preventing CSRF by validating that login credentials came from the legitimate UTMSPACE form.
+    // Why: Even authentication forms should reject forged submissions to reduce cross-site request abuse.
+    if (!requireValidCsrfToken($_POST['csrf_token'] ?? '', $error)) {
+        // The shared helper sets a safe user-facing error message.
+    } else {
     // BEST PRACTICE: trim() removes accidental whitespace before validation so values are stored and compared consistently.
     $email = trim($_POST['email']);
     // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
@@ -39,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         // SECURITY: Using Prepared Statements to prevent SQL Injection.
         // WHY: SQL is prepared separately from user data so identifiers, filters, and form values can be bound safely.
-        $stmt = $conn->prepare("SELECT id, name, email, password, role, status FROM users WHERE email = ?");
+        $stmt = $conn->prepare("SELECT id, name, email, password, role, status, email_verified FROM users WHERE email = ?");
         // SECURITY: Using Prepared Statements to prevent SQL Injection.
         // WHY: bind_param() attaches typed values to SQL placeholders, preventing input from becoming executable SQL.
         $stmt->bind_param("s", $email);
@@ -57,6 +64,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (password_verify($password, $user['password'])) {
                 if ($user['status'] === 'Inactive') {
                     $error = "Your account has been deactivated. Please contact Admin.";
+                // === SECTION: EMAIL VERIFICATION LOGIN GATE ===
+                // What: Block login for accounts that have not completed email verification.
+                // Why: Registration must prove inbox ownership before the user can access claim submission or payment-related data.
+                // SECURITY: Preventing unauthorized access by rejecting valid passwords when email_verified is still false.
+                } elseif ((int) ($user['email_verified'] ?? 0) !== 1) {
+                    $error = "Please verify your email address before logging in. Check your inbox for the UTMSPACE verification email.";
                 // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
                 } else {
                     $_SESSION['user_id'] = $user['id'];
@@ -82,6 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $error = "Invalid email or password!";
         }
+    }
     }
 }
 ?>
@@ -247,6 +261,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <!-- SECTION: USER INPUT FORM - Captures business data that will be validated server-side before database changes occur. -->
             <form method="POST" id="loginForm">
+                <?php echo csrfInputField(); ?>
                 <div class="mb-3">
                     <label class="form-label text-navy ms-1"><i class="fas fa-envelope me-2 opacity-75"></i>Email Address</label>
                     <!-- SECURITY: Escaping output to prevent XSS attacks. -->

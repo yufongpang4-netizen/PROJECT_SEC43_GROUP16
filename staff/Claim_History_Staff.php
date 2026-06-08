@@ -10,6 +10,10 @@
 session_start();
 // SECTION: DEPENDENCY LOADING - Loads shared services so this page uses the same database and library logic as the rest of the system.
 require_once "../db.php";
+// SECTION: SECURITY HELPER LOADING - Loads reusable CSRF protection for Staff claim edit and cancel forms.
+require_once "../csrf_helper.php";
+// SECTION: UPLOAD HELPER LOADING - Loads hardened receipt upload validation and storage rules.
+require_once "../receipt_upload_helper.php";
 
 // SECURITY: This session condition prevents unauthenticated users from reaching protected business pages.
 // SECURITY: Role-based branching separates Staff, Finance, and Admin privileges so users can only access their permitted workflow.
@@ -28,7 +32,12 @@ $error   = '';
 // ========== EDIT & CANCEL CLAIM FUNCTIONALITY ==========
 // SECTION: FORM SUBMISSION HANDLER - Processes user input only after an intentional form submission.
 // CONDITION: Evaluates `if($_SERVER['REQUEST_METHOD'] == 'POST') ` so the application can choose the correct business rule branch for the current user action.
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+if (($_SERVER['REQUEST_METHOD'] ?? '') == 'POST') {
+    // SECURITY: Preventing CSRF by validating the Staff claim history action token before edit or cancel logic runs.
+    // Why: Editing or cancelling a claim changes business records and must originate from a trusted UTMSPACE form.
+    if (!requireValidCsrfToken($_POST['csrf_token'] ?? '', $error)) {
+        // The shared helper sets a safe user-facing error message.
+    } else {
 
     // Handle Edit Claim
     // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
@@ -110,44 +119,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 } else {
                     $receipt_filename = $old_receipt;
 
-                    // CONDITION: Evaluates `if(isset($_FILES['receipt']) && $_FILES['receipt']['error'] == 0 && $_FILES['receipt']['size'] > 0) ` so the application can choose the correct business rule branch for the current user action.
-                    if (isset($_FILES['receipt']) && $_FILES['receipt']['error'] == 0 && $_FILES['receipt']['size'] > 0) {
-                        $allowed_types = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
-                        $file_type = $_FILES['receipt']['type'];
-                        // SECURITY: The 5MB upload limit prevents oversized receipt files from exhausting storage or memory.
-                        $max_file_size = 5 * 1024 * 1024;
-
-                        // CONDITION: Evaluates `if($_FILES['receipt']['size'] > $max_file_size) ` so the application can choose the correct business rule branch for the current user action.
-                        if ($_FILES['receipt']['size'] > $max_file_size) {
-                            $error = "File size too large. Maximum size is 5MB.";
-                            // SECURITY: The MIME-type whitelist restricts receipt uploads to expected PDF/image evidence formats.
-                            // CONDITION: Evaluates `} elseif(in_array($file_type, $allowed_types)) ` so the application can choose the correct business rule branch for the current user action.
-                        } elseif (in_array($file_type, $allowed_types)) {
-                            $upload_dir = '../uploads/receipts/';
-                            if (!file_exists($upload_dir)) {
-                                // BEST PRACTICE: The upload directory is created only when missing so receipt storage works on fresh deployment.
-                                mkdir($upload_dir, 0777, true);
-                            }
-
-                            $file_ext = pathinfo($_FILES['receipt']['name'], PATHINFO_EXTENSION);
-                            $receipt_filename = 'receipt_' . time() . '_' . $user_id . '.' . $file_ext;
-                            $target_file = $upload_dir . $receipt_filename;
-
-                            // SECURITY: move_uploaded_file() stores only genuine PHP-uploaded files after validation.
-                            // CONDITION: Evaluates `if(move_uploaded_file($_FILES['receipt']['tmp_name'], $target_file)) ` so the application can choose the correct business rule branch for the current user action.
-                            if (move_uploaded_file($_FILES['receipt']['tmp_name'], $target_file)) {
-                                if ($old_receipt && file_exists($upload_dir . $old_receipt)) {
-                                    // WHY: Removing an old receipt after replacement prevents stale evidence files from remaining on the server.
-                                    unlink($upload_dir . $old_receipt);
-                                }
-                                // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
-                            } else {
-                                $error = "Failed to save the uploaded receipt.";
-                            }
-                            // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
-                        } else {
-                            $error = "Invalid file format. Only PDF, JPG, and PNG are allowed.";
-                        }
+                    // === SECTION: HARDENED RECEIPT REPLACEMENT ===
+                    // What: Validate and store the optional replacement receipt using the shared upload helper.
+                    // Why: Claim edits must use the same server-side MIME detection, file-size, and random-name rules as new claim submissions.
+                    $upload_dir = '../uploads/receipts/';
+                    $new_receipt_filename = saveReceiptUpload($_FILES['receipt'] ?? null, $upload_dir, $error);
+                    if ($new_receipt_filename !== null && $new_receipt_filename !== false) {
+                        $receipt_filename = $new_receipt_filename;
                     }
 
                     // VALIDATION: This condition rejects incomplete input so the database does not receive unusable claim or account records.
@@ -164,6 +142,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         // WHY: Executing the prepared statement performs the validated database operation for the current workflow.
                         // CONDITION: Evaluates `if($update_stmt->execute()) ` so the application can choose the correct business rule branch for the current user action.
                         if ($update_stmt->execute()) {
+                            if ($new_receipt_filename !== null && $new_receipt_filename !== false && !empty($old_receipt)) {
+                                // WHY: Removing the old receipt only after a successful database update prevents evidence loss if the edit fails.
+                                deleteReceiptFile($upload_dir, $old_receipt);
+                            }
                             if ($current_status === 'Rejected') {
                                 $success = "Rejected claim #$edit_id has been updated and resubmitted successfully!";
                                 // AUDIT: Activity logging creates an accountability trail for key actions such as claim submission, cancellation, and payment.
@@ -215,6 +197,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $error = "Could not cancel the claim. It may have already been processed.";
         }
         $stmt->close();
+    }
     }
 }
 
@@ -791,6 +774,7 @@ foreach ($counts_rows as $r) {
                                                 <?php if (strtolower($claim['status']) === 'pending'): ?>
                                                     <!-- SECTION: USER INPUT FORM - Captures business data that will be validated server-side before database changes occur. -->
                                                     <form method="POST" class="d-inline" id="cancel-form-<?php echo $claim['id']; ?>">
+                                                        <?php echo csrfInputField(); ?>
                                                         <input type="hidden" name="cancel_id" value="<?php echo $claim['id']; ?>">
                                                         <button type="button" class="btn btn-cancel btn-sm" onclick="confirmCancel(<?php echo $claim['id']; ?>)">
                                                             <i class="fas fa-ban"></i> Cancel
@@ -906,6 +890,7 @@ foreach ($counts_rows as $r) {
                 </div>
                 <!-- SECTION: USER INPUT FORM - Captures business data that will be validated server-side before database changes occur. -->
                 <form method="POST" enctype="multipart/form-data">
+                    <?php echo csrfInputField(); ?>
                     <!-- SECTION: MODAL DIALOG - Shows detailed records without leaving the current workflow context. -->
                     <div class="modal-body p-4">
                         <input type="hidden" name="edit_id" id="edit-id">
