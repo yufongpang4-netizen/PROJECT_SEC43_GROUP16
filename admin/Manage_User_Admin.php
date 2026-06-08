@@ -739,6 +739,72 @@ $stmt->close();
         </div>
     </div>
 
+    <!-- SECTION: MODAL DIALOG - Provides the missing Add New User interface targeted by the page header button. -->
+    <!-- WHY: The Add New User button uses data-bs-target="#addUserModal"; this modal must exist so Bootstrap can open the account-creation form. -->
+    <div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
+        <!-- SECTION: MODAL DIALOG - Keeps account creation in the current Admin workflow without leaving the Manage Accounts page. -->
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header" style="background: linear-gradient(135deg, #2e1065 0%, #4c1d95 100%); color: white;">
+                    <h5 class="modal-title" id="addUserModalLabel">
+                        <i class="fas fa-user-plus me-2"></i>Add New User
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <!-- SECTION: USER INPUT FORM - Captures new account details that are validated server-side before database insertion. -->
+                <!-- WHY: The hidden action value connects this modal form to the existing add_user POST handler at the top of the file. -->
+                <form method="POST">
+                    <input type="hidden" name="action" value="add_user">
+                    <div class="modal-body p-4">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Full Name *</label>
+                                <input type="text" name="name" class="form-control" required placeholder="Enter full name">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Staff ID *</label>
+                                <input type="text" name="staff_id" class="form-control" required placeholder="Enter staff ID">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Email *</label>
+                                <input type="email" name="email" class="form-control" required placeholder="name@example.com">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Phone *</label>
+                                <input type="tel" name="phone" class="form-control" required placeholder="0123456789">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Role *</label>
+                                <select name="role" id="addUserRole" class="form-select" required>
+                                    <option value="">Select role</option>
+                                    <option value="staff">Staff</option>
+                                    <option value="finance">Finance</option>
+                                    <option value="admin">Admin</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6" id="addUserDepartmentGroup">
+                                <label class="form-label fw-semibold">Department</label>
+                                <input type="text" name="department" id="addUserDepartment" class="form-control" placeholder="Required for Staff">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-semibold">Password *</label>
+                                <input type="password" name="password" class="form-control" required placeholder="Minimum 6 characters with letters and numbers">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-add">
+                            <i class="fas fa-save me-2"></i>Create User
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- SECTION: CLIENT-SIDE BEHAVIOR - Loads JavaScript used for validation, alerts, navigation, charts, or tables. -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <!-- SECTION: CLIENT-SIDE BEHAVIOR - Loads JavaScript used for validation, alerts, navigation, charts, or tables. -->
@@ -792,6 +858,22 @@ $stmt->close();
                     window.location.href = url;
                 }
             })
+        }
+
+        // SECTION: ADD USER FORM UX - Keeps the department field aligned with the selected account role.
+        // WHY: Staff accounts require a department for reporting, while Finance and Admin departments are assigned by server-side business rules.
+        const addUserRole = document.getElementById('addUserRole');
+        const addUserDepartment = document.getElementById('addUserDepartment');
+
+        // CONDITION: Evaluates `if(addUserRole && addUserDepartment)` so the page remains stable if the modal is not rendered.
+        if(addUserRole && addUserDepartment) {
+            addUserRole.addEventListener('change', function() {
+                const isStaff = this.value === 'staff';
+                addUserDepartment.required = isStaff;
+                addUserDepartment.disabled = !isStaff;
+                addUserDepartment.value = isStaff ? addUserDepartment.value : '';
+            });
+            addUserDepartment.disabled = true;
         }
 
         // Capture PHP validation messages and trigger a sleek "Toast" notification using SweetAlert.
