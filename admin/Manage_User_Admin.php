@@ -62,17 +62,17 @@ if (isset($_GET['toggle_status']) && is_numeric($_GET['toggle_status'])) {
     if (!$row) {
         $message      = "User not found.";
         $message_type = 'error';
-    // CONDITION: Evaluates `} elseif ($row['role'] === 'admin') ` so the application can choose the correct business rule branch for the current user action.
+        // CONDITION: Evaluates `} elseif ($row['role'] === 'admin') ` so the application can choose the correct business rule branch for the current user action.
     } elseif ($row['role'] === 'admin') {
         // Prevent deactivating other admins to avoid locking everyone out of the system
         $message      = "Cannot alter the status of an Admin account.";
         $message_type = 'error';
-    // CONDITION: Evaluates `} elseif ((int)$uid === (int)$_SESSION['user_id']) ` so the application can choose the correct business rule branch for the current user action.
+        // CONDITION: Evaluates `} elseif ((int)$uid === (int)$_SESSION['user_id']) ` so the application can choose the correct business rule branch for the current user action.
     } elseif ((int)$uid === (int)$_SESSION['user_id']) {
         // Prevent the current admin from deactivating themselves accidentally
         $message      = "You cannot deactivate your own account.";
         $message_type = 'error';
-    // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+        // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
     } else {
         // Flip the status: If Active, make Inactive. If Inactive, make Active.
         $new_status = ($row['status'] === 'Active') ? 'Inactive' : 'Active';
@@ -123,15 +123,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
     $errors = []; // Array to collect validation error messages
 
+    // === SECTION: STAFF DEPARTMENT POLICY ===
+    // What: Define the approved department list for Staff accounts created by Admin.
+    // Why: Server-side whitelisting prevents incorrect database values such as shortcuts or invalid departments from being saved through modified form submissions.
+    $valid_staff_departments = ['Finance', 'Human Resources', 'Information Technology', 'Marketing', 'Sales'];
+
     // --- Data Validation Rules (Regex & Logic) ---
     // Validate Name: Only letters, spaces, apostrophes, and hyphens allowed. Length 2-50.
     // VALIDATION: This condition rejects incomplete input so the database does not receive unusable claim or account records.
     // CONDITION: Evaluates `if (empty($new_name)) ` so the application can choose the correct business rule branch for the current user action.
     if (empty($new_name)) {
         $errors[] = "Full name is required.";
-    // VALIDATION: The regular expression enforces a strict input pattern before data is accepted.
-    // WHY: match maps each role or claim status to a consistent visual outcome, keeping business states predictable.
-    // CONDITION: Evaluates `} elseif (!preg_match('/^[a-zA-Z\s\'-]{2,50}$/', $new_name)) ` so the application can choose the correct business rule branch for the current user action.
+        // VALIDATION: The regular expression enforces a strict input pattern before data is accepted.
+        // WHY: match maps each role or claim status to a consistent visual outcome, keeping business states predictable.
+        // CONDITION: Evaluates `} elseif (!preg_match('/^[a-zA-Z\s\'-]{2,50}$/', $new_name)) ` so the application can choose the correct business rule branch for the current user action.
     } elseif (!preg_match('/^[a-zA-Z\s\'-]{2,50}$/', $new_name)) {
         $errors[] = "Name must be 2-50 characters (letters, spaces only).";
     }
@@ -141,9 +146,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     // CONDITION: Evaluates `if (empty($new_staff_id)) ` so the application can choose the correct business rule branch for the current user action.
     if (empty($new_staff_id)) {
         $errors[] = "Staff ID is required.";
-    // VALIDATION: The regular expression enforces a strict input pattern before data is accepted.
-    // WHY: match maps each role or claim status to a consistent visual outcome, keeping business states predictable.
-    // CONDITION: Evaluates `} elseif (!preg_match('/^[a-zA-Z0-9]{5,15}$/', $new_staff_id)) ` so the application can choose the correct business rule branch for the current user action.
+        // VALIDATION: The regular expression enforces a strict input pattern before data is accepted.
+        // WHY: match maps each role or claim status to a consistent visual outcome, keeping business states predictable.
+        // CONDITION: Evaluates `} elseif (!preg_match('/^[a-zA-Z0-9]{5,15}$/', $new_staff_id)) ` so the application can choose the correct business rule branch for the current user action.
     } elseif (!preg_match('/^[a-zA-Z0-9]{5,15}$/', $new_staff_id)) {
         $errors[] = "Staff ID must be 5-15 characters (letters/numbers).";
     }
@@ -153,8 +158,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     // CONDITION: Evaluates `if (empty($new_email)) ` so the application can choose the correct business rule branch for the current user action.
     if (empty($new_email)) {
         $errors[] = "Email address is required.";
-    // VALIDATION: FILTER_VALIDATE_EMAIL verifies email structure before storage or notification delivery.
-    // CONDITION: Evaluates `} elseif (!filter_var($new_email, FILTER_VALIDATE_EMAIL)) ` so the application can choose the correct business rule branch for the current user action.
+        // VALIDATION: FILTER_VALIDATE_EMAIL verifies email structure before storage or notification delivery.
+        // CONDITION: Evaluates `} elseif (!filter_var($new_email, FILTER_VALIDATE_EMAIL)) ` so the application can choose the correct business rule branch for the current user action.
     } elseif (!filter_var($new_email, FILTER_VALIDATE_EMAIL)) {
         $errors[] = "Please enter a valid email address.";
     }
@@ -164,9 +169,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     // CONDITION: Evaluates `if (empty($new_phone)) ` so the application can choose the correct business rule branch for the current user action.
     if (empty($new_phone)) {
         $errors[] = "Phone number is required.";
-    // VALIDATION: This regular expression accepts Malaysian mobile numbers beginning with 01, +601, or 601 followed by the required digits.
-    // WHY: match maps each role or claim status to a consistent visual outcome, keeping business states predictable.
-    // CONDITION: Evaluates `} elseif (!preg_match('/^(\+?6?01)[0-9]{8,9}$/', $new_phone)) ` so the application can choose the correct business rule branch for the current user action.
+        // VALIDATION: This regular expression accepts Malaysian mobile numbers beginning with 01, +601, or 601 followed by the required digits.
+        // WHY: match maps each role or claim status to a consistent visual outcome, keeping business states predictable.
+        // CONDITION: Evaluates `} elseif (!preg_match('/^(\+?6?01)[0-9]{8,9}$/', $new_phone)) ` so the application can choose the correct business rule branch for the current user action.
     } elseif (!preg_match('/^(\+?6?01)[0-9]{8,9}$/', $new_phone)) {
         $errors[] = "Please enter a valid Malaysian phone number! (e.g., 0123456789)";
     }
@@ -178,9 +183,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $errors[] = "Password is required.";
     } elseif (strlen($new_pass) < 6) {
         $errors[] = "Password must be at least 6 characters long.";
-    // VALIDATION: This regular expression enforces at least one number to improve password complexity.
-    // WHY: match maps each role or claim status to a consistent visual outcome, keeping business states predictable.
-    // CONDITION: Evaluates `} elseif (!preg_match('/[A-Za-z]/', $new_pass) || !preg_match('/[0-9]/', $new_pass)) ` so the application can choose the correct business rule branch for the current user action.
+        // VALIDATION: This regular expression enforces at least one number to improve password complexity.
+        // WHY: match maps each role or claim status to a consistent visual outcome, keeping business states predictable.
+        // CONDITION: Evaluates `} elseif (!preg_match('/[A-Za-z]/', $new_pass) || !preg_match('/[0-9]/', $new_pass)) ` so the application can choose the correct business rule branch for the current user action.
     } elseif (!preg_match('/[A-Za-z]/', $new_pass) || !preg_match('/[0-9]/', $new_pass)) {
         $errors[] = "Password must contain letters and numbers.";
     }
@@ -197,6 +202,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     // CONDITION: Evaluates `if ($new_role == 'staff' && empty($new_dept)) ` so the application can choose the correct business rule branch for the current user action.
     if ($new_role == 'staff' && empty($new_dept)) {
         $errors[] = "Department is required for Staff accounts.";
+    } elseif ($new_role == 'staff' && !in_array($new_dept, $valid_staff_departments, true)) {
+        // SECURITY: Preventing invalid department injection by rejecting values outside the approved business list.
+        // Why: This protects reporting accuracy and prevents old values such as "IT", "HR", or "Management" from returning to the database.
+        $errors[] = "Please select a valid Staff department.";
     }
 
     // --- Duplication Check ---
@@ -253,7 +262,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             // SECURITY: addslashes() protects generated JavaScript strings from breaking syntax when server messages contain quotes.
             $message = "New user " . addslashes($new_name) . " added successfully.";
             $message_type = 'success';
-        // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+            // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
         } else {
             $errors[] = "Database error: " . $conn->error;
         }
@@ -308,6 +317,7 @@ $stmt->close();
 <html lang="en">
 
 <!-- SECTION: DOCUMENT METADATA - Loads responsive settings and external UI libraries required by this page. -->
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -630,6 +640,7 @@ $stmt->close();
 </head>
 
 <!-- SECTION: PAGE BODY - Begins the visible interface for the current UTMSPACE workflow. -->
+
 <body>
     <!-- BOOTSTRAP LAYOUT: container-fluid spans the full browser width so dashboards can use the complete workspace. -->
     <div class="container-fluid p-0">
@@ -722,7 +733,7 @@ $stmt->close();
                                                 <?php if ($user['status'] === 'Active'): ?>
                                                     <a href="#" class="btn btn-deactivate" onclick="confirmAction('Deactivate', '<?php echo addslashes($user['name']); ?>', '?toggle_status=<?php echo $user['id']; ?>')"><i class="fas fa-ban me-1"></i> Deactivate</a>
 
-                                                <!-- CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome. -->
+                                                    <!-- CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome. -->
                                                 <?php else: ?>
                                                     <a href="#" class="btn btn-activate" onclick="confirmAction('Activate', '<?php echo addslashes($user['name']); ?>', '?toggle_status=<?php echo $user['id']; ?>')"><i class="fas fa-check-circle me-1"></i> Activate</a>
                                                 <?php endif; ?>
@@ -785,7 +796,16 @@ $stmt->close();
                             </div>
                             <div class="col-md-6" id="addUserDepartmentGroup">
                                 <label class="form-label fw-semibold">Department</label>
-                                <input type="text" name="department" id="addUserDepartment" class="form-control" placeholder="Required for Staff">
+                                <select name="department" id="addUserDepartment" class="form-select">
+                                    <option value="">Select department</option>
+                                    <!-- SECTION: APPROVED STAFF DEPARTMENTS - Provides only valid business departments for Staff account creation. -->
+                                    <!-- SECURITY: Preventing invalid department values by limiting selectable options to the server-side whitelist. -->
+                                    <option value="Finance">Finance</option>
+                                    <option value="Human Resources">Human Resources</option>
+                                    <option value="Information Technology">Information Technology</option>
+                                    <option value="Marketing">Marketing</option>
+                                    <option value="Sales">Sales</option>
+                                </select>
                             </div>
                             <div class="col-12">
                                 <label class="form-label fw-semibold">Password *</label>
@@ -804,6 +824,72 @@ $stmt->close();
             </div>
         </div>
     </div>
+
+    <!-- CONDITION: Evaluates `if($view_user)` so the page renders the details modal only after an Admin selects a user to view. -->
+    <?php if ($view_user): ?>
+        <!-- SECTION: MODAL DIALOG - Displays one selected account record for Admin review. -->
+        <!-- WHY: The View action loads a specific user by ID, and this modal presents the fetched account details without requiring a separate page. -->
+        <div class="modal fade" id="viewUserModal" tabindex="-1" aria-labelledby="viewUserModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header" style="background: linear-gradient(135deg, #2e1065 0%, #4c1d95 100%); color: white;">
+                        <h5 class="modal-title" id="viewUserModalLabel">
+                            <i class="fas fa-eye me-2"></i>User Account Details
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="text-muted small fw-semibold">Full Name</div>
+                                <!-- SECURITY: Preventing XSS by escaping the selected user's name before display. -->
+                                <div class="fw-semibold"><?php echo htmlspecialchars($view_user['name'] ?? 'N/A', ENT_QUOTES, 'UTF-8'); ?></div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="text-muted small fw-semibold">Staff ID</div>
+                                <!-- SECURITY: Preventing XSS by escaping the selected user's staff ID before display. -->
+                                <div class="fw-semibold"><code><?php echo htmlspecialchars($view_user['staff_id'] ?? 'N/A', ENT_QUOTES, 'UTF-8'); ?></code></div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="text-muted small fw-semibold">Email</div>
+                                <!-- SECURITY: Preventing XSS by escaping the selected user's email before display. -->
+                                <div class="fw-semibold"><?php echo htmlspecialchars($view_user['email'] ?? 'N/A', ENT_QUOTES, 'UTF-8'); ?></div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="text-muted small fw-semibold">Phone</div>
+                                <!-- SECURITY: Preventing XSS by escaping the selected user's phone number before display. -->
+                                <div class="fw-semibold"><?php echo htmlspecialchars($view_user['phone'] ?? 'N/A', ENT_QUOTES, 'UTF-8'); ?></div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="text-muted small fw-semibold">Role</div>
+                                <!-- SECURITY: Preventing XSS by escaping role text before display. -->
+                                <div class="fw-semibold"><?php echo htmlspecialchars(ucfirst($view_user['role'] ?? 'N/A'), ENT_QUOTES, 'UTF-8'); ?></div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="text-muted small fw-semibold">Department</div>
+                                <!-- SECURITY: Preventing XSS by escaping department text before display. -->
+                                <div class="fw-semibold"><?php echo htmlspecialchars($view_user['department'] ?? 'N/A', ENT_QUOTES, 'UTF-8'); ?></div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="text-muted small fw-semibold">Status</div>
+                                <!-- SECURITY: Preventing XSS by escaping status text before display. -->
+                                <div class="fw-semibold"><?php echo htmlspecialchars($view_user['status'] ?? 'N/A', ENT_QUOTES, 'UTF-8'); ?></div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="text-muted small fw-semibold">Registered</div>
+                                <div class="fw-semibold">
+                                    <?php echo !empty($view_user['created_at']) ? date('d M Y, h:i A', strtotime($view_user['created_at'])) : 'N/A'; ?>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
 
     <!-- SECTION: CLIENT-SIDE BEHAVIOR - Loads JavaScript used for validation, alerts, navigation, charts, or tables. -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -866,7 +952,7 @@ $stmt->close();
         const addUserDepartment = document.getElementById('addUserDepartment');
 
         // CONDITION: Evaluates `if(addUserRole && addUserDepartment)` so the page remains stable if the modal is not rendered.
-        if(addUserRole && addUserDepartment) {
+        if (addUserRole && addUserDepartment) {
             addUserRole.addEventListener('change', function() {
                 const isStaff = this.value === 'staff';
                 addUserDepartment.required = isStaff;
@@ -875,6 +961,25 @@ $stmt->close();
             });
             addUserDepartment.disabled = true;
         }
+
+        // CONDITION: Evaluates `if($view_user)` so the user detail modal opens automatically after the View action reloads the page.
+        <?php if ($view_user): ?>
+            // SECTION: VIEW USER MODAL BEHAVIOR - Opens the selected account details after PHP has fetched the requested record.
+            // WHY: The View button passes the user ID through the URL, so the modal must be shown after the page reload completes.
+            document.addEventListener('DOMContentLoaded', function() {
+                const viewUserModalElement = document.getElementById('viewUserModal');
+                // CONDITION: Evaluates `if(viewUserModalElement)` so Bootstrap is only called when the modal exists in the document.
+                if (viewUserModalElement) {
+                    const viewUserModal = new bootstrap.Modal(viewUserModalElement);
+                    viewUserModal.show();
+
+                    // WHY: Removing the view query parameter after closing prevents the modal from reopening on a manual refresh.
+                    viewUserModalElement.addEventListener('hidden.bs.modal', function() {
+                        window.history.replaceState(null, '', 'Manage_User_Admin.php');
+                    });
+                }
+            });
+        <?php endif; ?>
 
         // Capture PHP validation messages and trigger a sleek "Toast" notification using SweetAlert.
         // CONDITION: Evaluates `if ($message)` so the application can choose the correct business rule branch for the current user action.

@@ -488,16 +488,15 @@ $claims = $conn->query($sql);
                                     <td>
                                         <div class="d-flex gap-2">
 
+                                            <!-- SECURITY: Preventing XSS by escaping dynamic claim metadata before placing it in button data attributes. -->
+                                            <!-- WHY: The View action depends on hidden modal data, so comments must stay outside the opening button tag to preserve valid HTML. -->
                                             <button class="btn btn-view"
                                                 data-bs-toggle="modal" data-bs-target="#auditModal"
-                                                data-id="<?php echo $c['id']; ?>"
-                                                <!-- SECURITY: Escaping output to prevent XSS attacks. -->
-                                                data-type="<?php echo htmlspecialchars($c['claim_type']); ?>"
+                                                data-id="<?php echo (int)$c['id']; ?>"
+                                                data-type="<?php echo htmlspecialchars($c['claim_type'], ENT_QUOTES, 'UTF-8'); ?>"
                                                 data-amount="<?php echo number_format($c['amount'], 2); ?>"
-                                                <!-- SECURITY: Escaping output to prevent XSS attacks. -->
-                                                data-desc="<?php echo htmlspecialchars($c['description']); ?>"
-                                                <!-- SECURITY: Escaping output to prevent XSS attacks. -->
-                                                data-receipt="<?php echo htmlspecialchars($c['receipt'] ?? ''); ?>">
+                                                data-desc="<?php echo htmlspecialchars($c['description'], ENT_QUOTES, 'UTF-8'); ?>"
+                                                data-receipt="<?php echo htmlspecialchars($c['receipt'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
                                                 <i class="fas fa-eye"></i> View
                                             </button>
 

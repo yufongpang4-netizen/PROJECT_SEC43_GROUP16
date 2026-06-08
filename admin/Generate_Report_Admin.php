@@ -43,8 +43,60 @@ $date_from   = $_GET['date_from']     ?? '';
 // WHY: GET parameters support filters, selected records, and dashboard links that can be bookmarked or refreshed.
 $date_to     = $_GET['date_to']       ?? '';
 
+// === SECTION 2A: APPROVED REPORT FILTER VALUES ===
+// What: Define the official role and department values that the report page is allowed to display and query.
+// Why: Reports must reflect the business policy, not historical shorthand values such as "IT", "HR", or invalid departments such as "Management".
+$valid_roles = ['staff', 'finance', 'admin'];
+$departments = ['Finance', 'Human Resources', 'Information Technology', 'Marketing', 'Sales'];
+
+// SECURITY: Preventing XSS and invalid filter injection by accepting only approved role values from the URL.
+// Why: Whitelisting protects the report header, export link, and query builder from unexpected user-supplied filter text.
+if ($filter_role !== '' && !in_array($filter_role, $valid_roles, true)) {
+    $filter_role = '';
+}
+
+// SECURITY: Preventing XSS and invalid filter injection by accepting only approved department values from the URL.
+// Why: The department filter must remain synchronized with the official UTMSPACE department list used by Admin account creation.
+if ($filter_dept !== '' && !in_array($filter_dept, $departments, true)) {
+    $filter_dept = '';
+}
+
 $generated   = false; // Flag to track if the "Generate" button was clicked
 $users       = [];    // Array to store the fetched report data
+
+// =========================================================================
+// SECTION 2B: DEPARTMENT DISPLAY NORMALIZATION
+// Purpose: Convert role-based and legacy department values into defense-ready report labels.
+// =========================================================================
+function formatReportDepartment($role, $department)
+{
+    // === SECTION: ROLE-BASED DEPARTMENT POLICY ===
+    // What: Admin users are displayed without a department, while Finance users are always displayed under Finance.
+    // Why: This matches the business rule that Admin is a system oversight role and Finance belongs to the Finance department.
+    $normalized_role = strtolower(trim((string) $role));
+    $normalized_department = trim((string) $department);
+
+    if ($normalized_role === 'admin') {
+        return '-';
+    }
+
+    if ($normalized_role === 'finance') {
+        return 'Finance';
+    }
+
+    // === SECTION: LEGACY STAFF DEPARTMENT LABEL SUPPORT ===
+    // What: Convert old shorthand database values into full academic department names for report readability.
+    // Why: Existing records may still contain shortcuts until the database cleanup SQL is executed.
+    $legacy_department_map = [
+        'IT' => 'Information Technology',
+        'Info Tech' => 'Information Technology',
+        'Information Tech' => 'Information Technology',
+        'HR' => 'Human Resources',
+        'Human Resource' => 'Human Resources',
+    ];
+
+    return $legacy_department_map[$normalized_department] ?? ($normalized_department !== '' ? $normalized_department : '-');
+}
 
 // =========================================================================
 // SECTION 3: CSV EXPORT LOGIC
@@ -83,7 +135,10 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
             $row['email'],
             $row['phone'] ?? '',
             ucfirst($row['role']), // Capitalize the first letter of the role
-            $row['department'] ?? '',
+            // === SECTION: CSV DEPARTMENT OUTPUT ===
+            // What: Export the normalized department label instead of the raw database value.
+            // Why: Downloaded reports must follow the same Admin and Finance department policy shown on screen.
+            formatReportDepartment($row['role'], $row['department'] ?? ''),
             $row['status'] ?? 'Active',
             // WHY: Date formatting converts database timestamps into human-readable dates for review and reports.
             date('d M Y', strtotime($row['created_at'])), // Format timestamp into a readable date
@@ -180,14 +235,11 @@ if (isset($_GET['generate'])) {
 }
 
 // =========================================================================
-// SECTION 7: FETCH DEPARTMENT LIST FOR DROPDOWN
-// Purpose: Get a unique list of all available departments for the filter dropdown.
+// SECTION 7: DEPARTMENT DROPDOWN SOURCE
+// Purpose: Keep the report filter aligned with the approved department policy defined in Section 2A.
 // =========================================================================
-// WHY: This read-only aggregate query calculates dashboard/report metrics directly from current database records.
-$depts_res   = $conn->query("SELECT DISTINCT department FROM users WHERE department IS NOT NULL AND department != '' ORDER BY department");
-$departments = [];
-// WHY: fetch_assoc() returns one database row as named fields, making the business data readable and display-ready.
-while ($d = $depts_res->fetch_assoc()) $departments[] = $d['department'];
+// What: The dropdown intentionally uses the curated $departments array instead of SELECT DISTINCT from users.
+// Why: This prevents legacy database values such as "IT", "HR", or "Management" from appearing as official report filters.
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -630,10 +682,10 @@ while ($d = $depts_res->fetch_assoc()) $departments[] = $d['department'];
                                         <option value="">All Departments</option>
                                         <?php foreach ($departments as $dept): ?>
                                             <!-- SECURITY: Escaping output to prevent XSS attacks. -->
-                                            <option value="<?php echo htmlspecialchars($dept); ?>"
+                                            <option value="<?php echo htmlspecialchars($dept, ENT_QUOTES, 'UTF-8'); ?>"
                                                 <?php echo $filter_dept === $dept ? 'selected' : ''; ?>>
                                                 <!-- SECURITY: Escaping output to prevent XSS attacks. -->
-                                                <?php echo htmlspecialchars($dept); ?>
+                                                <?php echo htmlspecialchars($dept, ENT_QUOTES, 'UTF-8'); ?>
                                             </option>
                                         <?php endforeach; ?>
                                     </select>
@@ -642,13 +694,13 @@ while ($d = $depts_res->fetch_assoc()) $departments[] = $d['department'];
                                 <div class="col-md-2">
                                     <label class="form-label">Registered From</label>
                                     <!-- SECURITY: Escaping output to prevent XSS attacks. -->
-                                    <input type="date" name="date_from" class="form-control" value="<?php echo htmlspecialchars($date_from); ?>">
+                                    <input type="date" name="date_from" class="form-control" value="<?php echo htmlspecialchars($date_from, ENT_QUOTES, 'UTF-8'); ?>">
                                 </div>
 
                                 <div class="col-md-2">
                                     <label class="form-label">Registered To</label>
                                     <!-- SECURITY: Escaping output to prevent XSS attacks. -->
-                                    <input type="date" name="date_to" class="form-control" value="<?php echo htmlspecialchars($date_to); ?>">
+                                    <input type="date" name="date_to" class="form-control" value="<?php echo htmlspecialchars($date_to, ENT_QUOTES, 'UTF-8'); ?>">
                                 </div>
 
                                 <div class="col-md-2">
@@ -693,9 +745,10 @@ while ($d = $depts_res->fetch_assoc()) $departments[] = $d['department'];
                             <div class="filters-info">
                                 <i class="fas fa-info-circle me-2" style="color: #8b5cf6;"></i>
                                 <strong>Filters Applied:</strong>
-                                Role: <strong><?php echo $filter_role ? ucfirst($filter_role) : 'All'; ?></strong> |
-                                Department: <strong><?php echo $filter_dept ?: 'All'; ?></strong> |
-                                Registered: <strong><?php echo $date_from ?: 'Start'; ?></strong> to <strong><?php echo $date_to ?: 'Now'; ?></strong>
+                                <!-- SECURITY: Preventing XSS by escaping filter labels before rendering them into the report summary. -->
+                                Role: <strong><?php echo htmlspecialchars($filter_role ? ucfirst($filter_role) : 'All', ENT_QUOTES, 'UTF-8'); ?></strong> |
+                                Department: <strong><?php echo htmlspecialchars($filter_dept ?: 'All', ENT_QUOTES, 'UTF-8'); ?></strong> |
+                                Registered: <strong><?php echo htmlspecialchars($date_from ?: 'Start', ENT_QUOTES, 'UTF-8'); ?></strong> to <strong><?php echo htmlspecialchars($date_to ?: 'Now', ENT_QUOTES, 'UTF-8'); ?></strong>
                             </div>
 
                             <!-- CONDITION: Evaluates `if (empty($users))` so the application can choose the correct business rule branch for the current user action. -->
@@ -735,6 +788,12 @@ while ($d = $depts_res->fetch_assoc()) $departments[] = $d['department'];
                                         </thead>
                                         <tbody>
                                             <?php foreach ($users as $i => $u): ?>
+                                                <?php
+                                                // === SECTION: ROW-LEVEL DEPARTMENT NORMALIZATION ===
+                                                // What: Prepare a normalized department label for this user before rendering the row.
+                                                // Why: The report table must show the business-approved department value instead of old database shortcuts.
+                                                $display_department = formatReportDepartment($u['role'], $u['department'] ?? '');
+                                                ?>
                                                 <tr>
                                                     <td class="fw-bold"><?php echo $i + 1; ?></td>
                                                     <!-- SECURITY: Escaping output to prevent XSS attacks. -->
@@ -747,7 +806,7 @@ while ($d = $depts_res->fetch_assoc()) $departments[] = $d['department'];
                                                     <td><?php echo htmlspecialchars($u['phone'] ?? '—'); ?></td>
                                                     <td><span class="role-badge" style="background: <?php echo $u['role'] == 'staff' ? '#3b82f6' : ($u['role'] == 'finance' ? '#10b981' : '#ef4444'); ?>; color: white;"><?php echo ucfirst($u['role']); ?></span></td>
                                                     <!-- SECURITY: Escaping output to prevent XSS attacks. -->
-                                                    <td><?php echo htmlspecialchars($u['department'] ?? '—'); ?></td>
+                                                    <td><?php echo htmlspecialchars($display_department, ENT_QUOTES, 'UTF-8'); ?></td>
                                                     <td><span class="<?php echo ($u['status'] ?? 'Active') == 'Active' ? 'status-active' : 'status-inactive'; ?>"><?php echo $u['status'] ?? 'Active'; ?></span></td>
                                                     <td><?php echo date('d M Y', strtotime($u['created_at'])); ?></td>
                                                 </tr>
