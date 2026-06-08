@@ -46,6 +46,20 @@ $staff_id = $user_data['staff_id'];
 // WHY: Date formatting converts database timestamps into human-readable dates for review and reports.
 $join_year = date('Y', strtotime($user_data['created_at']));
 
+// === SECTION: STAFF DEPARTMENT POLICY ===
+// What: Define the only departments that Staff users are allowed to select in their profile.
+// Why: Finance is a role-specific department for Finance users, while Staff profiles must remain limited to operational staff departments for accurate reporting.
+$valid_staff_departments = ['Human Resources', 'Information Technology', 'Marketing', 'Sales'];
+
+// === SECTION: LEGACY DEPARTMENT NORMALIZATION ===
+// What: Convert old shorthand values into the approved full department names before rendering the dropdown.
+// Why: Existing database records may still contain shortcuts such as "IT" or "HR", and the UI should display the clean business label.
+$legacy_staff_department_map = [
+    'IT' => 'Information Technology',
+    'HR' => 'Human Resources',
+];
+$current_dept = $legacy_staff_department_map[$current_dept] ?? $current_dept;
+
 // SECTION: FORM SUBMISSION HANDLER - Processes user input only after an intentional form submission.
 // CONDITION: Evaluates `if($_SERVER['REQUEST_METHOD'] == 'POST') ` so the application can choose the correct business rule branch for the current user action.
 if($_SERVER['REQUEST_METHOD'] == 'POST') {
@@ -54,7 +68,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     // BEST PRACTICE: trim() removes accidental whitespace before validation so values are stored and compared consistently.
     $phone = trim($_POST['phone']);
     // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
-    $department = $_POST['department'];
+    $department = trim($_POST['department'] ?? '');
     // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
     $password = $_POST['password'];
     
@@ -95,6 +109,14 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     // CONDITION: Evaluates `if (!empty($phone) && !preg_match('/^(\+?6?01)[0-9]{8,9}$/', $phone)) ` so the application can choose the correct business rule branch for the current user action.
     if (!empty($phone) && !preg_match('/^(\+?6?01)[0-9]{8,9}$/', $phone)) {
         $errors[] = "Please enter a valid phone number! Example: 0123456789 or +60123456789";
+    }
+
+    // 2A. Department validation
+    // VALIDATION: This condition accepts only the approved Staff department list before profile data is saved.
+    // SECURITY: Preventing invalid department injection by rejecting browser-modified values such as Finance, Operations, or Customer Service.
+    // Why: Staff department values drive reports and must stay consistent with the official business categories.
+    if (empty($department) || !in_array($department, $valid_staff_departments, true)) {
+        $errors[] = "Please select a valid Staff department.";
     }
     
     // 3. Password validation
@@ -509,13 +531,13 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 <div class="mb-3">
                                     <label class="form-label"><i class="fas fa-building me-1" style="color: #3b82f6;"></i>Department</label>
                                     <select name="department" id="department" class="form-select">
-                                        <option value="Information Technology" <?php echo ($current_dept == 'Information Technology') ? 'selected' : ''; ?>>Information Technology</option>
-                                        <option value="Human Resources" <?php echo ($current_dept == 'Human Resources') ? 'selected' : ''; ?>>Human Resources</option>
-                                        <option value="Finance" <?php echo ($current_dept == 'Finance') ? 'selected' : ''; ?>>Finance</option>
-                                        <option value="Marketing" <?php echo ($current_dept == 'Marketing') ? 'selected' : ''; ?>>Marketing</option>
-                                        <option value="Operations" <?php echo ($current_dept == 'Operations') ? 'selected' : ''; ?>>Operations</option>
-                                        <option value="Sales" <?php echo ($current_dept == 'Sales') ? 'selected' : ''; ?>>Sales</option>
-                                        <option value="Customer Service" <?php echo ($current_dept == 'Customer Service') ? 'selected' : ''; ?>>Customer Service</option>
+                                        <?php foreach ($valid_staff_departments as $department_option): ?>
+                                            <!-- SECURITY: Escaping output to prevent XSS attacks. -->
+                                            <!-- WHY: Department labels are encoded before display so report-related profile values cannot render unsafe HTML. -->
+                                            <option value="<?php echo htmlspecialchars($department_option, ENT_QUOTES, 'UTF-8'); ?>" <?php echo ($current_dept == $department_option) ? 'selected' : ''; ?>>
+                                                <?php echo htmlspecialchars($department_option, ENT_QUOTES, 'UTF-8'); ?>
+                                            </option>
+                                        <?php endforeach; ?>
                                     </select>
                                 </div>
                                 
