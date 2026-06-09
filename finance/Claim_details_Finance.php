@@ -648,9 +648,16 @@ $status = strtolower($claim['status']);
                                         This claim has been approved and is ready for payment transfer.
                                     </div>
                                     <div class="d-grid">
-                                        <a href="payment_gateway_Finance.php?id=<?php echo $claim['id']; ?>" class="btn btn-paid w-100 text-center text-decoration-none">
-                                            <i class="fas fa-money-check-alt me-2"></i>Proceed to Payment Gateway
-                                        </a>
+                                        <!-- === SECTION: STRIPE PAYMENT START FORM === -->
+                                        <!-- What: Start Stripe Checkout through a protected POST request instead of a direct simulated-payment URL. -->
+                                        <!-- Why: Payment initiation is a Finance state-changing workflow and must preserve CSRF protection before contacting Stripe. -->
+                                        <form method="POST" action="process_payment_Finance.php">
+                                            <?php echo csrfInputField(); ?>
+                                            <input type="hidden" name="claim_id" value="<?php echo (int)$claim['id']; ?>">
+                                            <button type="submit" class="btn btn-paid w-100 text-center">
+                                                <i class="fas fa-money-check-alt me-2"></i>Proceed to Stripe Checkout
+                                            </button>
+                                        </form>
                                     </div>
  
                                 <!-- CONDITION: Evaluates `elseif($status == 'paid')` so the application can choose the correct business rule branch for the current user action. -->

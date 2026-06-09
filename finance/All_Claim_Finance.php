@@ -26,6 +26,10 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'finance') {
 
 // SECTION: DEPENDENCY LOADING - Loads shared services so this page uses the same database and library logic as the rest of the system.
 require_once '../db.php';
+// === SECTION: CSRF DEFENSE DEPENDENCY ===
+// What: Load the centralized CSRF helper for the Finance Pay Now forms.
+// Why: Starting Stripe Checkout is a payment workflow action and must originate from the authenticated Finance session.
+require_once '../csrf_helper.php';
 
 // =========================================================================
 // SECTION 2: DYNAMIC SQL QUERY BUILDER (FOR FILTERING)
@@ -378,6 +382,7 @@ $counts['All'] = array_sum($counts);
         .btn-pay-now {
             background: #059669;
             color: white;
+            border: none;
             border-radius: 8px;
             padding: 6px 15px;
             font-size: 12px;
@@ -591,9 +596,16 @@ $counts['All'] = array_sum($counts);
 
                                                     <!-- CONDITION: Evaluates `if ($claim['status'] === 'Approved')` so the application can choose the correct business rule branch for the current user action. -->
                                                     <?php if ($claim['status'] === 'Approved'): ?>
-                                                        <a href="payment_gateway_Finance.php?id=<?php echo $claim['id']; ?>" class="btn-pay-now" style="margin: 0; padding: 6px 12px; height: 32px; display: inline-flex; align-items: center; white-space: nowrap;">
-                                                            <i class="fas fa-money-check-alt me-1"></i> Pay Now
-                                                        </a>
+                                                        <!-- === SECTION: STRIPE PAYMENT START FORM === -->
+                                                        <!-- What: Submit the approved claim ID to the Stripe Checkout creator through POST. -->
+                                                        <!-- Why: Pay Now must keep the existing CSRF protection before any payment session is created. -->
+                                                        <form method="POST" action="process_payment_Finance.php" style="margin: 0;">
+                                                            <?php echo csrfInputField(); ?>
+                                                            <input type="hidden" name="claim_id" value="<?php echo (int)$claim['id']; ?>">
+                                                            <button type="submit" class="btn-pay-now" style="margin: 0; padding: 6px 12px; height: 32px; display: inline-flex; align-items: center; white-space: nowrap;">
+                                                                <i class="fas fa-money-check-alt me-1"></i> Pay Now
+                                                            </button>
+                                                        </form>
                                                     <!-- CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome. -->
                                                     <?php else: ?>
                                                         <div style="width: 85px; height: 32px;"></div>
