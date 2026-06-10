@@ -12,44 +12,68 @@ $host     = "localhost";
 $user     = "root";
 $password = "";
 $database = "utmspace_claim";
- 
+
 $conn = new mysqli($host, $user, $password, $database);
- 
+
 // CONDITION: Evaluates `if ($conn->connect_error) ` so the application can choose the correct business rule branch for the current user action.
 if ($conn->connect_error) {
     die("Database connection failed: " . $conn->connect_error);
 }
- 
+
 $conn->set_charset("utf8mb4");
 
 // === SECTION: CLIENT IP DETECTION FOR AUDIT LOGGING ===
 // What: Resolve the best available client IP address from the current request.
 // Why: Online hosting may pass the real visitor address through proxy headers, while local XAMPP normally uses REMOTE_ADDR.
-function getClientIpAddress() {
+function getClientIpAddress()
+{
     // SECURITY: Header values are treated as untrusted and validated with FILTER_VALIDATE_IP before storage.
     // Why: Attackers can manipulate forwarded headers, so only a valid IP address should be written into audit records.
-    $candidate_headers = ['HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR', 'HTTP_CLIENT_IP', 'REMOTE_ADDR'];
+    $candidate_headers = [
+        'HTTP_CF_CONNECTING_IP',
+        'HTTP_X_REAL_IP',
+        'HTTP_X_FORWARDED_FOR',
+        'HTTP_CLIENT_IP',
+        'HTTP_FORWARDED',
+        'REMOTE_ADDR'
+    ];
 
     foreach ($candidate_headers as $header) {
         if (empty($_SERVER[$header])) {
             continue;
         }
 
-        $raw_value = explode(',', $_SERVER[$header])[0];
-        $ip_address = trim($raw_value);
+        // === SECTION: HOSTING HEADER NORMALIZATION ===
+        // What: Extract the first IP candidate from common proxy formats used by shared hosting providers.
+        // Why: InfinityFree or upstream proxies may store client IPs in forwarded headers instead of REMOTE_ADDR.
+        $raw_value = trim(explode(',', $_SERVER[$header])[0]);
+
+        if ($header === 'HTTP_FORWARDED' && preg_match('/for="?([^";,]+)"?/i', $raw_value, $matches)) {
+            $raw_value = $matches[1];
+        }
+
+        // SECURITY: Remove wrapper characters and ports before validation without trusting the original header string.
+        // Why: Some hosts report values such as "203.0.113.10:443" or "[2001:db8::1]".
+        $ip_address = trim($raw_value, " \t\n\r\0\x0B\"[]");
+
+        if (preg_match('/^\d{1,3}(?:\.\d{1,3}){3}:\d+$/', $ip_address)) {
+            $ip_address = preg_replace('/:\d+$/', '', $ip_address);
+        }
 
         if (filter_var($ip_address, FILTER_VALIDATE_IP)) {
             return $ip_address;
         }
     }
 
-    return null;
+    // WHY: Some free-hosting environments may not expose a usable client IP; storing a clear label is more useful than NULL.
+    return 'Unavailable';
 }
 
 // === SECTION: ACTIVITY LOGGING SERVICE ===
 // What: Write user actions such as claim submission, approval, payment, profile update, and account changes into activity_log.
 // Why: The project defense requires accountability evidence showing who performed important business actions and when.
-function logActivity($conn, $user_id, $action, $details = '') {
+function logActivity($conn, $user_id, $action, $details = '')
+{
     // SECURITY: Casting the session user ID keeps the audit insert strongly typed before bind_param().
     // Why: Activity logging should never allow browser/session values to become executable SQL.
     $safe_user_id = is_numeric($user_id) ? (int)$user_id : null;
@@ -96,4 +120,3 @@ function logActivity($conn, $user_id, $action, $details = '') {
 
     return $result;
 }
-?>
