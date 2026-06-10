@@ -104,6 +104,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'toggl
             // SECURITY: addslashes() protects generated JavaScript strings from breaking syntax when server messages contain quotes.
             $message = "User " . addslashes($row['name']) . " is now " . $new_status . ".";
             $message_type = 'success';
+
+            // === SECTION: ACTIVITY LOGGING ===
+            // What: Record Admin account activation or deactivation in the audit trail.
+            // Why: Account status changes control system access and must be traceable during system review.
+            if (function_exists('logActivity')) {
+                logActivity($conn, $_SESSION['user_id'], 'Update User Status', "Changed user #$uid status to $new_status");
+            }
         }
     }
 }
@@ -283,6 +290,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             // SECURITY: addslashes() protects generated JavaScript strings from breaking syntax when server messages contain quotes.
             $message = "New user " . addslashes($new_name) . " added successfully.";
             $message_type = 'success';
+
+            // === SECTION: ACTIVITY LOGGING ===
+            // What: Record that Admin created a new user account.
+            // Why: New account creation affects role access and should be included in the system accountability trail.
+            if (function_exists('logActivity')) {
+                logActivity($conn, $_SESSION['user_id'], 'Add User', "Created $new_role account for $new_name ($new_staff_id)");
+            }
             // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
         } else {
             $errors[] = "Database error: " . $conn->error;

@@ -94,6 +94,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && $valid_token) {
             // CONDITION: Evaluates `if ($update_stmt->execute()) ` so the application can choose the correct business rule branch for the current user action.
             if ($update_stmt->execute()) {
                 $success = true;
+                // === SECTION: ACTIVITY LOGGING ===
+                // What: Record that the account password was successfully changed through the reset flow.
+                // Why: Completed credential recovery is a security-sensitive event and should appear in the audit trail.
+                if (function_exists('logActivity')) {
+                    logActivity($conn, $user_id, 'Password Reset Complete', 'User password was reset successfully.');
+                }
                 // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
             } else {
                 $error = "Failed to update password. Please try again.";

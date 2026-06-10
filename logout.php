@@ -9,6 +9,18 @@
 // SECTION: SESSION INITIALIZATION - Starts or resumes the browser session so the application can identify the current authenticated user.
 session_start();
 
+// === SECTION: LOGOUT ACTIVITY DEPENDENCY ===
+// What: Load the database helper before clearing the session.
+// Why: The system must record the logout event while the authenticated user ID is still available.
+require_once "db.php";
+
+// === SECTION: ACTIVITY LOGGING ===
+// What: Record that the current user intentionally logged out.
+// Why: Login and logout records help prove session lifecycle activity in the audit trail.
+if (isset($_SESSION['user_id']) && function_exists('logActivity')) {
+    logActivity($conn, $_SESSION['user_id'], 'Logout', 'User logged out successfully.');
+}
+
 $_SESSION = array();
 
 // CONDITION: Evaluates `if (ini_get("session.use_cookies")) ` so the application can choose the correct business rule branch for the current user action.

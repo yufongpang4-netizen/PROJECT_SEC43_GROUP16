@@ -77,6 +77,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                     $_SESSION['role'] = $user['role'];
                     $_SESSION['email'] = $user['email'];
 
+                    // === SECTION: ACTIVITY LOGGING ===
+                    // What: Record successful user login in the audit trail.
+                    // Why: Login events help prove that role-based access and user sessions are active in the hosted system.
+                    if (function_exists('logActivity')) {
+                        logActivity($conn, $user['id'], 'Login', 'User logged in successfully.');
+                    }
+
                     // CONDITION: Evaluates `if ($user['role'] === 'staff') ` so the application can choose the correct business rule branch for the current user action.
                     if ($user['role'] === 'staff') {
                         $success_redirect = "staff/dashboard_Staff.php";

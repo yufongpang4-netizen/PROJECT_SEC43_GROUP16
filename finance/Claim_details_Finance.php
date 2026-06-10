@@ -140,6 +140,12 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             // CONDITION: Evaluates `if($stmt->execute())` so email notification is attempted only after the approval update succeeds.
             if($stmt->execute()) {
                 $success = "Claim has been APPROVED successfully!";
+                // === SECTION: ACTIVITY LOGGING ===
+                // What: Record that Finance approved this claim.
+                // Why: Approval decisions affect reimbursement workflow and should be visible in the audit trail.
+                if (function_exists('logActivity')) {
+                    logActivity($conn, $_SESSION['user_id'], 'Approve Claim', "Approved claim #$claim_id");
+                }
                 // SECTION: AUTOMATED CLAIM DECISION NOTIFICATION - Notifies Staff that Finance approved the claim.
                 // WHY: Approval email lets Staff know the claim can move toward payment without manually refreshing the portal.
                 if(!sendClaimDecisionNotification($conn, $claim_id, 'Approved', $remark)) {
@@ -169,6 +175,12 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                 // CONDITION: Evaluates `if($stmt->execute())` so email notification is attempted only after the rejection update succeeds.
                 if($stmt->execute()) {
                     $success = "Claim has been REJECTED.";
+                    // === SECTION: ACTIVITY LOGGING ===
+                    // What: Record that Finance rejected this claim.
+                    // Why: Rejection decisions require accountability because they stop or delay reimbursement.
+                    if (function_exists('logActivity')) {
+                        logActivity($conn, $_SESSION['user_id'], 'Reject Claim', "Rejected claim #$claim_id");
+                    }
                     // SECTION: AUTOMATED CLAIM DECISION NOTIFICATION - Notifies Staff that Finance rejected the claim and includes the required remark.
                     // WHY: Rejection email gives Staff the reason quickly so they can decide whether to correct and resubmit the claim.
                     if(!sendClaimDecisionNotification($conn, $claim_id, 'Rejected', $remark)) {

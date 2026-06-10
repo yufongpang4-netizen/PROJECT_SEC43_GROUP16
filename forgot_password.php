@@ -123,10 +123,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                         </div>
                     ";
 
-                        $mail->send();
-                        $status = 'success';
-                        $message = 'A password reset link has been sent to your email!';
-                    } catch (Exception $e) {
+                    $mail->send();
+                    $status = 'success';
+                    $message = 'A password reset link has been sent to your email!';
+
+                    // === SECTION: ACTIVITY LOGGING ===
+                    // What: Record that a password reset link was successfully sent.
+                    // Why: Account recovery activity should be visible during security review and troubleshooting.
+                    if (function_exists('logActivity')) {
+                        logActivity($conn, $user['id'], 'Password Reset Request', 'Password reset email sent successfully.');
+                    }
+                } catch (Exception $e) {
                         $status = 'error';
                         $message = "Message could not be sent. Mailer Error: {$mail->ErrorInfo}";
                     }

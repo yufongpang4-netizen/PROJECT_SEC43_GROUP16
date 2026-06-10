@@ -130,6 +130,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 // WHY: Executing the prepared statement performs the validated database operation for the current workflow.
                 // CONDITION: Evaluates `if ($stmt->execute())` so the application can choose the correct business rule branch for the current user action.
                 if ($stmt->execute()) {
+                    // WHY: insert_id captures the new Staff account for audit logging after registration completes successfully.
+                    $new_user_id = $stmt->insert_id;
                     // === SECTION: VERIFICATION EMAIL DELIVERY ===
                     // What: Build a signed account verification link and email it to the registered user.
                     // Why: The business workflow requires verified email ownership before a Staff account can access the claim portal.
@@ -156,6 +158,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                         // TRANSACTION: Commit only after the verification email has been accepted by the SMTP service.
                         // WHY: This keeps the registration workflow consistent for users and avoids duplicate unverified records after mail failures.
                         $conn->commit();
+                        // === SECTION: ACTIVITY LOGGING ===
+                        // What: Record successful Staff self-registration after the verification email is sent.
+                        // Why: Registration affects authentication records and should appear in the audit trail.
+                        if (function_exists('logActivity')) {
+                            logActivity($conn, $new_user_id, 'Register Account', 'Staff account registered and verification email sent.');
+                        }
                         $success = "Registration successful. Please check your email and verify your account before logging in.";
                     } else {
                         $conn->rollback();
