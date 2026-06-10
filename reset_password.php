@@ -23,7 +23,7 @@ $user_id = null;
 if (isset($_GET['token'])) {
     // WHY: GET parameters support filters, selected records, and dashboard links that can be bookmarked or refreshed.
     $token = $_GET['token'];
-    
+
     // SECURITY: Using Prepared Statements to prevent SQL Injection.
     // WHY: SQL is prepared separately from user data so identifiers, filters, and form values can be bound safely.
     $stmt = $conn->prepare("SELECT id, reset_token_expire FROM users WHERE reset_token = ?");
@@ -34,27 +34,27 @@ if (isset($_GET['token'])) {
     $stmt->execute();
     // WHY: get_result() turns the executed query into rows that can be rendered in dashboards, tables, or decision screens.
     $result = $stmt->get_result();
-    
+
     // CONDITION: Evaluates `if ($result->num_rows === 1) ` so the application can choose the correct business rule branch for the current user action.
     if ($result->num_rows === 1) {
         // WHY: fetch_assoc() returns one database row as named fields, making the business data readable and display-ready.
         $user = $result->fetch_assoc();
         $expire_time = strtotime($user['reset_token_expire']);
         $current_time = time();
-        
+
         // CONDITION: Evaluates `if ($current_time <= $expire_time) ` so the application can choose the correct business rule branch for the current user action.
         if ($current_time <= $expire_time) {
             $valid_token = true;
             $user_id = $user['id'];
-        // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+            // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
         } else {
             $error = "This password reset link has expired. Please request a new one.";
         }
-    // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+        // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
     } else {
         $error = "Invalid password reset link.";
     }
-// CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+    // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
 } else {
     $error = "No reset token provided.";
 }
@@ -67,44 +67,45 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && $valid_token) {
     if (!requireValidCsrfToken($_POST['csrf_token'] ?? '', $error)) {
         // The shared helper sets a safe user-facing error message.
     } else {
-    // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
-    $new_password = $_POST['new_password'];
-    // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
-    $confirm_password = $_POST['confirm_password'];
-    
-    // CONDITION: Evaluates `if (strlen($new_password) < 6) ` so the application can choose the correct business rule branch for the current user action.
-    if (strlen($new_password) < 6) {
-        $error = "Password must be at least 6 characters long.";
-    } elseif ($new_password !== $confirm_password) {
-        $error = "Passwords do not match!";
-    // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
-    } else {
-        // SECURITY: Hashing password using bcrypt.
-        // WHY: Only the password hash is stored, protecting the original password from database disclosure.
-        $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
-        
-        // SECURITY: Using Prepared Statements to prevent SQL Injection.
-        // WHY: SQL is prepared separately from user data so identifiers, filters, and form values can be bound safely.
-        $update_stmt = $conn->prepare("UPDATE users SET password = ?, reset_token = NULL, reset_token_expire = NULL WHERE id = ?");
-        // SECURITY: Using Prepared Statements to prevent SQL Injection.
-        // WHY: bind_param() attaches typed values to SQL placeholders, preventing input from becoming executable SQL.
-        $update_stmt->bind_param("si", $hashed_password, $user_id);
-        
-        // WHY: Executing the prepared statement performs the validated database operation for the current workflow.
-        // CONDITION: Evaluates `if ($update_stmt->execute()) ` so the application can choose the correct business rule branch for the current user action.
-        if ($update_stmt->execute()) {
-            $success = true;
-        // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+        // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
+        $new_password = $_POST['new_password'];
+        // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
+        $confirm_password = $_POST['confirm_password'];
+
+        // CONDITION: Evaluates `if (strlen($new_password) < 6) ` so the application can choose the correct business rule branch for the current user action.
+        if (strlen($new_password) < 6) {
+            $error = "Password must be at least 6 characters long.";
+        } elseif ($new_password !== $confirm_password) {
+            $error = "Passwords do not match!";
+            // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
         } else {
-            $error = "Failed to update password. Please try again.";
+            // SECURITY: Hashing password using bcrypt.
+            // WHY: Only the password hash is stored, protecting the original password from database disclosure.
+            $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
+
+            // SECURITY: Using Prepared Statements to prevent SQL Injection.
+            // WHY: SQL is prepared separately from user data so identifiers, filters, and form values can be bound safely.
+            $update_stmt = $conn->prepare("UPDATE users SET password = ?, reset_token = NULL, reset_token_expire = NULL WHERE id = ?");
+            // SECURITY: Using Prepared Statements to prevent SQL Injection.
+            // WHY: bind_param() attaches typed values to SQL placeholders, preventing input from becoming executable SQL.
+            $update_stmt->bind_param("si", $hashed_password, $user_id);
+
+            // WHY: Executing the prepared statement performs the validated database operation for the current workflow.
+            // CONDITION: Evaluates `if ($update_stmt->execute()) ` so the application can choose the correct business rule branch for the current user action.
+            if ($update_stmt->execute()) {
+                $success = true;
+                // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+            } else {
+                $error = "Failed to update password. Please try again.";
+            }
         }
-    }
     }
 }
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <!-- SECTION: DOCUMENT METADATA - Loads responsive settings and external UI libraries required by this page. -->
+
 <head>
     <meta charset="UTF-8">
     <title>Reset Password - UTMSPACE</title>
@@ -114,26 +115,95 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && $valid_token) {
     <!-- SECTION: PAGE-SPECIFIC CSS - Defines local layout and visual rules for this screen. -->
     <style>
         /* SECTION: DESIGN TOKENS - Central color variables keep role themes consistent across cards, buttons, and navigation. */
-        :root { --utm-navy: #0B3B5E; --utm-red: #C1272D; }
+        :root {
+            --utm-navy: #0B3B5E;
+            --utm-red: #C1272D;
+        }
+
         /* SECTION: PAGE FOUNDATION - Body rules set the base font, background, and overflow behavior for the whole screen. */
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow-x: hidden; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f0f4f8; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f0f4f8;
+        }
+
         /* WHY: The blurred background preserves institutional branding while keeping foreground forms readable. */
-        .blurry-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-image: url('css/images/utm.jpg'); background-size: cover; background-position: center; filter: blur(12px); transform: scale(1.1); z-index: 0; }
+        .blurry-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('css/images/utm.jpg');
+            background-size: cover;
+            background-position: center;
+            filter: blur(12px);
+            transform: scale(1.1);
+            z-index: 0;
+        }
+
         /* WHY: The blurred background preserves institutional branding while keeping foreground forms readable. */
-        .blurry-bg::after { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(11, 59, 94, 0.65); }
+        .blurry-bg::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(11, 59, 94, 0.65);
+        }
+
         /* SECTION: CARD/PANEL COMPONENT - This visual container groups related controls or records so business information is easier to scan. */
-        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(16px); border-radius: 30px; padding: 40px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.3); width: 100%; max-width: 450px; position: relative; z-index: 1; }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(16px);
+            border-radius: 30px;
+            padding: 40px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 450px;
+            position: relative;
+            z-index: 1;
+        }
+
         /* SECTION: FORM CONTROLS - Consistent input styling helps users enter claim/account data accurately. */
-        .form-control { border-radius: 12px; padding: 12px; }
+        .form-control {
+            border-radius: 12px;
+            padding: 12px;
+        }
+
         /* SECTION: FORM CONTROLS - Consistent input styling helps users enter claim/account data accurately. */
-        .form-control:focus { box-shadow: 0 0 0 3px rgba(11, 59, 94, 0.1); border-color: var(--utm-navy); }
+        .form-control:focus {
+            box-shadow: 0 0 0 3px rgba(11, 59, 94, 0.1);
+            border-color: var(--utm-navy);
+        }
+
         /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
-        .btn-custom { background: var(--utm-navy); color: white; border-radius: 50px; padding: 12px; font-weight: 600; width: 100%; transition: 0.3s; border: none; }
+        .btn-custom {
+            background: var(--utm-navy);
+            color: white;
+            border-radius: 50px;
+            padding: 12px;
+            font-weight: 600;
+            width: 100%;
+            transition: 0.3s;
+            border: none;
+        }
+
         /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
-        .btn-custom:hover { background: #082c47; transform: translateY(-2px); color: white; }
+        .btn-custom:hover {
+            background: #082c47;
+            transform: translateY(-2px);
+            color: white;
+        }
     </style>
 </head>
 <!-- SECTION: PAGE BODY - Begins the visible interface for the current UTMSPACE workflow. -->
+
 <body>
     <div class="blurry-bg"></div>
     <div class="glass-card">
@@ -152,7 +222,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && $valid_token) {
             <div class="text-center mt-4">
                 <a href="forgot_password.php" class="btn btn-custom">Request New Link</a>
             </div>
-        <!-- CONDITION: Evaluates `elseif ($success)` so the application can choose the correct business rule branch for the current user action. -->
+            <!-- CONDITION: Evaluates `elseif ($success)` so the application can choose the correct business rule branch for the current user action. -->
         <?php elseif ($success): ?>
             <!-- SECTION: CLIENT-SIDE BEHAVIOR - Loads JavaScript used for validation, alerts, navigation, charts, or tables. -->
             <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -173,14 +243,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && $valid_token) {
                     });
                 });
             </script>
-        <!-- CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome. -->
+            <!-- CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome. -->
         <?php else: ?>
             <!-- CONDITION: Evaluates `if ($error)` so the application can choose the correct business rule branch for the current user action. -->
             <?php if ($error): ?>
                 <!-- SECURITY: Escaping output to prevent XSS attacks. -->
                 <div class="alert alert-danger py-2"><?php echo htmlspecialchars($error); ?></div>
             <?php endif; ?>
-            
+
             <!-- SECTION: USER INPUT FORM - Captures business data that will be validated server-side before database changes occur. -->
             <form method="POST">
                 <?php echo csrfInputField(); ?>
@@ -199,4 +269,5 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && $valid_token) {
         <?php endif; ?>
     </div>
 </body>
+
 </html>
