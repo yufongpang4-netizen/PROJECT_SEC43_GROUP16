@@ -118,5 +118,17 @@ function logActivity($conn, $user_id, $action, $details = '')
     $result = $stmt->execute();
     $stmt->close();
 
+    // === SECTION: ALL-ADMIN ACTIVITY EMAIL DISTRIBUTION ===
+    // What: Email every active Admin after, and only after, the corresponding activity record is stored successfully.
+    // Why: The database remains the authoritative audit trail while email gives all Administrators immediate operational awareness.
+    if ($result) {
+        require_once __DIR__ . '/mailer_helper.php';
+
+        // CONDITION: Confirm the centralized helper is available so email failure never interrupts the completed business action.
+        if (function_exists('sendAdminActivityNotification')) {
+            sendAdminActivityNotification($conn, $safe_user_id, $action, $details, $ip_address);
+        }
+    }
+
     return $result;
 }

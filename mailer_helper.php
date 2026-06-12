@@ -127,3 +127,106 @@ function sendSystemEmail($toEmail, $toName, $subject, $bodyHTML)
         return false;
     }
 }
+
+// === SECTION: ROLE-BASED EMAIL DISTRIBUTION ===
+// What: Send one workflow email to every active user assigned to a selected system role.
+// Why: Claim notifications are team responsibilities, so routing must not stop after the first Finance or Admin account found.
+function sendSystemEmailToRole($conn, $role, $subject, $bodyHTML)
+{
+    // SECURITY: Restricting the role value prevents modified application data from selecting an unintended recipient group.
+    // Why: Only official UTMSPACE roles may be used as email distribution lists.
+    $allowedRoles = ['staff', 'finance', 'admin'];
+    if (!in_array($role, $allowedRoles, true)) {
+        return ['total' => 0, 'sent' => 0, 'failed' => 0];
+    }
+
+    // SECURITY: Preventing SQL Injection by retrieving active recipients through a prepared statement.
+    // Why: Role-based routing must remain safe even when the requested role originates from application workflow data.
+    $activeStatus = 'Active';
+    $recipientStmt = $conn->prepare("SELECT name, email FROM users WHERE role = ? AND status = ? ORDER BY id ASC");
+    if (!$recipientStmt) {
+        error_log('UTMSPACE Mailer Error: Role recipient query could not be prepared.');
+        return ['total' => 0, 'sent' => 0, 'failed' => 0];
+    }
+
+    // SECURITY: bind_param() keeps role and status values separate from executable SQL.
+    $recipientStmt->bind_param('ss', $role, $activeStatus);
+    $recipientStmt->execute();
+    $recipientResult = $recipientStmt->get_result();
+
+    $delivery = ['total' => 0, 'sent' => 0, 'failed' => 0];
+
+    // === SECTION: INDIVIDUAL RECIPIENT DELIVERY ===
+    // What: Deliver a separate message to each eligible recipient instead of exposing addresses through CC fields.
+    // Why: Individual delivery preserves account privacy and allows one invalid mailbox to fail without blocking the remaining team.
+    while ($recipient = $recipientResult->fetch_assoc()) {
+        $delivery['total']++;
+
+        if (sendSystemEmail($recipient['email'], $recipient['name'], $subject, $bodyHTML)) {
+            $delivery['sent']++;
+        } else {
+            $delivery['failed']++;
+        }
+    }
+
+    $recipientStmt->close();
+    return $delivery;
+}
+
+// === SECTION: ADMIN ACTIVITY EMAIL NOTIFICATION ===
+// What: Convert a successfully recorded activity-log event into an email for every active Admin account.
+// Why: Administrators need prompt oversight of authentication, account, claim, decision, and payment actions without manually checking the database.
+function sendAdminActivityNotification($conn, $actorUserId, $action, $details, $ipAddress)
+{
+    $actorName = 'System or Unknown User';
+    $actorStaffId = 'Not available';
+    $actorRole = 'Not available';
+
+    // SECURITY: Preventing SQL Injection by binding the activity actor identifier before retrieving account context.
+    // Why: Admin emails should identify the responsible user while preserving the safety of the central audit workflow.
+    if (is_numeric($actorUserId)) {
+        $actorId = (int) $actorUserId;
+        $actorStmt = $conn->prepare("SELECT name, staff_id, role FROM users WHERE id = ? LIMIT 1");
+
+        if ($actorStmt) {
+            $actorStmt->bind_param('i', $actorId);
+            $actorStmt->execute();
+            $actor = $actorStmt->get_result()->fetch_assoc();
+            $actorStmt->close();
+
+            if ($actor) {
+                $actorName = $actor['name'];
+                $actorStaffId = $actor['staff_id'];
+                $actorRole = ucfirst($actor['role']);
+            }
+        }
+    }
+
+    // SECURITY: Preventing XSS by encoding all database and request values before placing them into the Admin HTML email.
+    // Why: Activity details and network information must remain display-only text in every recipient's email client.
+    $safeActorName = htmlspecialchars((string) $actorName, ENT_QUOTES, 'UTF-8');
+    $safeActorStaffId = htmlspecialchars((string) $actorStaffId, ENT_QUOTES, 'UTF-8');
+    $safeActorRole = htmlspecialchars((string) $actorRole, ENT_QUOTES, 'UTF-8');
+    $safeAction = htmlspecialchars((string) $action, ENT_QUOTES, 'UTF-8');
+    $safeDetails = nl2br(htmlspecialchars((string) $details, ENT_QUOTES, 'UTF-8'));
+    $safeIpAddress = htmlspecialchars((string) $ipAddress, ENT_QUOTES, 'UTF-8');
+    $safeOccurredAt = htmlspecialchars(date('d M Y, h:i:s A'), ENT_QUOTES, 'UTF-8');
+
+    // === SECTION: ADMIN AUDIT EMAIL BODY ===
+    // What: Present the actor, action, details, IP address, and time in a concise oversight table.
+    // Why: Consistent context helps Admin distinguish normal workflow activity from records that require investigation.
+    $activityBody = '
+        <p style="margin:0 0 14px;">A new action has been recorded in the UTMSPACE activity log.</p>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse; margin:18px 0;">
+            <tr><td style="padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; font-weight:700;">Action</td><td style="padding:10px 12px; border:1px solid #e2e8f0;">' . $safeAction . '</td></tr>
+            <tr><td style="padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; font-weight:700;">User</td><td style="padding:10px 12px; border:1px solid #e2e8f0;">' . $safeActorName . ' (' . $safeActorStaffId . ')</td></tr>
+            <tr><td style="padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; font-weight:700;">Role</td><td style="padding:10px 12px; border:1px solid #e2e8f0;">' . $safeActorRole . '</td></tr>
+            <tr><td style="padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; font-weight:700;">Details</td><td style="padding:10px 12px; border:1px solid #e2e8f0;">' . $safeDetails . '</td></tr>
+            <tr><td style="padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; font-weight:700;">IP Address</td><td style="padding:10px 12px; border:1px solid #e2e8f0;">' . $safeIpAddress . '</td></tr>
+            <tr><td style="padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; font-weight:700;">Recorded At</td><td style="padding:10px 12px; border:1px solid #e2e8f0;">' . $safeOccurredAt . '</td></tr>
+        </table>
+        <p style="margin:0;">Review the activity log or related portal record when further investigation is required.</p>
+    ';
+
+    return sendSystemEmailToRole($conn, 'admin', 'Activity Alert: ' . $action, $activityBody);
+}

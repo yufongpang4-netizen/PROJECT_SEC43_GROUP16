@@ -178,32 +178,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') == 'POST') {
                 // WHY: Immediate email notification reduces manual checking and keeps the claim workflow moving after Staff submission.
                 $new_claim_id = $stmt->insert_id;
 
-                // SECURITY: Using Prepared Statements to prevent SQL Injection.
-                // WHY: SQL is prepared separately from role-filter values so notification routing remains safe and auditable.
-                $finance_role = 'finance';
-                $finance_stmt = $conn->prepare("SELECT name, email FROM users WHERE role = ? LIMIT 1");
-                // SECURITY: Using Prepared Statements to prevent SQL Injection.
-                // WHY: bind_param() attaches the Finance role safely instead of embedding workflow criteria directly into executable SQL.
-                $finance_stmt->bind_param("s", $finance_role);
-                // WHY: Executing the prepared statement retrieves the Finance recipient responsible for the next claim-processing step.
-                $finance_stmt->execute();
-                // WHY: get_result() turns the recipient query into a readable result set for notification logic.
-                $finance_result = $finance_stmt->get_result();
+                // SECURITY: Preventing XSS by escaping dynamic claim values before placing them into the HTML email body.
+                // WHY: Email content may render in rich clients, so Staff-entered and database values must remain display-only text.
+                $safe_claim_type = htmlspecialchars($claim_type, ENT_QUOTES, 'UTF-8');
+                $safe_claim_id   = htmlspecialchars((string)$new_claim_id, ENT_QUOTES, 'UTF-8');
+                $safe_amount     = htmlspecialchars(number_format($amount, 2), ENT_QUOTES, 'UTF-8');
 
-                // CONDITION: Evaluates `if($finance_result->num_rows > 0)` so the application only sends email when a Finance account exists.
-                if ($finance_result->num_rows > 0) {
-                    // WHY: fetch_assoc() returns Finance recipient data as named fields for clear email construction.
-                    $finance_user = $finance_result->fetch_assoc();
-
-                    // SECURITY: Preventing XSS by escaping dynamic claim values before placing them into the HTML email body.
-                    // WHY: Email content may render in rich clients, so Staff-entered and database values must remain display-only text.
-                    $safe_claim_type = htmlspecialchars($claim_type, ENT_QUOTES, 'UTF-8');
-                    $safe_claim_id   = htmlspecialchars((string)$new_claim_id, ENT_QUOTES, 'UTF-8');
-                    $safe_amount     = htmlspecialchars(number_format($amount, 2), ENT_QUOTES, 'UTF-8');
-
-                    // SECTION: EMAIL BODY CREATION - Builds a concise Finance action message with the exact claim reference and amount.
-                    // WHY: Finance can quickly identify the pending claim and prioritize payment workflow review.
-                    $finance_body = '
+                // SECTION: EMAIL BODY CREATION - Builds a concise Finance action message with the exact claim reference and amount.
+                // WHY: Every active Finance user receives the same actionable information for shared review responsibility.
+                $finance_body = '
                         <p style="margin:0 0 14px;">A new staff claim has been submitted and is awaiting Finance review.</p>
                         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse; margin:18px 0;">
                             <tr>
@@ -222,11 +205,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') == 'POST') {
                         <p style="margin:0;">Please log in to the Finance dashboard to review and process this claim.</p>
                     ';
 
-                    // WHY: sendSystemEmail() centralizes PHPMailer delivery and keeps business modules focused on workflow data.
-                    sendSystemEmail($finance_user['email'], $finance_user['name'], 'New Claim Submitted for Finance Review', $finance_body);
-                }
-                // WHY: Closing the recipient statement releases database resources after the notification routing check completes.
-                $finance_stmt->close();
+                // === SECTION: ALL-FINANCE EMAIL DISTRIBUTION ===
+                // What: Send the new-claim notification to every active Finance account instead of selecting only one recipient.
+                // Why: Any authorized Finance officer may review the claim, so the whole active Finance team needs prompt visibility.
+                sendSystemEmailToRole($conn, 'finance', 'New Claim Submitted for Finance Review', $finance_body);
 
                 $success = "Claim submitted successfully! Finance will review your claim.";
                 if (function_exists('logActivity')) {
