@@ -12,18 +12,9 @@ session_start();
 require_once "db.php";
 // SECTION: SECURITY HELPER LOADING - Loads reusable CSRF protection for the password reset request form.
 require_once "csrf_helper.php";
-
-// SECTION: DEPENDENCY LOADING - Loads shared services so this page uses the same database and library logic as the rest of the system.
-require 'vendor/Exception.php';
-// SECTION: DEPENDENCY LOADING - Loads shared services so this page uses the same database and library logic as the rest of the system.
-require 'vendor/PHPMailer.php';
-// SECTION: DEPENDENCY LOADING - Loads shared services so this page uses the same database and library logic as the rest of the system.
-require 'vendor/SMTP.php';
-
-// WHY: Importing PHPMailer classes keeps the password-reset email workflow maintainable instead of manually implementing SMTP calls.
-use PHPMailer\PHPMailer\PHPMailer;
-// WHY: Importing PHPMailer classes keeps the password-reset email workflow maintainable instead of manually implementing SMTP calls.
-use PHPMailer\PHPMailer\Exception;
+// SECTION: CENTRAL EMAIL SERVICE LOADING - Loads the same tested SMTP configuration used by registration, claim, and payment notifications.
+// WHY: Password reset must not maintain separate credentials because duplicated mail settings can become outdated and fail independently.
+require_once "mailer_helper.php";
 
 $message = '';
 $status = ''; // success or error
@@ -87,55 +78,53 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                         (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
                         (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https')
                     ) ? 'https' : 'http';
-                    $base_path = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/');
-                    $reset_link = $scheme . '://' . $_SERVER['HTTP_HOST'] . $base_path . '/reset_password.php?token=' . urlencode($token);
 
-                    // SECURITY: Preventing XSS by escaping dynamic email content before inserting it into the HTML email body.
-                    // Why: Staff names and generated URLs must remain display-only content in email clients.
-                    $safe_name = htmlspecialchars($user['name'], ENT_QUOTES, 'UTF-8');
-                    $safe_reset_link = htmlspecialchars($reset_link, ENT_QUOTES, 'UTF-8');
+                    // SECURITY: Accept only approved local or deployed host names before placing the reset link into an email.
+                    // Why: Host headers are supplied by the request and must not be allowed to redirect password recovery to an attacker-controlled website.
+                    $request_host = strtolower(preg_replace('/:\d+$/', '', trim($_SERVER['HTTP_HOST'] ?? '')));
+                    $allowed_hosts = ['localhost', '127.0.0.1', 'utmspace-claim-group16.infinityfree.me'];
 
-                    $mail = new PHPMailer(true);
-                    try {
-                        $mail->isSMTP();
-                        $mail->Host       = 'smtp.gmail.com';
-                        $mail->SMTPAuth   = true;
-                        $mail->Username   = 'utmspaceclaim.demo@gmail.com';
-                        $mail->Password   = 'kjvsghjthnholvyi';
-                        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-                        $mail->Port       = 587;
-
-                        $mail->setFrom('utmspaceclaim.demo@gmail.com', 'UTMSPACE Admin');
-                        $mail->addAddress($email, $user['name']);
-
-                        $mail->isHTML(true);
-                        $mail->Subject = 'Password Reset Request - UTMSPACE';
-                        $mail->Body    = "
-                        <div style='font-family: Arial, sans-serif; padding: 20px; color: #333;'>
-                            <h2 style='color: #0B3B5E;'>UTMSPACE Claim System</h2>
-                            <p>Hi {$safe_name},</p>
-                            <p>We received a request to reset your password. Click the button below to set a new password:</p>
-                            <p>
-                                <a href='{$safe_reset_link}' style='background-color: #C1272D; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;'>Reset Password</a>
-                            </p>
-                            <p style='color: #666; font-size: 12px;'>If the button does not work, open this link in your browser:<br>{$safe_reset_link}</p>
-                            <p style='color: #666; font-size: 12px;'>This link will expire in 15 minutes.<br>If you did not request this, please ignore this email.</p>
-                        </div>
-                    ";
-
-                    $mail->send();
-                    $status = 'success';
-                    $message = 'A password reset link has been sent to your email!';
-
-                    // === SECTION: ACTIVITY LOGGING ===
-                    // What: Record that a password reset link was successfully sent.
-                    // Why: Account recovery activity should be visible during security review and troubleshooting.
-                    if (function_exists('logActivity')) {
-                        logActivity($conn, $user['id'], 'Password Reset Request', 'Password reset email sent successfully.');
-                    }
-                } catch (Exception $e) {
+                    if (!in_array($request_host, $allowed_hosts, true)) {
                         $status = 'error';
-                        $message = "Message could not be sent. Mailer Error: {$mail->ErrorInfo}";
+                        $message = 'Password reset could not verify the website address. Please contact the system administrator.';
+                    } else {
+                        $base_path = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/');
+                        $reset_link = $scheme . '://' . $_SERVER['HTTP_HOST'] . $base_path . '/reset_password.php?token=' . urlencode($token);
+
+                        // SECURITY: Preventing XSS by escaping the generated URL before inserting it into the HTML email body.
+                        // Why: The recovery link must remain a safe display and navigation value inside the recipient's email client.
+                        $safe_reset_link = htmlspecialchars($reset_link, ENT_QUOTES, 'UTF-8');
+
+                        // === SECTION: PASSWORD RESET EMAIL BODY ===
+                        // What: Build the account-recovery message before passing it to the centralized corporate email template.
+                        // Why: Reusing one mail service keeps SMTP behavior consistent across localhost and InfinityFree deployment.
+                        $reset_body = "
+                            <div style='font-family: Arial, sans-serif; padding: 20px; color: #333;'>
+                                <p>We received a request to reset your password. Click the button below to set a new password:</p>
+                                <p>
+                                    <a href='{$safe_reset_link}' style='background-color: #C1272D; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;'>Reset Password</a>
+                                </p>
+                                <p style='color: #666; font-size: 12px;'>If the button does not work, open this link in your browser:<br>{$safe_reset_link}</p>
+                                <p style='color: #666; font-size: 12px;'>This link will expire in 15 minutes.<br>If you did not request this, please ignore this email.</p>
+                            </div>
+                        ";
+
+                        // SECTION: CENTRALIZED RESET EMAIL DELIVERY - Sends recovery mail through the same PHPMailer helper used by working workflow notifications.
+                        // WHY: A false return is handled visibly so the page never reports success when SMTP delivery actually failed.
+                        if (sendSystemEmail($email, $user['name'], 'Password Reset Request - UTMSPACE', $reset_body)) {
+                            $status = 'success';
+                            $message = 'A password reset link has been sent to your email!';
+
+                            // === SECTION: ACTIVITY LOGGING ===
+                            // What: Record that a password reset link was successfully sent.
+                            // Why: Account recovery activity should be visible during security review and troubleshooting.
+                            if (function_exists('logActivity')) {
+                                logActivity($conn, $user['id'], 'Password Reset Request', 'Password reset email sent successfully.');
+                            }
+                        } else {
+                            $status = 'error';
+                            $message = 'The reset email could not be delivered. Please contact the system administrator or try again later.';
+                        }
                     }
                     // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
                 } else {
