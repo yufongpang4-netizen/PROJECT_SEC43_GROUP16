@@ -109,19 +109,29 @@ if(isset($_SESSION['user_id'])) {
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
         }
         
-        /* Logo Styles - PROPER SIZE */
+        /* === SECTION: RESPONSIVE BRAND LOGO === */
+        /* What: Give the UTMSPACE logo stronger visual prominence on the public landing page. */
+        /* Why: The institutional identity should be immediately recognizable without overwhelming the primary actions. */
         .utm-logo {
             text-align: center;
             margin-bottom: 20px;
         }
         
-        /* Fixed logo size - NOT too big */
         .utmspace-logo-img {
-            max-width: 150px;
+            max-width: 230px;
             width: 100%;
             height: auto;
             margin-bottom: 10px;
             background: transparent;
+        }
+
+        /* === SECTION: MOBILE LOGO CONSTRAINT === */
+        /* What: Reduce the enlarged logo on narrow screens while preserving its natural aspect ratio. */
+        /* Why: Mobile users retain clear branding without the logo crowding headings or action controls. */
+        @media (max-width: 576px) {
+            .utmspace-logo-img {
+                max-width: 180px;
+            }
         }
         
         .logo-divider {
@@ -247,11 +257,13 @@ if(isset($_SESSION['user_id'])) {
                 <div class="col-lg-10 col-xl-9">
                     <div class="glass-card p-4 p-md-5 fade-in-up">
                         
-                        <!-- Logo Image - PROPER SIZE (150px max) -->
+                        <!-- === SECTION: VERSIONED BRAND LOGO === -->
+                        <!-- What: Append the uploaded logo modification time to its URL so hosting and browser caches recognize each replacement. -->
+                        <!-- Why: Visitors should immediately see the current UTMSPACE branding after the image is updated on InfinityFree. -->
                         <div class="utm-logo">
-                            <img src="css/images/utmspace logo.png" alt="UTMSPACE Logo" class="utmspace-logo-img" 
+                            <img src="css/images/utmspace%20logo.png?v=<?php echo filemtime(__DIR__ . '/css/images/utmspace logo.png'); ?>" alt="UTMSPACE Logo" class="utmspace-logo-img" 
                                  style="background: transparent;"
-                                 onerror="this.src='css/images/utm_space1.jpg'">
+                                 onerror="this.onerror=null; this.src='css/images/utm_space.jpeg';">
                             <div class="logo-divider"></div>
                         </div>
                         
@@ -262,8 +274,11 @@ if(isset($_SESSION['user_id'])) {
                             </div>
                         </div>
                         
-                        <h2 class="h3 text-center mb-3 main-title">Efficient Claim Management System</h2>
-                        <p class="text-center text-muted mb-4">Submit, track, and manage your expense claims with ease and transparency</p>
+                        <!-- === SECTION: OBJECTIVE SYSTEM INTRODUCTION === -->
+                        <!-- What: Identify the application by its official project name and summarize its implemented workflows. -->
+                        <!-- Why: Factual wording supports academic documentation requirements without making subjective quality claims. -->
+                        <h2 class="h3 text-center mb-3 main-title">UTMSPACE Staff Pay and Claim System</h2>
+                        <p class="text-center text-muted mb-4">Submit expense claims, monitor claim status, review records, and export reports through one role-based platform.</p>
                         
                         <div class="d-flex justify-content-center gap-3 mb-4 flex-wrap">
                             <a href="login.php" class="btn btn-primary-custom">
@@ -317,19 +332,19 @@ if(isset($_SESSION['user_id'])) {
                             <!-- BOOTSTRAP LAYOUT: col-md-4 creates three balanced columns for summary cards or supporting panels. -->
                             <div class="col-md-4 mb-2 mb-md-0">
                                 <span class="text-muted small">
-                                    <i class="fas fa-bolt footer-icon"></i> Easy submission
+                                    <i class="fas fa-file-circle-plus footer-icon"></i> Online claim submission
                                 </span>
                             </div>
                             <!-- BOOTSTRAP LAYOUT: col-md-4 creates three balanced columns for summary cards or supporting panels. -->
                             <div class="col-md-4 mb-2 mb-md-0">
                                 <span class="text-muted small">
-                                    <i class="fas fa-check-double footer-icon"></i> Fast approval
+                                    <i class="fas fa-clipboard-check footer-icon"></i> Finance review workflow
                                 </span>
                             </div>
                             <!-- BOOTSTRAP LAYOUT: col-md-4 creates three balanced columns for summary cards or supporting panels. -->
                             <div class="col-md-4">
                                 <span class="text-muted small">
-                                    <i class="fas fa-shield-alt footer-icon"></i> Secure system
+                                    <i class="fas fa-user-shield footer-icon"></i> Role-based access control
                                 </span>
                             </div>
                         </div>

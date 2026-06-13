@@ -1,108 +1,104 @@
 <?php
 // ============================================================================
 // SECTION 0: DEFENSE-READY COMMENTING CONTEXT
-// Purpose: reset_password.php is part of the UTMSPACE Staff Pay and Claim System.
-// The following comments intentionally explain both what each block does and why
-// it supports authentication, claim governance, reporting accuracy, security, or
-// examiner-readable user interaction during the final-year project defense.
+// Purpose: reset_password.php securely changes an account password after the
+// user proves inbox ownership with a short-lived six-digit recovery code.
 // ============================================================================
-// SECTION: SESSION INITIALIZATION - Starts or resumes the browser session so the application can identify the current authenticated user.
+
+// === SECTION: SESSION INITIALIZATION ===
+// What: Resume the recovery session so the requested email can be carried from the Forgot Password page.
+// Why: Session context improves usability but is never treated as proof that the user owns the account.
 session_start();
-// SECTION: DEPENDENCY LOADING - Loads shared services so this page uses the same database and library logic as the rest of the system.
-require_once "db.php";
-// SECTION: SECURITY HELPER LOADING - Loads reusable CSRF protection for the password reset form.
-require_once "csrf_helper.php";
+
+// === SECTION: DEPENDENCY LOADING ===
+// What: Load the shared database and CSRF services used by the credential-change form.
+// Why: Password changes are security-sensitive database actions and require centralized protection.
+require_once 'db.php';
+require_once 'csrf_helper.php';
 
 $error = '';
 $success = false;
-$valid_token = false;
-$user_id = null;
+$email = trim($_POST['email'] ?? ($_SESSION['pending_reset_email'] ?? ''));
 
-// WHY: GET parameters support filters, selected records, and dashboard links that can be bookmarked or refreshed.
-// CONDITION: Evaluates `if (isset($_GET['token'])) ` so the application can choose the correct business rule branch for the current user action.
-if (isset($_GET['token'])) {
-    // WHY: GET parameters support filters, selected records, and dashboard links that can be bookmarked or refreshed.
-    $token = $_GET['token'];
-
-    // SECURITY: Using Prepared Statements to prevent SQL Injection.
-    // WHY: SQL is prepared separately from user data so identifiers, filters, and form values can be bound safely.
-    $stmt = $conn->prepare("SELECT id, reset_token_expire FROM users WHERE reset_token = ?");
-    // SECURITY: Using Prepared Statements to prevent SQL Injection.
-    // WHY: bind_param() attaches typed values to SQL placeholders, preventing input from becoming executable SQL.
-    $stmt->bind_param("s", $token);
-    // WHY: Executing the prepared statement performs the validated database operation for the current workflow.
-    $stmt->execute();
-    // WHY: get_result() turns the executed query into rows that can be rendered in dashboards, tables, or decision screens.
-    $result = $stmt->get_result();
-
-    // CONDITION: Evaluates `if ($result->num_rows === 1) ` so the application can choose the correct business rule branch for the current user action.
-    if ($result->num_rows === 1) {
-        // WHY: fetch_assoc() returns one database row as named fields, making the business data readable and display-ready.
-        $user = $result->fetch_assoc();
-        $expire_time = strtotime($user['reset_token_expire']);
-        $current_time = time();
-
-        // CONDITION: Evaluates `if ($current_time <= $expire_time) ` so the application can choose the correct business rule branch for the current user action.
-        if ($current_time <= $expire_time) {
-            $valid_token = true;
-            $user_id = $user['id'];
-            // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
-        } else {
-            $error = "This password reset link has expired. Please request a new one.";
-        }
-        // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
-    } else {
-        $error = "Invalid password reset link.";
-    }
-    // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
-} else {
-    $error = "No reset token provided.";
-}
-
-// SECTION: FORM SUBMISSION HANDLER - Processes user input only after an intentional form submission.
-// CONDITION: Evaluates `if ($_SERVER['REQUEST_METHOD'] === 'POST' && $valid_token) ` so the application can choose the correct business rule branch for the current user action.
-if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && $valid_token) {
-    // SECURITY: Preventing CSRF by validating the reset-password form token before updating credentials.
-    // Why: Password changes must originate from the legitimate token-protected UTMSPACE reset form.
+// === SECTION: PASSWORD RESET FORM HANDLER ===
+// What: Validate the submitted email, recovery code, and new password before changing credentials.
+// Why: All required evidence must be verified by the server in one controlled transaction.
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     if (!requireValidCsrfToken($_POST['csrf_token'] ?? '', $error)) {
-        // The shared helper sets a safe user-facing error message.
+        // The shared helper provides a safe user-facing message.
     } else {
-        // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
-        $new_password = $_POST['new_password'];
-        // WHY: Reading POST data captures the user-submitted business values before validation and database updates.
-        $confirm_password = $_POST['confirm_password'];
+        $email = trim($_POST['email'] ?? '');
+        $resetCode = trim($_POST['reset_code'] ?? '');
+        $newPassword = $_POST['new_password'] ?? '';
+        $confirmPassword = $_POST['confirm_password'] ?? '';
 
-        // CONDITION: Evaluates `if (strlen($new_password) < 6) ` so the application can choose the correct business rule branch for the current user action.
-        if (strlen($new_password) < 6) {
-            $error = "Password must be at least 6 characters long.";
-        } elseif ($new_password !== $confirm_password) {
-            $error = "Passwords do not match!";
-            // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+        // === SECTION: RECOVERY ATTEMPT LIMIT ===
+        // What: Track failed code submissions per email and browser session.
+        // Why: Six-digit codes require online-attempt controls to reduce automated guessing during their short lifetime.
+        $attemptKey = hash('sha256', strtolower($email));
+        $attempts = (int) ($_SESSION['password_reset_attempts'][$attemptKey] ?? 0);
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $error = 'Enter the same valid email address used for the reset request.';
+        } elseif ($attempts >= 5) {
+            $error = 'Too many incorrect attempts. Request a new password reset code.';
+        } elseif (!preg_match('/^[0-9]{6}$/', $resetCode)) {
+            $error = 'The password reset code must contain exactly six digits.';
+        } elseif (
+            strlen($newPassword) < 8 ||
+            !preg_match('/[A-Z]/', $newPassword) ||
+            !preg_match('/[a-z]/', $newPassword) ||
+            !preg_match('/[0-9]/', $newPassword) ||
+            !preg_match('/[!@#$%^&*()_+\-=\[\]{};:\'\",.<>?\/\\\\|`~]/', $newPassword)
+        ) {
+            // VALIDATION: Apply the same strict policy used by registration and profile password changes.
+            $error = 'Password must contain at least 8 characters, 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character.';
+        } elseif ($newPassword !== $confirmPassword) {
+            $error = 'Passwords do not match.';
         } else {
-            // SECURITY: Hashing password using bcrypt.
-            // WHY: Only the password hash is stored, protecting the original password from database disclosure.
-            $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
+            // SECURITY: Preventing SQL Injection by binding the account email before retrieving the reset-code hash.
+            $userStmt = $conn->prepare("SELECT id, reset_token, reset_token_expire FROM users WHERE email = ? LIMIT 1");
+            $userStmt->bind_param('s', $email);
+            $userStmt->execute();
+            $user = $userStmt->get_result()->fetch_assoc();
+            $userStmt->close();
 
-            // SECURITY: Using Prepared Statements to prevent SQL Injection.
-            // WHY: SQL is prepared separately from user data so identifiers, filters, and form values can be bound safely.
-            $update_stmt = $conn->prepare("UPDATE users SET password = ?, reset_token = NULL, reset_token_expire = NULL WHERE id = ?");
-            // SECURITY: Using Prepared Statements to prevent SQL Injection.
-            // WHY: bind_param() attaches typed values to SQL placeholders, preventing input from becoming executable SQL.
-            $update_stmt->bind_param("si", $hashed_password, $user_id);
+            $submittedHash = hash('sha256', $resetCode);
 
-            // WHY: Executing the prepared statement performs the validated database operation for the current workflow.
-            // CONDITION: Evaluates `if ($update_stmt->execute()) ` so the application can choose the correct business rule branch for the current user action.
-            if ($update_stmt->execute()) {
-                $success = true;
-                // === SECTION: ACTIVITY LOGGING ===
-                // What: Record that the account password was successfully changed through the reset flow.
-                // Why: Completed credential recovery is a security-sensitive event and should appear in the audit trail.
-                if (function_exists('logActivity')) {
-                    logActivity($conn, $user_id, 'Password Reset Complete', 'User password was reset successfully.');
-                }
-                // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
+            if (!$user || empty($user['reset_token'])) {
+                $_SESSION['password_reset_attempts'][$attemptKey] = $attempts + 1;
+                $error = 'The email address or password reset code is incorrect.';
+            } elseif (empty($user['reset_token_expire']) || strtotime($user['reset_token_expire']) < time()) {
+                $error = 'This password reset code has expired. Request a new code.';
+            } elseif (!hash_equals($user['reset_token'], $submittedHash)) {
+                // SECURITY: hash_equals() prevents timing differences during recovery-code comparison.
+                $_SESSION['password_reset_attempts'][$attemptKey] = $attempts + 1;
+                $remainingAttempts = max(0, 4 - $attempts);
+                $error = 'The email address or password reset code is incorrect. Remaining attempts: ' . $remainingAttempts . '.';
             } else {
-                $error = "Failed to update password. Please try again.";
+                // SECURITY: Hash the new password before storage and clear the single-use recovery code atomically.
+                $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+                $userId = (int) $user['id'];
+                $storedToken = $user['reset_token'];
+                $updateStmt = $conn->prepare("UPDATE users SET password = ?, reset_token = NULL, reset_token_expire = NULL WHERE id = ? AND reset_token = ?");
+                $updateStmt->bind_param('sis', $hashedPassword, $userId, $storedToken);
+                $updateStmt->execute();
+                $updated = $updateStmt->affected_rows;
+                $updateStmt->close();
+
+                if ($updated === 1) {
+                    unset($_SESSION['pending_reset_email'], $_SESSION['password_reset_attempts'][$attemptKey]);
+                    $success = true;
+
+                    // === SECTION: ACTIVITY LOGGING ===
+                    // What: Record successful credential recovery after the code is consumed.
+                    // Why: Password changes are security-sensitive events that require an audit trail.
+                    if (function_exists('logActivity')) {
+                        logActivity($conn, $userId, 'Password Reset Complete', 'User password was reset successfully using a six-digit code.');
+                    }
+                } else {
+                    $error = 'The password could not be updated. Request a new reset code and try again.';
+                }
             }
         }
     }
@@ -110,170 +106,121 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && $valid_token) {
 ?>
 <!DOCTYPE html>
 <html lang="en">
-<!-- SECTION: DOCUMENT METADATA - Loads responsive settings and external UI libraries required by this page. -->
-
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reset Password - UTMSPACE</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bootstrap-4/bootstrap-4.css">
-    <!-- SECTION: PAGE-SPECIFIC CSS - Defines local layout and visual rules for this screen. -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
     <style>
-        /* SECTION: DESIGN TOKENS - Central color variables keep role themes consistent across cards, buttons, and navigation. */
-        :root {
-            --utm-navy: #0B3B5E;
-            --utm-red: #C1272D;
-        }
-
-        /* SECTION: PAGE FOUNDATION - Body rules set the base font, background, and overflow behavior for the whole screen. */
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            overflow-x: hidden;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #f0f4f8;
-        }
-
-        /* WHY: The blurred background preserves institutional branding while keeping foreground forms readable. */
-        .blurry-bg {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: url('css/images/utm.jpg');
-            background-size: cover;
-            background-position: center;
-            filter: blur(12px);
-            transform: scale(1.1);
-            z-index: 0;
-        }
-
-        /* WHY: The blurred background preserves institutional branding while keeping foreground forms readable. */
-        .blurry-bg::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(11, 59, 94, 0.65);
-        }
-
-        /* SECTION: CARD/PANEL COMPONENT - This visual container groups related controls or records so business information is easier to scan. */
-        .glass-card {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(16px);
-            border-radius: 30px;
-            padding: 40px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
-            width: 100%;
-            max-width: 450px;
-            position: relative;
-            z-index: 1;
-        }
-
-        /* SECTION: FORM CONTROLS - Consistent input styling helps users enter claim/account data accurately. */
-        .form-control {
-            border-radius: 12px;
-            padding: 12px;
-        }
-
-        /* SECTION: FORM CONTROLS - Consistent input styling helps users enter claim/account data accurately. */
-        .form-control:focus {
-            box-shadow: 0 0 0 3px rgba(11, 59, 94, 0.1);
-            border-color: var(--utm-navy);
-        }
-
-        /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
-        .btn-custom {
-            background: var(--utm-navy);
-            color: white;
-            border-radius: 50px;
-            padding: 12px;
-            font-weight: 600;
-            width: 100%;
-            transition: 0.3s;
-            border: none;
-        }
-
-        /* SECTION: ACTION BUTTONS - Button styling highlights primary actions such as submitting claims, approving claims, exporting reports, or paying claims. */
-        .btn-custom:hover {
-            background: #082c47;
-            transform: translateY(-2px);
-            color: white;
-        }
+        /* === SECTION: PAGE FOUNDATION === */
+        /* What: Center the recovery form on a restrained institutional background. */
+        /* Why: A focused layout reduces mistakes while entering security and password information. */
+        body { min-height:100vh; margin:0; padding:24px; background:#0B3B5E; font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; display:flex; align-items:center; justify-content:center; }
+        .reset-card { width:100%; max-width:520px; background:#fff; border-radius:8px; padding:32px; box-shadow:0 20px 45px rgba(0,0,0,.25); }
+        .reset-icon { width:68px; height:68px; margin:0 auto 18px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#e8f1f8; color:#0B3B5E; font-size:28px; }
+        .form-control { min-height:48px; border-radius:8px; }
+        .code-input { font-size:24px; font-weight:700; letter-spacing:8px; text-align:center; }
+        .btn-custom { min-height:48px; width:100%; background:#0B3B5E; color:#fff; border:0; border-radius:8px; font-weight:600; }
+        .btn-custom:hover { background:#082f4b; color:#fff; }
+        .password-rules { font-size:13px; color:#64748b; }
     </style>
 </head>
-<!-- SECTION: PAGE BODY - Begins the visible interface for the current UTMSPACE workflow. -->
-
 <body>
-    <div class="blurry-bg"></div>
-    <div class="glass-card">
-        <div class="text-center mb-4">
-            <h3 class="fw-bold" style="color: var(--utm-navy);">Reset Password</h3>
-            <p class="text-muted small">Create a new, strong password.</p>
-        </div>
+    <!-- === SECTION: ANIMATED PASSWORD RESET PANEL === -->
+    <!-- What: Introduce the password recovery form with a brief entrance animation. -->
+    <!-- Why: The motion directs attention to the security workflow without obstructing form access. -->
+    <main class="reset-card animate__animated animate__fadeInUp">
+        <div class="reset-icon"><i class="fas fa-key"></i></div>
+        <h3 class="text-center fw-bold mb-2" style="color:#0B3B5E;">Reset Password</h3>
+        <p class="text-center text-muted mb-4">Enter the six-digit code sent to your email and create a new password.</p>
 
-        <!-- CONDITION: Evaluates `if (!$valid_token && !$success)` so the application can choose the correct business rule branch for the current user action. -->
-        <?php if (!$valid_token && !$success): ?>
-            <div class="alert alert-danger text-center">
-                <i class="fas fa-exclamation-triangle fa-2x mb-2"></i><br>
-                <!-- SECURITY: Escaping output to prevent XSS attacks. -->
-                <?php echo htmlspecialchars($error); ?>
-            </div>
-            <div class="text-center mt-4">
-                <a href="forgot_password.php" class="btn btn-custom">Request New Link</a>
-            </div>
-            <!-- CONDITION: Evaluates `elseif ($success)` so the application can choose the correct business rule branch for the current user action. -->
-        <?php elseif ($success): ?>
-            <!-- SECTION: CLIENT-SIDE BEHAVIOR - Loads JavaScript used for validation, alerts, navigation, charts, or tables. -->
-            <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-            <!-- SECTION: CLIENT-SIDE BEHAVIOR - Loads JavaScript used for validation, alerts, navigation, charts, or tables. -->
-            <script>
-                // SECTION: DOM READY HANDLER - Runs UI logic only after page elements exist, preventing null references.
-                document.addEventListener('DOMContentLoaded', function() {
-                    // SECTION: SWEETALERT FEEDBACK - Shows high-visibility success, error, warning, or confirmation messages for important actions.
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Password Updated!',
-                        text: 'Your password has been changed successfully. You can now login.',
-                        confirmButtonColor: '#0B3B5E',
-                        allowOutsideClick: false
-                    }).then((result) => {
-                        // WHY: Redirecting after success moves the user to the next logical workflow page without manual navigation.
-                        window.location.href = 'login.php';
-                    });
-                });
-            </script>
-            <!-- CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome. -->
+        <?php if ($success): ?>
+            <!-- === SECTION: SUCCESSFUL RESET STATE === -->
+            <!-- What: Keep the page free from additional form controls after the password has been changed. -->
+            <!-- Why: The animated confirmation below provides one clear and safe next action: returning to Login. -->
         <?php else: ?>
-            <!-- CONDITION: Evaluates `if ($error)` so the application can choose the correct business rule branch for the current user action. -->
             <?php if ($error): ?>
-                <!-- SECURITY: Escaping output to prevent XSS attacks. -->
-                <div class="alert alert-danger py-2"><?php echo htmlspecialchars($error); ?></div>
+                <!-- SECURITY: Preventing XSS by escaping password-reset errors before display. -->
+                <div class="alert alert-danger"><?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?></div>
             <?php endif; ?>
 
-            <!-- SECTION: USER INPUT FORM - Captures business data that will be validated server-side before database changes occur. -->
-            <form method="POST">
+            <!-- === SECTION: PROTECTED PASSWORD RESET FORM === -->
+            <!-- What: Collect the registered email, recovery code, and matching replacement passwords. -->
+            <!-- Why: The server requires inbox proof and a policy-compliant password before updating credentials. -->
+            <form method="POST" id="resetForm" autocomplete="off">
                 <?php echo csrfInputField(); ?>
                 <div class="mb-3">
-                    <label class="form-label text-navy fw-semibold">New Password</label>
-                    <input type="password" name="new_password" class="form-control" required minlength="6" placeholder="Enter new password">
+                    <label class="form-label fw-semibold">Registered Email</label>
+                    <input type="email" name="email" class="form-control" required value="<?php echo htmlspecialchars($email, ENT_QUOTES, 'UTF-8'); ?>">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Six-Digit Reset Code</label>
+                    <input type="text" id="resetCode" name="reset_code" class="form-control code-input" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required placeholder="000000">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">New Password</label>
+                    <input type="password" name="new_password" id="newPassword" class="form-control" required minlength="8">
+                    <div class="password-rules mt-2">Minimum 8 characters with uppercase, lowercase, number and special character.</div>
                 </div>
                 <div class="mb-4">
-                    <label class="form-label text-navy fw-semibold">Confirm Password</label>
-                    <input type="password" name="confirm_password" class="form-control" required minlength="6" placeholder="Confirm new password">
+                    <label class="form-label fw-semibold">Confirm New Password</label>
+                    <input type="password" name="confirm_password" class="form-control" required minlength="8">
                 </div>
-                <button type="submit" class="btn btn-custom mb-3">
-                    <i class="fas fa-save me-2"></i>Save New Password
-                </button>
+                <button type="submit" class="btn btn-custom"><i class="fas fa-save me-2"></i>Save New Password</button>
             </form>
-        <?php endif; ?>
-    </div>
-</body>
 
+            <div class="text-center mt-3">
+                <a href="forgot_password.php" class="text-decoration-none">Request a new reset code</a>
+            </div>
+        <?php endif; ?>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // === SECTION: PASSWORD RESET STATUS POPUP ===
+        // What: Display initial instructions, validation errors, or successful completion through one animated dialog.
+        // Why: Consistent visual feedback makes the recovery workflow easier to understand and reduces repeated submissions.
+        document.addEventListener('DOMContentLoaded', function () {
+            // SECURITY: PHP values are JSON encoded before entering JavaScript to prevent script injection.
+            const resetSuccessful = <?php echo $success ? 'true' : 'false'; ?>;
+            const resetError = <?php echo json_encode($error, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+            const popupIcon = resetSuccessful ? 'success' : (resetError ? 'error' : 'info');
+            const popupTitle = resetSuccessful ? 'Password Updated' : (resetError ? 'Reset Unsuccessful' : 'Reset Your Password');
+            const popupMessage = resetSuccessful
+                ? 'Your password has been changed successfully. You can now log in.'
+                : (resetError || 'Enter the six-digit code sent to your email and create a new password.');
+
+            Swal.fire({
+                icon: popupIcon,
+                title: popupTitle,
+                text: popupMessage,
+                confirmButtonText: resetSuccessful ? 'Go to Login' : 'Continue',
+                confirmButtonColor: '#0B3B5E',
+                allowOutsideClick: !resetSuccessful,
+                backdrop: 'rgba(4, 30, 48, 0.68)',
+                showClass: {
+                    popup: 'animate__animated animate__zoomIn'
+                },
+                hideClass: {
+                    popup: 'animate__animated animate__zoomOut'
+                }
+            }).then(function () {
+                // === SECTION: POST-POPUP NAVIGATION ===
+                // What: Send completed recoveries to Login and return incomplete recoveries to the code field.
+                // Why: The page automatically places the user at the next relevant action in the workflow.
+                if (resetSuccessful) {
+                    window.location.href = 'login.php';
+                    return;
+                }
+
+                const resetCodeInput = document.getElementById('resetCode');
+                if (resetCodeInput) {
+                    resetCodeInput.focus();
+                }
+            });
+        });
+    </script>
+</body>
 </html>

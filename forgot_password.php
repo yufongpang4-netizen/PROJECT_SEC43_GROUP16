@@ -53,10 +53,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 // WHY: fetch_assoc() returns one database row as named fields, making the business data readable and display-ready.
                 $user = $result->fetch_assoc();
 
-                // SECURITY: random_bytes() generates cryptographically secure reset-token entropy so password-reset links cannot be predicted.
-                // BEST PRACTICE: bin2hex() converts secure binary token bytes into a URL-safe reset-token string.
-                $token = bin2hex(random_bytes(32));
-                // SECURITY: The password-reset token expires after 15 minutes to limit abuse if a link is exposed.
+                // === SECTION: PASSWORD RESET CODE GENERATION ===
+                // What: Generate a six-digit recovery code and store only its SHA-256 hash.
+                // Why: Code-based recovery proves inbox access without placing the hosted website URL inside the email.
+                // SECURITY: random_int() creates an unpredictable code, while hashing protects the readable code if the database is exposed.
+                $reset_code = (string) random_int(100000, 999999);
+                $token = hash('sha256', $reset_code);
+                // SECURITY: The password-reset code expires after 15 minutes to limit misuse if the email is exposed.
                 // WHY: Date formatting converts database timestamps into human-readable dates for review and reports.
                 $expire_time = date('Y-m-d H:i:s', strtotime('+15 minutes'));
 
@@ -70,61 +73,37 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 // WHY: Executing the prepared statement performs the validated database operation for the current workflow.
                 // CONDITION: Evaluates `if ($update_stmt->execute()) ` so the application can choose the correct business rule branch for the current user action.
                 if ($update_stmt->execute()) {
-                    // === SECTION: PASSWORD RESET LINK GENERATION ===
-                    // What: Build the reset-password URL from the current request host instead of hardcoding localhost.
-                    // Why: The same password-reset email must work on both local XAMPP and the deployed InfinityFree domain.
-                    // SECURITY: urlencode() keeps the reset token safe inside the URL query string.
-                    $scheme = (
-                        (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
-                        (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https')
-                    ) ? 'https' : 'http';
+                    // SECURITY: Preventing XSS by escaping the numeric code before placing it into the HTML email template.
+                    // Why: Even generated values should remain display-only content in the recipient's email client.
+                    $safe_reset_code = htmlspecialchars($reset_code, ENT_QUOTES, 'UTF-8');
 
-                    // SECURITY: Accept only approved local or deployed host names before placing the reset link into an email.
-                    // Why: Host headers are supplied by the request and must not be allowed to redirect password recovery to an attacker-controlled website.
-                    $request_host = strtolower(preg_replace('/:\d+$/', '', trim($_SERVER['HTTP_HOST'] ?? '')));
-                    $allowed_hosts = ['localhost', '127.0.0.1', 'utmspace-claim-group16.infinityfree.me'];
+                    // === SECTION: PASSWORD RESET CODE EMAIL BODY ===
+                    // What: Send only the short-lived recovery code and no public-domain hyperlink.
+                    // Why: The user can complete recovery manually while avoiding delivery problems caused by a flagged hosted URL.
+                    $reset_body = "
+                        <p style='margin:0 0 18px;'>We received a request to reset your UTMSPACE Claim System password.</p>
+                        <p style='margin:0 0 18px;'>Enter the following code on the Reset Password page:</p>
+                        <div style='margin:0 0 18px; padding:16px; background:#f8fafc; border:1px solid #cbd5e1; text-align:center; font-size:30px; font-weight:700; letter-spacing:8px; color:#0B3B5E;'>{$safe_reset_code}</div>
+                        <p style='margin:0; color:#64748b; font-size:13px;'>This code expires in 15 minutes and can be used only once.</p>
+                        <p style='margin:12px 0 0; color:#64748b; font-size:13px;'>If you did not request a password reset, you may ignore this message.</p>
+                    ";
 
-                    if (!in_array($request_host, $allowed_hosts, true)) {
-                        $status = 'error';
-                        $message = 'Password reset could not verify the website address. Please contact the system administrator.';
-                    } else {
-                        $base_path = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/');
-                        $reset_link = $scheme . '://' . $_SERVER['HTTP_HOST'] . $base_path . '/reset_password.php?token=' . urlencode($token);
+                    // SECTION: CENTRALIZED RESET EMAIL DELIVERY - Sends recovery mail through the same PHPMailer helper used by other workflow notifications.
+                    // WHY: A false result is shown as an error so the page never reports delivery success inaccurately.
+                    if (sendSystemEmail($email, $user['name'], 'Your UTMSPACE password reset code', $reset_body)) {
+                        $_SESSION['pending_reset_email'] = $email;
+                        $status = 'success';
+                        $message = 'A six-digit password reset code has been sent to your email.';
 
-                        // SECURITY: Preventing XSS by escaping the generated URL before inserting it into the HTML email body.
-                        // Why: The recovery link must remain a safe display and navigation value inside the recipient's email client.
-                        $safe_reset_link = htmlspecialchars($reset_link, ENT_QUOTES, 'UTF-8');
-
-                        // === SECTION: PASSWORD RESET EMAIL BODY ===
-                        // What: Build the account-recovery message before passing it to the centralized corporate email template.
-                        // Why: Reusing one mail service keeps SMTP behavior consistent across localhost and InfinityFree deployment.
-                        $reset_body = "
-                            <div style='font-family: Arial, sans-serif; padding: 20px; color: #333;'>
-                                <p>We received a request to reset your password. Click the button below to set a new password:</p>
-                                <p>
-                                    <a href='{$safe_reset_link}' style='background-color: #C1272D; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;'>Reset Password</a>
-                                </p>
-                                <p style='color: #666; font-size: 12px;'>If the button does not work, open this link in your browser:<br>{$safe_reset_link}</p>
-                                <p style='color: #666; font-size: 12px;'>This link will expire in 15 minutes.<br>If you did not request this, please ignore this email.</p>
-                            </div>
-                        ";
-
-                        // SECTION: CENTRALIZED RESET EMAIL DELIVERY - Sends recovery mail through the same PHPMailer helper used by working workflow notifications.
-                        // WHY: A false return is handled visibly so the page never reports success when SMTP delivery actually failed.
-                        if (sendSystemEmail($email, $user['name'], 'Password Reset Request - UTMSPACE', $reset_body)) {
-                            $status = 'success';
-                            $message = 'A password reset link has been sent to your email!';
-
-                            // === SECTION: ACTIVITY LOGGING ===
-                            // What: Record that a password reset link was successfully sent.
-                            // Why: Account recovery activity should be visible during security review and troubleshooting.
-                            if (function_exists('logActivity')) {
-                                logActivity($conn, $user['id'], 'Password Reset Request', 'Password reset email sent successfully.');
-                            }
-                        } else {
-                            $status = 'error';
-                            $message = 'The reset email could not be delivered. Please contact the system administrator or try again later.';
+                        // === SECTION: ACTIVITY LOGGING ===
+                        // What: Record that a password reset code was successfully sent.
+                        // Why: Account recovery activity should be visible during security review and troubleshooting.
+                        if (function_exists('logActivity')) {
+                            logActivity($conn, $user['id'], 'Password Reset Request', 'Password reset code sent successfully.');
                         }
+                    } else {
+                        $status = 'error';
+                        $message = 'The reset code could not be delivered. Please contact the system administrator or try again later.';
                     }
                     // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
                 } else {
@@ -284,12 +263,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             // SECTION: SWEETALERT FEEDBACK - Shows high-visibility success, error, warning, or confirmation messages for important actions.
             Swal.fire({
                 icon: 'success',
-                title: 'Email Sent!',
+                title: 'Reset Code Sent!',
                 text: '<?php echo addslashes($message); ?>',
                 confirmButtonColor: '#0B3B5E'
                 // WHY: Redirecting after success moves the user to the next logical workflow page without manual navigation.
             }).then(() => {
-                window.location.href = 'login.php';
+                // WHY: Continue directly to secure code entry after successful delivery.
+                window.location.href = 'reset_password.php';
             });
             // CONDITION: Evaluates `elseif($status === 'error')` so the application can choose the correct business rule branch for the current user action.
         <?php elseif ($status === 'error'): ?>

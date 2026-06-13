@@ -289,7 +289,7 @@ PROJECT_SEC43_GROUP16/
 ├── register.php            Staff registration page
 ├── verify_email.php        Email verification page
 ├── forgot_password.php     Password reset request page
-├── reset_password.php      Password reset page
+├── reset_password.php      Six-digit code password reset page
 └── index.php               Public landing page
 ```
 
@@ -351,7 +351,7 @@ Check that:
 
 ### Login Blocked After Registration
 
-Self-registered Staff accounts must verify email before login. Open the verification link sent to the registered email address.
+Self-registered Staff accounts must verify email before login. Enter the six-digit code sent to the registered email address. The code expires after 15 minutes, and a replacement can be requested from `verify_email.php`.
 
 ### Receipt Upload Failed
 

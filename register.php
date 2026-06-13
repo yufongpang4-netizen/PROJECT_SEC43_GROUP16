@@ -106,13 +106,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             // WHY: Only the password hash is stored, protecting the original password from database disclosure.
             $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
-            // === SECTION: EMAIL VERIFICATION TOKEN GENERATION ===
-            // What: Create a random verification token and expiry timestamp for the new Staff account.
-            // Why: Login must be blocked until the user proves ownership of the registered email address.
-            // SECURITY: random_bytes() produces cryptographically secure token material for the verification link.
+            // === SECTION: EMAIL VERIFICATION CODE GENERATION ===
+            // What: Create a six-digit verification code, store only its SHA-256 hash, and apply a short expiry period.
+            // Why: Code-based verification proves email ownership without placing the hosted website URL inside the email message.
+            // SECURITY: random_int() produces an unpredictable numeric code, while hashing prevents the readable code from being stored in the database.
             $email_verified = 0;
-            $verification_token = bin2hex(random_bytes(32));
-            $verification_expires_at = date('Y-m-d H:i:s', strtotime('+24 hours'));
+            $verification_code = (string) random_int(100000, 999999);
+            $verification_token = hash('sha256', $verification_code);
+            $verification_expires_at = date('Y-m-d H:i:s', strtotime('+15 minutes'));
 
             // SECURITY: Using Prepared Statements to prevent SQL Injection.
             // WHY: SQL is prepared separately from user data so identifiers, filters, and form values can be bound safely.
@@ -132,26 +133,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 if ($stmt->execute()) {
                     // WHY: insert_id captures the new Staff account for audit logging after registration completes successfully.
                     $new_user_id = $stmt->insert_id;
-                    // === SECTION: VERIFICATION EMAIL DELIVERY ===
-                    // What: Build a signed account verification link and email it to the registered user.
-                    // Why: The business workflow requires verified email ownership before a Staff account can access the claim portal.
-                    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-                    $base_path = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/');
-                    $verification_link = $scheme . '://' . $_SERVER['HTTP_HOST'] . $base_path . '/verify_email.php?token=' . urlencode($verification_token);
-
-                    // SECURITY: Preventing XSS by escaping dynamic email content before inserting it into the HTML message.
-                    $safe_link = htmlspecialchars($verification_link, ENT_QUOTES, 'UTF-8');
-
+                    // === SECTION: VERIFICATION CODE EMAIL DELIVERY ===
+                    // What: Email the single-use numeric code without embedding a public website link.
+                    // Why: Staff can complete verification manually while avoiding delivery problems associated with a flagged hosted URL.
+                    // SECURITY: The generated code contains digits only and is escaped before display in the email template.
+                    $safe_verification_code = htmlspecialchars($verification_code, ENT_QUOTES, 'UTF-8');
                     $verification_body = '
                         <p style="margin:0 0 14px;">Your UTMSPACE Staff account has been created successfully.</p>
-                        <p style="margin:0 0 18px;">Please verify your email address before logging in to the claim system.</p>
-                        <p style="margin:0 0 20px;">
-                            <a href="' . $safe_link . '" style="display:inline-block; background:#0B3B5E; color:#ffffff; padding:12px 18px; border-radius:8px; text-decoration:none; font-weight:700;">
-                                Verify Email Address
-                            </a>
-                        </p>
-                        <p style="margin:0; color:#64748b; font-size:13px;">This verification link expires in 24 hours.</p>
-                        <p style="margin:12px 0 0; color:#64748b; font-size:13px;">If the button does not work, open this link in your browser:<br>' . $safe_link . '</p>
+                        <p style="margin:0 0 18px;">Enter the following verification code on the UTMSPACE verification page:</p>
+                        <div style="margin:0 0 18px; padding:16px; background:#f8fafc; border:1px solid #cbd5e1; text-align:center; font-size:30px; font-weight:700; letter-spacing:8px; color:#0B3B5E;">' . $safe_verification_code . '</div>
+                        <p style="margin:0; color:#64748b; font-size:13px;">This code expires in 15 minutes and can be used only once.</p>
+                        <p style="margin:12px 0 0; color:#64748b; font-size:13px;">If you did not create this account, you may ignore this message.</p>
                     ';
 
                     if (sendSystemEmail($email, $name, 'Verify your UTMSPACE account', $verification_body)) {
@@ -164,7 +156,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                         if (function_exists('logActivity')) {
                             logActivity($conn, $new_user_id, 'Register Account', 'Staff account registered and verification email sent.');
                         }
-                        $success = "Registration successful. Please check your email and verify your account before logging in.";
+                        // WHY: Remembering the pending email reduces re-entry while the verification page still validates all submitted data server-side.
+                        $_SESSION['pending_verification_email'] = $email;
+                        $success = "Registration successful. Check your email for the six-digit verification code.";
                     } else {
                         $conn->rollback();
                         $error = "Registration could not be completed because the verification email was not sent. Please check SMTP settings or try again later.";
@@ -263,18 +257,29 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             max-width: 700px;
         }
 
-        /* Logo Styles - SAME AS INDEX */
+        /* === SECTION: RESPONSIVE BRAND LOGO === */
+        /* What: Increase the UTMSPACE logo size on the registration page for clearer institutional identity. */
+        /* Why: A prominent logo reassures new users that they are registering through the official claim system. */
         .utm-logo {
             text-align: center;
             margin-bottom: 20px;
         }
 
         .utmspace-logo-img {
-            max-width: 150px;
+            max-width: 230px;
             width: 100%;
             height: auto;
             margin-bottom: 10px;
             background: transparent;
+        }
+
+        /* === SECTION: MOBILE LOGO CONSTRAINT === */
+        /* What: Reduce the enlarged logo on narrow screens while preserving its natural aspect ratio. */
+        /* Why: Registration fields must retain enough vertical and horizontal space on mobile devices. */
+        @media (max-width: 576px) {
+            .utmspace-logo-img {
+                max-width: 180px;
+            }
         }
 
         .logo-divider {
@@ -353,11 +358,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     <div class="content-wrapper">
         <div class="glass-card p-4 p-md-5 fade-in-up">
 
-            <!-- Logo - SAME AS INDEX -->
+            <!-- === SECTION: VERSIONED BRAND LOGO === -->
+            <!-- What: Append the uploaded logo modification time to its URL so hosting and browser caches recognize each replacement. -->
+            <!-- Why: Registration users must see current institutional branding instead of a stale InfinityFree cached image. -->
             <div class="utm-logo">
-                <img src="css/images/utmspace logo.png" alt="UTMSPACE Logo" class="utmspace-logo-img"
+                <img src="css/images/utmspace%20logo.png?v=<?php echo filemtime(__DIR__ . '/css/images/utmspace logo.png'); ?>" alt="UTMSPACE Logo" class="utmspace-logo-img"
                     style="background: transparent;"
-                    onerror="this.src='css/images/utm_space1.jpg'">
+                    onerror="this.onerror=null; this.src='css/images/utm_space.jpeg';">
                 <div class="logo-divider"></div>
             </div>
 
@@ -523,6 +530,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 confirmButtonColor: '#0B3B5E',
                 background: 'rgba(255, 255, 255, 0.95)',
                 backdrop: `rgba(11, 59, 94, 0.4)`
+            }).then(() => {
+                // WHY: Moving directly to code entry keeps the registration workflow clear after successful email delivery.
+                window.location.href = 'verify_email.php';
             });
             // CONDITION: Evaluates `elseif($error)` so the application can choose the correct business rule branch for the current user action.
         <?php elseif ($error): ?>

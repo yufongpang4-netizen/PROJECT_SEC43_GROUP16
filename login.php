@@ -24,6 +24,7 @@ if (isset($_SESSION['user_id'])) {
 
 $error = '';
 $success_redirect = '';
+$verification_required = false;
 
 // SECTION: FORM SUBMISSION HANDLER - Processes user input only after an intentional form submission.
 // CONDITION: Evaluates `if ($_SERVER['REQUEST_METHOD'] === 'POST') ` so the application can choose the correct business rule branch for the current user action.
@@ -69,7 +70,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 // Why: Registration must prove inbox ownership before the user can access claim submission or payment-related data.
                 // SECURITY: Preventing unauthorized access by rejecting valid passwords when email_verified is still false.
                 } elseif ((int) ($user['email_verified'] ?? 0) !== 1) {
-                    $error = "Please verify your email address before logging in. Check your inbox for the UTMSPACE verification email.";
+                    // === SECTION: VERIFICATION POPUP CONTEXT ===
+                    // What: Remember the unverified email and display a dedicated verification prompt instead of a generic login error.
+                    // Why: Staff receive a clear next action only when verification is genuinely required, keeping the Login page uncluttered.
+                    $_SESSION['pending_verification_email'] = $user['email'];
+                    $verification_required = true;
                 // CONDITION: This fallback executes when the previous branch is false, ensuring the workflow has a clear alternative outcome.
                 } else {
                     $_SESSION['user_id'] = $user['id'];
@@ -169,9 +174,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             text-align: center;
             margin-bottom: 20px;
         }
-        
+
+        /* === SECTION: RESPONSIVE BRAND LOGO === */
+        /* What: Increase the UTMSPACE logo size on the authentication page for clearer institutional identity. */
+        /* Why: A prominent logo helps users confirm they are signing in to the correct system. */
         .utmspace-logo-img {
-            max-width: 150px;
+            max-width: 230px;
             width: 100%;
             height: auto;
             margin-bottom: 10px;
@@ -181,6 +189,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         
         .utmspace-logo-img:hover {
             transform: scale(1.05);
+        }
+
+        /* === SECTION: MOBILE LOGO CONSTRAINT === */
+        /* What: Reduce the enlarged logo on narrow screens while preserving its natural aspect ratio. */
+        /* Why: The login form must remain fully visible and comfortable to use on mobile devices. */
+        @media (max-width: 576px) {
+            .utmspace-logo-img {
+                max-width: 180px;
+            }
         }
         
         .logo-divider {
@@ -254,9 +271,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             
             <div class="utm-logo">
                 <a href="index.php" class="d-inline-block">
-                    <img src="css/images/utmspace logo.png" alt="UTMSPACE Logo" class="utmspace-logo-img" 
+                    <!-- === SECTION: VERSIONED BRAND LOGO === -->
+                    <!-- What: Append the uploaded logo modification time to its URL so hosting and browser caches recognize each replacement. -->
+                    <!-- Why: Login users must see current institutional branding instead of a stale InfinityFree cached image. -->
+                    <img src="css/images/utmspace%20logo.png?v=<?php echo filemtime(__DIR__ . '/css/images/utmspace logo.png'); ?>" alt="UTMSPACE Logo" class="utmspace-logo-img" 
                          style="background: transparent;"
-                         onerror="this.src='css/images/utm_space1.jpg'">
+                         onerror="this.onerror=null; this.src='css/images/utm_space.jpeg';">
                 </a>
                 <div class="logo-divider"></div>
             </div>
@@ -277,13 +297,22 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 
                 <div class="mb-4">
                     <label class="form-label text-navy ms-1 mb-1"><i class="fas fa-lock me-2 opacity-75"></i>Password</label>
+                    <!-- === SECTION: PASSWORD INPUT MARKUP === -->
+                    <!-- What: Provide valid password-field attributes with a clear, readable placeholder. -->
+                    <!-- Why: Correct HTML ensures browser validation and password entry behave consistently before authentication. -->
+                    <input type="password" name="password" class="form-control" placeholder="Enter your password" required>
+                    <!-- Legacy corrupted password input retained temporarily inside a non-rendered HTML comment.
                     <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+                    -->
                 </div>
                 
                 <button type="submit" class="btn btn-primary-custom w-100 mb-3" id="loginBtn">
                     <i class="fas fa-sign-in-alt me-2"></i>Sign In
                 </button>
                 
+                <!-- === SECTION: PASSWORD RECOVERY LINK === -->
+                <!-- What: Keep only the frequently used password-recovery action below Sign In. -->
+                <!-- Why: Email verification is now offered contextually through an animated popup only when an unverified user attempts login. -->
                 <div class="text-center mb-4">
                     <a href="forgot_password.php" class="text-decoration-none small forgot-link" style="font-size: 0.9rem;">Forgot Password?</a>
                 </div>
@@ -332,8 +361,35 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 });
             <?php endif; ?>
 
-            // CONDITION: Evaluates `if ($error)` so the application can choose the correct business rule branch for the current user action.
-            <?php if ($error): ?>
+            // === SECTION: CONTEXTUAL EMAIL VERIFICATION POPUP ===
+            // What: Offer code entry only after valid credentials identify an unverified account.
+            // Why: The animated prompt gives Staff an immediate recovery route without permanently adding another Login-page button.
+            <?php if ($verification_required): ?>
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Email Verification Required',
+                    text: 'Enter the six-digit code sent to your registered email before signing in.',
+                    showCancelButton: true,
+                    confirmButtonText: '<i class="fas fa-envelope-open-text me-2"></i>Verify Email Now',
+                    cancelButtonText: 'Not Now',
+                    confirmButtonColor: '#0B3B5E',
+                    cancelButtonColor: '#6c757d',
+                    reverseButtons: true,
+                    background: 'rgba(255, 255, 255, 0.98)',
+                    backdrop: `rgba(11, 59, 94, 0.45)`,
+                    showClass: {
+                        popup: 'animate__animated animate__zoomIn'
+                    },
+                    hideClass: {
+                        popup: 'animate__animated animate__zoomOut'
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.location.href = 'verify_email.php';
+                    }
+                });
+            // CONDITION: Evaluates `elseif ($error)` so ordinary authentication failures retain their existing feedback.
+            <?php elseif ($error): ?>
                 // SECTION: SWEETALERT FEEDBACK - Shows high-visibility success, error, warning, or confirmation messages for important actions.
                 Swal.fire({
                     icon: 'error',
